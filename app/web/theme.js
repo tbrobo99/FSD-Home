@@ -12,21 +12,24 @@
  */
 
 (function () {
-  // A version is a *list* of overlays, applied in order on top of style.css.
-  // v4 is deliberately not a separate skin: it reuses our v3 workbench and
-  // adds one fusion layer, so the wide layout, the Safety log rail and the
-  // approval cards stay exactly as they are.
+  // A version is a list of overlays, applied in order on top of style.css.
+  // v4 is PHONE-FIRST: the domestic smart-home apps are phone apps, so its
+  // design surface is a 390px viewport. A wide window only gets a centred
+  // phone preview frame, not a desktop workbench. It builds on the original
+  // single-column foundation (style.css), not on v3's three-column layout.
   const VERSIONS = {
     v0: [],                                     // the original style.css
     v1: ["/themes/v1-calm.css"],
     v2: ["/themes/v2-night.css"],
     v3: ["/themes/v3-console.css"],
-    v4: ["/themes/v3-console.css", "/themes/v4-fused.css"],
+    v4: ["/themes/v4-mobile.css"],
   };
-  // The wide console is the default: on a laptop or a projector it uses the
-  // whole screen and keeps the approval cards and the safety log side by side.
-  // ?ui=v0 / v1 / v2 / v3 (or the switcher) overrides it for this browser.
-  const DEFAULT = "v3";
+  // This is a PHONE app. The default is the phone-first fusion: one column on
+  // a handset, a centred phone preview on a wide screen. v3's three-column
+  // workbench stays available as an alternative via ?ui=v3, but it is no
+  // longer what opens by default. Tang Bin explicitly asked for a phone
+  // version rather than a desktop one.
+  const DEFAULT = "v4";
   const KEY = "lg-ui-version";
   const $ = (s) => document.querySelector(s);
 
