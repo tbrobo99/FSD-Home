@@ -1,31 +1,39 @@
-/* V4 — Mobile Fused
+/* V4 — Dual End (phone + laptop / projector)
  *
- * The domestic smart-home apps (Mi Home, Huawei AI Life) are PHONE apps.
- * The two earlier v4 attempts wrongly treated 1440px desktop as the target.
- * This file is phone-first: the 390px viewport is the real design surface,
- * and a wide browser window only gets a centred phone preview frame.
+ * This project is used on BOTH ends, so both ends get a real interface.
+ * Part B puts "the person who needs to answer a Level 2 request" in a kitchen
+ * with a phone in one hand, and says the same artefact "runs on a laptop
+ * during development and on a server for the demo"; the course sheet asks us
+ * to bring a laptop for the demo. A wide window that only shows a shrunken
+ * phone frame would throw the desktop end away.
  *
- * "Our own foundation" here means the ORIGINAL app, not the v3 workbench:
- * one column, a permanent bottom tab bar, a permanent Talk/composer bar,
+ * ONE stylesheet, one DOM, no JS branch:
+ *   < 700px     phone  — single column, 2-col device cards, bottom tab bar
+ *   700–1099px  tablet — wider single column, 3-col device cards
+ *   >= 1100px   laptop — three columns: side nav / main / always-on board
+ *
+ * "Our own foundation" is the ORIGINAL app (style.css), not the v3 file:
  * senior-first type, the house speaking first, two independent Level-2
- * approval cards, the read-only Safety log, English copy, green Yes / red No.
- * All of that stays. `style.css` is the only base; nothing is layered on v3.
+ * approval cards, the read-only Safety log, a permanent Talk/composer bar,
+ * English copy, green Yes / red No. On the phone the bottom tab bar stays;
+ * on the laptop those same three buttons become a side navigation rail.
+ * No new DOM, no new JS, no framework.
  *
- * Folded in from the domestic phone apps:
- *   - devices become 2-column CARDS with a large tinted product glyph,
- *     live status and their own power button (Mi Home's default medium card,
- *     which shows status and a quick action together);
+ * Folded in from the domestic phone apps (Mi Home, Huawei AI Life):
+ *   - devices become CARDS with a large tinted product glyph, live status
+ *     and their own power button (Mi Home's default medium card, which shows
+ *     status and a quick action together);
  *   - rooms become SPACE CARDS, scenes become one-tap SCENE CARDS;
- *   - a home-level environment aggregate card at the top;
- *   - light-grey page, white cards, uniform large radii, soft shadows,
- *     blurred sticky title, active tab in a pill.
- * Mi Home's official asset spec also says high-frequency controls belong on
- * the main page rather than behind a "more" menu -- the power button stays
- * on each card.
+ *   - a home-level environment aggregate card, which on a laptop expands
+ *     into the always-on "whole-home board" (Huawei's 全屋看板 idea);
+ *   - light-grey page, white cards, uniform large radii, soft shadows.
+ * Mi Home's official asset spec says high-frequency controls belong on the
+ * main page rather than behind a "more" menu -- the power button stays on
+ * each card, and FR-4 approval cards stay next to FR-6 evidence on screen.
  *
  * Deliberately absent: Chinese copy, mall / account / ad tabs, device
  * marketplace, drag-to-rearrange. Those features do not exist in this program.
- * app.js and style.css remain untouched; no new DOM, no new JS.
+ * app.js and style.css remain untouched.
  */
 
 :root {
@@ -411,33 +419,272 @@ body { background: #e9edf3; }
 .sheet-power.on { background: var(--red); }
 
 /* =====================================================================
-   WIDE SCREEN: only a preview frame for the phone app.
-   The layout does NOT turn into a desktop workbench here -- that was the
-   mistake in the previous attempt.
+   DUAL-END LAYOUT — one stylesheet, three breakpoints.
+
+   The phone rules above are the base. Everything below only widens or
+   re-flows that same DOM; app.js never learns which end it is on.
    ===================================================================== */
 
+/* ---- tablet / small laptop: a wider single column, still card-first ---- */
 @media (min-width: 700px) {
-  body {
-    background: radial-gradient(circle at 50% 15%, #f7f9fc 0%, #dfe6f0 100%);
-    padding: 22px 0;
-    display: flex;
-    align-items: flex-start;
-    justify-content: center;
-  }
+  body { background: #eef1f6; padding: 18px; }
   .app {
-    width: 420px;
-    max-width: 420px;
-    height: min(880px, calc(100dvh - 44px));
+    width: 100%;
+    max-width: 980px;
+    height: min(920px, calc(100dvh - 36px));
     margin: 0 auto;
-    border: 9px solid #1b2433;
-    border-radius: 38px;
+    border-radius: 24px;
     overflow: hidden;
-    box-shadow: 0 26px 70px rgba(20, 32, 56, .28), 0 0 0 1px rgba(255, 255, 255, .5) inset;
+    box-shadow: 0 18px 48px rgba(20, 32, 56, .13);
   }
-  .view { padding-left: 16px; padding-right: 16px; }
-  .tabbar { padding-bottom: 6px; }
-  .sheet { max-width: 420px; border-radius: 22px 22px 0 0; }
-  .toast { max-width: 380px; }
+  .view { padding-left: 22px; padding-right: 22px; }
+  .glance { margin-top: 0; padding: 14px 22px 0; }
+  .glance-inner { padding: 10px; }
+  .glance-metrics > div { padding: 9px 14px; }
+  .glance-metrics b { font-size: 1.16rem; }
+  .glance-metrics span { font-size: .78rem; }
+
+  /* Only three scenes exist in app.js. Three columns fill the width; a
+     six-column grid would leave half of this row empty on a wide screen. */
+  .quick { grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 10px; }
+  .quick button {
+    flex-direction: row;
+    justify-content: flex-start;
+    gap: 12px;
+    min-height: 64px;
+    padding: 10px 16px;
+    text-align: left;
+  }
+  .rooms { grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 10px; }
+  .devices { grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 12px; }
+
+  /* Two Level-2 requests sit side by side; each card still owns its own
+     approval id and its own Yes / No. FR-4 is unchanged. */
+  #askQueue {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(340px, 1fr));
+    gap: 12px;
+    align-items: start;
+  }
+  #askQueue .ask + .ask { margin-top: 0; }
+
+  .tabbar { padding-bottom: 4px; }
+  .sheet { max-width: 620px; border-radius: 22px 22px 0 0; }
+  .toast { max-width: 460px; }
+}
+
+/* ---- laptop / projector: a real three-column workbench ---- */
+@media (min-width: 1100px) {
+  html { font-size: 17px; }
+  body { background: #e9edf4; padding: 0; }
+
+  .app {
+    width: 100%;
+    max-width: none;
+    height: 100vh;
+    height: 100dvh;
+    margin: 0;
+    border-radius: 0;
+    box-shadow: none;
+    display: grid;
+    grid-template-columns: 224px minmax(0, 1fr) 340px;
+    grid-template-rows: minmax(0, 1fr) auto;
+  }
+  .view {
+    grid-column: 2;
+    grid-row: 1;
+    height: 100%;
+    min-height: 0;
+    overflow-y: auto;
+    padding: 16px 30px 26px;
+  }
+  .talkbar { grid-column: 2; grid-row: 2; padding: 10px 30px 12px; }
+
+  /* Left rail: the same three tab buttons, turned into a light side nav. */
+  .tabbar {
+    grid-column: 1;
+    grid-row: 1 / 3;
+    display: flex;
+    flex-direction: column;
+    align-items: stretch;
+    justify-content: flex-start;
+    gap: 6px;
+    background: #fff;
+    border-top: 0;
+    border-right: 1px solid var(--line);
+    padding: 0 12px 18px;
+  }
+  .tabbar::before {
+    content: "MY HOME";
+    display: block;
+    padding: 26px 12px 20px;
+    margin-bottom: 12px;
+    border-bottom: 1px solid var(--line);
+    color: var(--ink);
+    font: 700 .82rem/1.4 -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+    letter-spacing: .14em;
+  }
+  .tabbar .tab {
+    flex-direction: row;
+    justify-content: flex-start;
+    gap: 12px;
+    min-height: 52px;
+    padding: 0 14px;
+    border-radius: 14px;
+    color: var(--ink-2);
+    font-size: .88rem;
+    font-weight: 700;
+  }
+  .tabbar .tab svg { width: 20px; height: 20px; }
+  .tabbar .tab:hover { background: var(--surface-press); }
+  .tabbar .tab.active { background: var(--accent-weak); color: var(--accent-ink); }
+  .tabbar .tab.active::before { display: none; }
+  .tabbar::after {
+    content: "Simulator · read-only demo";
+    margin-top: auto;
+    padding: 14px 12px 0;
+    color: var(--ink-4);
+    font-size: .72rem;
+    font-weight: 600;
+  }
+
+  /* Right rail: the phone's aggregate card expands into a whole-home board.
+     Read-only, refreshed by theme.js, never carries a control. */
+  .glance {
+    display: block;
+    grid-column: 3;
+    grid-row: 1 / 3;
+    order: 0;
+    min-height: 0;
+    overflow-y: auto;
+    margin-top: 0;
+    padding: 46px 18px 24px;
+    background: #f7f9fd;
+    border-left: 1px solid var(--line);
+  }
+  .glance-inner {
+    display: block;
+    padding: 0;
+    border: 0;
+    border-radius: 0;
+    background: transparent;
+    box-shadow: none;
+  }
+  .glance-inner > .glance-eyebrow,
+  .glance-inner > .glance-hero,
+  .glance-inner > .glance-block,
+  .glance-inner > .glance-foot { display: block; }
+  .glance-inner > .glance-meta { display: flex; }
+  .glance-eyebrow {
+    margin: 0 0 12px;
+    font-size: .74rem;
+    font-weight: 700;
+    letter-spacing: .12em;
+    text-transform: uppercase;
+    color: var(--ink-3);
+  }
+  .glance-hero {
+    background: #fff;
+    border: 1px solid var(--line);
+    border-radius: 18px;
+    box-shadow: var(--card-shadow);
+    padding: 14px 16px;
+    margin-bottom: 12px;
+  }
+  .glance-score {
+    display: block;
+    font-size: 2rem;
+    font-weight: 700;
+    line-height: 1.1;
+    letter-spacing: -.04em;
+    color: var(--accent-ink);
+    font-variant-numeric: tabular-nums;
+  }
+  .glance-score-label {
+    display: block;
+    margin-top: 3px;
+    font-size: .76rem;
+    font-weight: 600;
+    color: var(--ink-3);
+  }
+  .glance-metrics {
+    display: grid;
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+    gap: 8px;
+    width: 100%;
+    margin-bottom: 12px;
+  }
+  .glance-metrics > div {
+    display: block;
+    text-align: center;
+    background: #fff;
+    border: 1px solid var(--line);
+    border-radius: 14px;
+    box-shadow: var(--card-shadow);
+    padding: 10px 6px;
+  }
+  .glance-metrics b { font-size: 1.06rem; }
+  .glance-metrics span { font-size: .68rem; }
+  .glance-meta {
+    justify-content: space-between;
+    gap: 8px;
+    padding: 0 2px 16px;
+    font-size: .74rem;
+    font-weight: 600;
+    color: var(--ink-3);
+  }
+  .glance-block { margin-bottom: 18px; }
+  .glance-caption {
+    display: flex;
+    justify-content: space-between;
+    margin: 0 0 8px;
+    font-size: .8rem;
+    font-weight: 700;
+    color: var(--ink-2);
+  }
+  .glance-caption span { font-weight: 600; font-size: .7rem; color: var(--ink-4); }
+  .glance-rooms, .glance-trail {
+    background: #fff;
+    border: 1px solid var(--line);
+    border-radius: 14px;
+    box-shadow: var(--card-shadow);
+    overflow: hidden;
+  }
+  .glance-room, .glance-event {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding: 9px 12px;
+    border-top: 1px solid var(--line);
+    font-size: .78rem;
+    color: var(--ink-2);
+    font-weight: 600;
+  }
+  .glance-room:first-child, .glance-event:first-child { border-top: 0; }
+  .glance-room { justify-content: space-between; }
+  .glance-room b { color: var(--ink); font-variant-numeric: tabular-nums; }
+  .glance-dot { width: 7px; height: 7px; flex: 0 0 auto; border-radius: 50%; background: var(--ink-4); }
+  .glance-dot[data-kind="action"] { background: var(--accent); }
+  .glance-dot[data-kind="approval"] { background: var(--amber); }
+  .glance-dot[data-kind="notification"] { background: var(--green); }
+  .glance-event-name {
+    flex: 1; min-width: 0; font-weight: 600;
+    overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+  }
+  .glance-event time { color: var(--ink-4); font-variant-numeric: tabular-nums; }
+  .glance-none { margin: 0; padding: 14px; font-size: .78rem; color: var(--ink-3); }
+  .glance-foot { margin: 18px 0 0; font-size: .7rem; color: var(--ink-4); }
+
+  /* Main column density: cards, not a narrow centred strip. */
+  .quick { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+  .quick button { min-height: 64px; }
+  .rooms { grid-template-columns: repeat(4, minmax(0, 1fr)); }
+  .devices { grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 12px; }
+  #view-assistant { display: flex; flex-direction: column; overflow: hidden; }
+  #view-assistant .chat { flex: 1 1 auto; min-height: 0; overflow-y: auto; }
+  #view-assistant .masthead { flex-direction: row; align-items: center; justify-content: space-between; }
+  .sheet { left: 224px; right: 340px; max-width: none; border-radius: 20px 20px 0 0; }
+  .toast { max-width: 50%; bottom: 26px; }
 }
 
 /* On a real phone the switcher floats over the top-right corner, so the
