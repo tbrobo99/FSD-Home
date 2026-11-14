@@ -12,11 +12,16 @@
  */
 
 (function () {
+  // A version is a *list* of overlays, applied in order on top of style.css.
+  // v4 is deliberately not a separate skin: it reuses our v3 workbench and
+  // adds one fusion layer, so the wide layout, the Safety log rail and the
+  // approval cards stay exactly as they are.
   const VERSIONS = {
-    v0: null,                       // the original style.css, no overlay
-    v1: "/themes/v1-calm.css",
-    v2: "/themes/v2-night.css",
-    v3: "/themes/v3-console.css",
+    v0: [],                                     // the original style.css
+    v1: ["/themes/v1-calm.css"],
+    v2: ["/themes/v2-night.css"],
+    v3: ["/themes/v3-console.css"],
+    v4: ["/themes/v3-console.css", "/themes/v4-fused.css"],
   };
   // The wide console is the default: on a laptop or a projector it uses the
   // whole screen and keeps the approval cards and the safety log side by side.
@@ -64,15 +69,26 @@
     }
     .glance { display: none; }
     @media (max-width: 699px) {
-      .ui-switch { top: 6px; right: 6px; transform: scale(.9); transform-origin: top right; }
+      .ui-switch { top: 6px; right: 6px; transform: scale(.78); transform-origin: top right; }
     }
   `;
   const link = $("#uiTheme");
   if (link) {
-    link.parentNode.insertBefore(base, link);   // overlay CSS must win
-    const href = VERSIONS[version];
-    if (href) link.href = href;
-    else link.removeAttribute("href");
+    link.parentNode.insertBefore(base, link);   // every overlay must win
+    const sheets = VERSIONS[version] || [];
+    if (!sheets.length) {
+      link.removeAttribute("href");
+    } else {
+      link.href = sheets[0];
+      // Extra overlays are appended after the first link, so the cascade is
+      // style.css -> v3-console.css -> v4-fused.css, in this exact order.
+      for (const href of sheets.slice(1)) {
+        const extra = document.createElement("link");
+        extra.rel = "stylesheet";
+        extra.href = href;
+        link.parentNode.appendChild(extra);
+      }
+    }
   } else {
     document.head.appendChild(base);
   }

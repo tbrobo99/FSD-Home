@@ -1,0 +1,258 @@
+/* V4 — Fused
+ *
+ * NOT a new skin. This file is an overlay ON TOP OF v3-console.css, which is
+ * our own three-column workbench. Load order is:
+ *     style.css -> v3-console.css -> v4-fused.css
+ *
+ * The brief was "fuse the domestic apps' ideas into our own foundation".
+ * So everything that makes this app ours stays exactly where it is:
+ *   - the dark left navigation rail and the three-column desktop layout,
+ *   - the permanently visible read-only Safety log (FR-6),
+ *   - two independent Level-2 approval cards side by side (FR-4),
+ *   - senior-first type sizes, Yes = green / No = red,
+ *   - English copy and the approval / audit semantics.
+ *
+ * Only four domestic ideas are folded in:
+ *   1. Devices become CARDS, not list rows. Each card carries a large tinted
+ *      product glyph, its live status, and its own power button -- the
+ *      "high-frequency control stays on the main page" rule from Mi Home's
+ *      official extension-program guideline.
+ *   2. Rooms become SPACE CARDS (Huawei AI Life's first-class spaces).
+ *   3. Scenes become one-tap cards with coloured glyphs.
+ *   4. A light-grey page with white cards, uniformly larger radii and soft
+ *      shadows (Mi Home 10.0 / AI Life). The right rail is already our
+ *      equivalent of a "whole-home board", so it only gets the same card
+ *      language instead of a second, competing panel.
+ *
+ * No Chinese copy, no mall/account/ad tabs, no drag-to-rearrange. Those
+ * features do not exist in this program and pretending otherwise would be
+ * a false claim. app.js and style.css remain untouched.
+ */
+
+:root {
+  --bg: #f5f7fa;
+  --surface: #ffffff;
+  --surface-press: #eff2f7;
+  --line: #e7ecf3;
+  --line-strong: #d8e0eb;
+  --radius-block: 20px;
+  --radius-control: 13px;
+  --card-shadow: 0 2px 8px rgba(24, 42, 74, .045), 0 10px 26px rgba(24, 42, 74, .035);
+}
+
+body { background: #eef1f6; }
+.app { background: var(--bg); box-shadow: none; }
+
+/* ---------- one card language everywhere ---------- */
+
+.status {
+  border-radius: var(--radius-block);
+  box-shadow: var(--card-shadow);
+}
+.ask {
+  border-radius: var(--radius-block);
+  box-shadow: var(--card-shadow);
+}
+.answer { border-radius: 16px; }
+.reply { border-radius: var(--radius-block); box-shadow: var(--card-shadow); }
+.audit {
+  border-radius: var(--radius-block);
+  background: #fff;
+  box-shadow: var(--card-shadow);
+}
+.msg { border-radius: 16px; }
+.msg.assistant, .msg.system { box-shadow: 0 1px 3px rgba(24, 42, 74, .04); }
+.chips button { border-radius: 999px; box-shadow: 0 1px 4px rgba(24, 42, 74, .04); }
+.mode-switch { border: 1px solid var(--line); box-shadow: var(--card-shadow); }
+.tts { background: #fff; }
+
+/* ---------- 3. one-tap scene cards ---------- */
+
+.quick { gap: 12px; }
+.quick button {
+  min-height: 92px;
+  gap: 9px;
+  background: #fff;
+  border: 1px solid var(--line);
+  border-radius: var(--radius-block);
+  box-shadow: var(--card-shadow);
+  font-size: .86rem;
+  font-weight: 700;
+  color: var(--ink-2);
+}
+.quick button:active { background: var(--surface-press); }
+.quick button svg {
+  width: 40px; height: 40px;
+  padding: 9px;
+  border-radius: 14px;
+  stroke-width: 2;
+  background: #fff1e6;
+  stroke: #ee8330;
+}
+.quick button:has(use[href="#i-temp"]) svg { background: #e9f2ff; stroke: var(--accent); }
+.quick button:has(use[href="#i-drop"]) svg { background: #e7f7f3; stroke: #14a98b; }
+
+/* ---------- 2. space cards ---------- */
+
+.rooms { gap: 12px; }
+.room {
+  min-height: 116px;
+  padding: 15px 16px;
+  background: #fff;
+  border: 1px solid var(--line);
+  border-radius: var(--radius-block);
+  box-shadow: var(--card-shadow);
+}
+.room.active {
+  border-color: var(--accent);
+  background: linear-gradient(160deg, #f0f7ff 0%, #ffffff 72%);
+  box-shadow: 0 0 0 2px rgba(51, 89, 216, .12), var(--card-shadow);
+}
+.room h3 { font-weight: 700; }
+.room .meta { font-weight: 600; }
+
+/* ---------- 1. device CARDS (the core change) ---------- */
+
+.devices { border-top: 0; }
+.device {
+  display: grid;
+  grid-template-columns: 1fr auto;
+  grid-template-areas: "icon pwr" "text text";
+  gap: 12px 8px;
+  align-items: start;
+  min-height: 134px;
+  padding: 15px;
+  border: 1px solid var(--line);
+  border-radius: var(--radius-block);
+  background: #fff;
+  box-shadow: var(--card-shadow);
+}
+.device:last-child { border-bottom: 1px solid var(--line); }
+.device:hover { border-color: #c6d6f4; }
+.device .dev-icon {
+  grid-area: icon;
+  width: 50px; height: 50px;
+  padding: 12px;
+  border-radius: 16px;
+  background: linear-gradient(145deg, #eaf3ff, #dbeaff);
+  stroke: var(--accent);
+  stroke-width: 1.9;
+}
+.device .pwr {
+  grid-area: pwr;
+  width: 48px; height: 48px;
+  border-radius: 50%;
+  border: 1.5px solid var(--line-strong);
+  background: #f7f9fc;
+}
+.device .pwr svg { stroke: var(--ink-3); }
+.device.on .pwr { background: var(--accent); border-color: var(--accent); }
+.device.on .pwr svg { stroke: #fff; }
+.device .dev-text { grid-area: text; align-self: end; min-width: 0; }
+.device h3 {
+  font-size: .95rem;
+  font-weight: 700;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.device p {
+  margin: 3px 0 0;
+  font-size: .82rem;
+  font-weight: 600;
+  line-height: 1.4;
+  color: var(--ink-3);
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+}
+.device.on p { color: var(--accent-ink); }
+
+/* Mi Home identifies a card by its product image. We have no product photos,
+   so each appliance family gets its own tint instead. :has() keeps this pure
+   CSS: app.js emits no new attribute and no DOM is added. Off devices are
+   desaturated, so power state reads at a glance without adding a badge. */
+.device:has(use[href="#i-purifier"]) .dev-icon {
+  background: linear-gradient(145deg, #e6f8f2, #d2f0e5); stroke: #12a37a;
+}
+.device:has(use[href="#i-washer"]) .dev-icon {
+  background: linear-gradient(145deg, #f0ecff, #e3dcff); stroke: #7b61d6;
+}
+.device:has(use[href="#i-fridge"]) .dev-icon {
+  background: linear-gradient(145deg, #e6f5f8, #d3edf3); stroke: #168fa8;
+}
+.device:has(use[href="#i-hood"]) .dev-icon {
+  background: linear-gradient(145deg, #fff0e4, #ffe2cc); stroke: #e07b2a;
+}
+.device:has(use[href="#i-cooktop"]) .dev-icon {
+  background: linear-gradient(145deg, #ffedeb, #ffdcd7); stroke: #d95a4a;
+}
+.device:not(.on) .dev-icon { filter: grayscale(.72); opacity: .72; }
+
+/* ---------- 4. the whole-home rail uses the same card language ---------- */
+
+.glance-hero,
+.glance-metrics > div,
+.glance-rooms,
+.glance-trail {
+  border-radius: 16px;
+  box-shadow: 0 1px 4px rgba(24, 42, 74, .035);
+}
+
+/* ---------- talk bar / sheet ---------- */
+
+.talk { border-radius: 16px; }
+.composer input { background: #fff; border: 1.5px solid var(--line); }
+.composer .lang { background: #fff; border: 1px solid var(--line); }
+.composer .send { border-radius: var(--radius-control); }
+.sheet { border-radius: 24px 24px 0 0; }
+.stepper button { background: #fff; }
+.pills button { background: #fff; border-radius: 14px; }
+.sheet-power { border-radius: var(--radius-control); }
+.toast { border-radius: 14px; }
+
+/* ---------- responsive: keep OUR wide workbench, add card grids ---------- */
+
+@media (min-width: 1100px) {
+  .app { max-width: none; width: 100%; margin: 0; }
+  .view { padding: 18px 34px 28px; }
+  .devices {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+    gap: 12px;
+  }
+  .rooms { grid-template-columns: repeat(4, 1fr); gap: 12px; }
+  .quick { gap: 12px; }
+  /* v3 already puts the two approval cards side by side; keep it. */
+}
+
+@media (min-width: 640px) and (max-width: 1099px) {
+  .devices { grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 12px; }
+  .rooms { grid-template-columns: repeat(4, 1fr); }
+}
+
+@media (max-width: 1099px) {
+  .devices { grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 10px; }
+  /* A domestic-style active-tab pill, only where the bottom bar is used.
+     On the wide desktop the left rail is ours and stays as it is. */
+  .tabbar .tab { position: relative; }
+  .tabbar .tab svg, .tabbar .tab span { position: relative; z-index: 1; }
+  .tabbar .tab.active::before {
+    content: "";
+    position: absolute;
+    top: 5px; left: 50%;
+    transform: translateX(-50%);
+    width: 58px; height: 30px;
+    border-radius: 999px;
+    background: var(--accent-weak);
+    z-index: 0;
+  }
+}
+
+@media (max-width: 620px) {
+  .device { min-height: 126px; padding: 13px; }
+  .device .dev-icon { width: 44px; height: 44px; padding: 10px; }
+  .device .pwr { width: 44px; height: 44px; }
+  .quick button { min-height: 86px; }
+  .quick button svg { width: 36px; height: 36px; padding: 8px; }
+}

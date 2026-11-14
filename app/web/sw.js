@@ -13,6 +13,7 @@ const SHELL = [
   "/themes/v1-calm.css",
   "/themes/v2-night.css",
   "/themes/v3-console.css",
+  "/themes/v4-fused.css",
   "/manifest.webmanifest",
   "/icon.svg",
   "/icon-192.png",

@@ -332,7 +332,7 @@ body { background: #efeae0; }
    environment strip clear of it rather than letting the third reading hide
    underneath a control. */
 @media (max-width: 620px) {
-  .glance { padding-right: 150px; }
+  .glance { padding-right: 170px; }
   .glance-metrics > div:nth-child(3) { display: none; }
 }
 
