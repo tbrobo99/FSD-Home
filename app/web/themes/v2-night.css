@@ -1,0 +1,376 @@
+/* V2 — Night Console
+ *
+ * Direction: an operations console for a dim room or a projector. Deep slate
+ * surfaces, one cyan accent, signal colours that glow, numbers in a mono
+ * face. Contrast is higher than the light version, not lower: the senior-first
+ * rule is about legibility, and legibility here comes from light-on-dark ink.
+ * Yes is still green and No is still red — those are safety semantics.
+ *
+ * Overlay on style.css; every hard-coded white in the base is replaced below.
+ */
+
+:root {
+  --bg: #0d1620;
+  --surface: #172433;
+  --surface-press: #22334a;
+  --line: #26374b;
+  --line-strong: #38506a;
+
+  --ink: #eef5fb;
+  --ink-2: #b3c6d8;
+  --ink-3: #8fa4b9;
+  --ink-4: #71879e;
+
+  --accent: #3ba7e8;
+  --accent-ink: #7ccbf7;
+  --accent-weak: #123147;
+
+  --green: #2fbd85;
+  --green-weak: #10342b;
+  --red: #ff6e70;
+  --red-weak: #3a1c22;
+  --amber: #f4b95a;
+  --amber-weak: #332615;
+  --amber-line: #7d5a24;
+
+  --radius-block: 14px;
+  --radius-control: 10px;
+}
+
+body {
+  background: #080f17;
+  color-scheme: dark;
+  background-image: radial-gradient(rgba(90, 140, 190, .13) 1px, transparent 1px);
+  background-size: 22px 22px;
+}
+
+.app {
+  background: var(--bg);
+  box-shadow: 0 0 0 1px var(--line), 0 0 80px rgba(0, 0, 0, .6);
+}
+
+.view { padding: 6px 22px 20px; }
+
+/* ---------- top data strip ---------- */
+
+.glance {
+  display: block;
+  order: -1;
+  flex: 0 0 auto;
+  background: linear-gradient(90deg, #10283a 0%, #0e1c2a 60%, #0d1620 100%);
+  border-bottom: 1px solid #23405a;
+  padding: 10px 22px;
+}
+.glance-inner {
+  max-width: 1100px;
+  margin: 0 auto;
+  display: flex;
+  align-items: center;
+  gap: 24px;
+}
+.glance-inner > .glance-eyebrow,
+.glance-inner > .glance-meta,
+.glance-inner > .glance-block,
+.glance-inner > .glance-foot { display: none; }
+
+.glance-hero { display: flex; align-items: baseline; gap: 9px; flex: 0 0 auto; }
+.glance-score {
+  font: 700 1.7rem/1 ui-monospace, "SFMono-Regular", Consolas, monospace;
+  color: var(--accent-ink);
+  letter-spacing: -.04em;
+}
+.glance-score-label {
+  font-size: .72rem; font-weight: 700; color: var(--ink-4);
+  text-transform: uppercase; letter-spacing: .08em;
+}
+.glance-metrics { display: flex; gap: 22px; margin-left: auto; }
+.glance-metrics > div { display: flex; flex-direction: column; gap: 1px; }
+.glance-metrics b {
+  font: 700 1.05rem/1.2 ui-monospace, "SFMono-Regular", Consolas, monospace;
+  color: var(--ink);
+  font-variant-numeric: tabular-nums;
+}
+.glance-metrics span {
+  font-size: .7rem; font-weight: 600; color: var(--ink-4);
+  text-transform: uppercase; letter-spacing: .06em;
+}
+@media (max-width: 620px) {
+  .glance-metrics { gap: 12px; }
+  .glance-hero { display: none; }
+  .glance-metrics { margin-left: 0; justify-content: space-between; width: 100%; }
+}
+
+/* ---------- masthead ---------- */
+
+.masthead { padding: 18px 0 12px; border-bottom: 1px solid var(--line); }
+.masthead h1 {
+  font-size: 1.55rem;
+  font-weight: 700;
+  color: #fff;
+  letter-spacing: -.03em;
+}
+#view-home .masthead::after {
+  content: "LIVE · SENSORS / RISK / AUDIT";
+  font: 700 .68rem/1 ui-monospace, "SFMono-Regular", Consolas, monospace;
+  letter-spacing: .1em;
+  color: var(--green);
+  white-space: nowrap;
+}
+@media (max-width: 620px) { #view-home .masthead::after { display: none; } }
+.stamp { color: var(--ink-4); font-family: ui-monospace, Consolas, monospace; }
+
+/* ---------- status ---------- */
+
+.status {
+  background: var(--green-weak);
+  border: 1px solid #285a48;
+  border-radius: var(--radius-block);
+  padding: 15px 18px;
+  margin-top: 14px;
+}
+.status::before {
+  background: var(--green);
+  box-shadow: 0 0 10px rgba(47, 189, 133, .8);
+}
+.status[data-tone="ask"] { background: var(--amber-weak); border-color: var(--amber-line); }
+.status[data-tone="ask"]::before { background: var(--amber); box-shadow: 0 0 10px rgba(244, 185, 90, .8); }
+.status strong { font-size: 1.16rem; color: #fff; }
+.status[data-tone="ask"] strong { color: var(--amber); }
+.status span { color: var(--ink-2); font-weight: 600; }
+
+/* ---------- the ask ---------- */
+
+.ask {
+  background: linear-gradient(180deg, #2b2213 0%, #201a12 100%);
+  border: 1.5px solid var(--amber-line);
+  border-radius: var(--radius-block);
+  padding: 20px;
+  box-shadow: 0 0 24px rgba(244, 185, 90, .09);
+}
+.ask-kicker { color: var(--amber); font-weight: 700; }
+.ask-kicker::before { background: var(--amber); box-shadow: 0 0 8px var(--amber); }
+.ask-action { color: #d9a051; font-family: ui-monospace, Consolas, monospace; }
+.ask-question { color: #fff3dc; font-size: 1.18rem; }
+.ask-answers { gap: 12px; }
+.answer { min-height: 76px; }
+.answer.yes {
+  background: var(--green);
+  color: #062018;
+  box-shadow: 0 0 20px rgba(47, 189, 133, .22);
+}
+.answer.no {
+  background: #1a1418;
+  color: var(--red);
+  border-color: #8f4147;
+}
+.ask-clock { color: var(--amber); font-family: ui-monospace, Consolas, monospace; }
+.ask-index { color: var(--ink-3); }
+
+/* ---------- sections ---------- */
+
+.sec-head { padding: 24px 0 10px; }
+.sec-head h2 {
+  font-size: .78rem;
+  font-weight: 700;
+  color: var(--ink-3);
+  text-transform: uppercase;
+  letter-spacing: .1em;
+}
+.sec-note { color: var(--ink-4); font-family: ui-monospace, Consolas, monospace; }
+
+/* ---------- quick / rooms / devices ---------- */
+
+.quick button {
+  background: var(--surface);
+  border: 1px solid var(--line);
+  border-radius: var(--radius-block);
+  min-height: 80px;
+  color: var(--ink-2);
+}
+.quick button svg { stroke: var(--accent-ink); }
+.quick button:hover { border-color: var(--accent); background: var(--accent-weak); }
+.quick button:active { background: var(--surface-press); }
+
+.room {
+  background: var(--surface);
+  border: 1.5px solid var(--line);
+  border-radius: var(--radius-block);
+  min-height: 116px;
+}
+.room.active {
+  border-color: var(--accent);
+  background: var(--accent-weak);
+  box-shadow: inset 0 0 0 1px rgba(59, 167, 232, .25);
+}
+.room h3 { color: var(--ink-2); }
+.room .temp {
+  color: #fff;
+  font-family: ui-monospace, "SFMono-Regular", Consolas, monospace;
+}
+.room .meta { color: var(--ink-3); }
+.room .meta svg { stroke: var(--ink-4); }
+
+.devices { border-top: 1px solid var(--line); }
+.device { border-bottom: 1px solid var(--line); }
+.device .dev-icon {
+  background: var(--surface);
+  stroke: var(--ink-2);
+  border: 1px solid var(--line);
+}
+.device.on .dev-icon {
+  background: var(--accent-weak);
+  stroke: var(--accent-ink);
+  border-color: #2b6489;
+  box-shadow: 0 0 14px rgba(59, 167, 232, .18);
+}
+.device h3 { color: #fff; }
+.device p { color: var(--ink-3); }
+.device .pwr { border-color: var(--line-strong); background: #101c29; }
+.device .pwr svg { stroke: var(--ink-3); }
+.device.on .pwr { background: var(--accent); border-color: var(--accent); }
+.device.on .pwr svg { stroke: #061724; }
+
+/* ---------- safety log ---------- */
+
+.audit { border: 1px solid var(--line); border-radius: var(--radius-block); background: #101c29; }
+.audit-row { border-top: 1px solid var(--line); padding: 11px 14px; }
+.audit-time { color: var(--ink-4); font-family: ui-monospace, Consolas, monospace; }
+.audit-event { color: var(--accent-ink); font-family: ui-monospace, Consolas, monospace; }
+.audit-status { color: var(--green); }
+.audit-meta { color: var(--ink-3); }
+.audit-empty { color: var(--ink-3); }
+
+/* ---------- reply ---------- */
+
+.reply {
+  background: var(--accent-weak);
+  border: 1px solid #2b6489;
+  border-radius: var(--radius-block);
+  padding: 18px;
+}
+.reply-kicker { color: var(--accent-ink); }
+.reply-text { color: #fff; }
+.reply.pending .reply-text { color: var(--ink-3); }
+
+/* ---------- assistant ---------- */
+
+.msg.assistant, .msg.system {
+  background: var(--surface);
+  border: 1px solid var(--line);
+  color: var(--ink);
+}
+.msg.system {
+  background: var(--amber-weak);
+  border-color: var(--amber-line);
+  border-left: 4px solid var(--amber);
+  color: #ffe9c4;
+}
+.msg.user { background: #1668a3; color: #fff; border-bottom-right-radius: 5px; }
+.msg .stamp { color: var(--ink-4); }
+.msg details { border-top-color: var(--line); }
+.msg summary { color: var(--ink-3); }
+.msg details ol { color: var(--ink-3); }
+#view-assistant .masthead { padding-top: 18px; }
+.mode-switch { background: var(--surface); border: 1px solid var(--line); }
+.mode-switch button { color: var(--ink-3); }
+.mode-switch button.active { background: #2c4259; color: #fff; box-shadow: none; }
+.mode-note { color: var(--ink-4); }
+.tts { background: #101c29; border-color: var(--line-strong); color: var(--ink-3); }
+.tts.active { color: var(--accent-ink); border-color: var(--accent); background: var(--accent-weak); }
+.chips button { background: #101c29; border-color: var(--line-strong); color: var(--ink-2); }
+.chips button:active { background: var(--surface-press); }
+
+/* ---------- schedule ---------- */
+
+.empty { color: var(--ink-3); padding-top: 70px; }
+#jobs .empty::before {
+  content: "";
+  display: block;
+  width: 58px; height: 58px;
+  margin: 0 auto 20px;
+  border: 1px dashed #3b5a78;
+  border-radius: 16px;
+  background: var(--accent-weak);
+}
+#jobs .empty::after {
+  content: "Try saying: \"Set the living room AC to 24 degrees at 9 am every day\"";
+  display: block;
+  max-width: 440px;
+  margin: 18px auto 0;
+  padding: 13px 18px;
+  border: 1px dashed #3b5a78;
+  border-radius: 12px;
+  background: #101f2e;
+  color: var(--ink-2);
+  font-size: .86rem;
+  font-weight: 600;
+  line-height: 1.5;
+}
+.job { border-bottom: 1px solid var(--line); }
+.job strong { color: #fff; }
+.job span { color: var(--ink-3); }
+.job .del { background: var(--surface); color: var(--ink-3); }
+.job .del:active { background: var(--red-weak); color: var(--red); }
+
+/* ---------- talk bar / tabs / toast ---------- */
+
+.talkbar { background: #0b131d; border-top: 1px solid var(--line); padding: 12px 22px 14px; }
+.talk {
+  background: linear-gradient(90deg, #1b7fc0, #3ba7e8);
+  color: #04121e;
+  box-shadow: 0 0 24px rgba(59, 167, 232, .22);
+}
+.talk.listening { background: var(--red); color: #26090b; }
+.composer input { background: var(--surface); border-color: var(--line); color: var(--ink); }
+.composer input::placeholder { color: var(--ink-4); }
+.composer input:focus { border-color: var(--accent); background: #101f2e; }
+.composer .lang { background: var(--surface); color: var(--ink-2); }
+.composer .send { background: #1b7fc0; }
+.composer .send svg { stroke: #fff; }
+.tabbar { background: #0b131d; border-top: 1px solid var(--line); }
+.tabbar .tab { color: var(--ink-4); }
+.tabbar .tab.active { color: var(--accent-ink); }
+.toast {
+  background: #eaf4fb;
+  color: #0d1620;
+  box-shadow: 0 10px 30px rgba(0, 0, 0, .5);
+}
+
+/* ---------- sheet ---------- */
+
+.sheet-scrim { background: rgba(3, 8, 14, .72); }
+.sheet { background: #111f2d; border-radius: 18px 18px 0 0; border-top: 1px solid var(--line-strong); }
+.sheet-grip { background: var(--line-strong); }
+.sheet h2 { color: #fff; }
+.sheet .sub { color: var(--ink-3); }
+.stepper button { background: var(--surface); border-color: var(--line-strong); color: #fff; }
+.stepper .target { color: #fff; font-family: ui-monospace, Consolas, monospace; }
+.pills button { background: var(--surface); border-color: var(--line-strong); color: var(--ink-2); }
+.pills button.active { background: var(--accent); border-color: var(--accent); color: #061724; }
+.sheet-power { background: var(--accent); color: #061724; }
+.sheet-power.on { background: var(--red); color: #26090b; }
+
+/* ---------- wide screens ---------- */
+
+/* Keep the third reading out from under the version switcher on a phone. */
+@media (max-width: 620px) {
+  .glance { padding-right: 150px; }
+  .glance-metrics > div:nth-child(3) { display: none; }
+  .glance-inner { gap: 12px; }
+}
+
+@media (min-width: 640px) {
+  body { background: #080f17; }
+  .app { border-left: 0; border-right: 0; }
+}
+
+@media (min-width: 1000px) {
+  html { font-size: 18px; }
+  .app, .sheet { max-width: 1060px; }
+  .view { padding: 4px 34px 26px; }
+  .glance { padding: 11px 34px; }
+  .talkbar { padding-left: 34px; padding-right: 34px; }
+  .rooms { grid-template-columns: repeat(4, 1fr); gap: 10px; }
+  .devices { display: grid; grid-template-columns: 1fr 1fr; gap: 0 20px; }
+  .toast { max-width: 60%; }
+}
