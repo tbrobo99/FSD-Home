@@ -7,28 +7,26 @@
  * /api/proactive and /api/audit. The three stylesheets are overlays on the
  * shared style.css, so every existing id and class keeps its meaning.
  *
- * Pick a version with ?ui=v1 / v2 / v3 / v0 (v0 = original). The choice is
- * remembered in localStorage until changed again.
+ * Pick a version with ?ui=v0 / v1 / v2 / v3 / v4 (v0 = original). The choice
+ * is remembered in localStorage until changed again.
  */
 
 (function () {
   // A version is a list of overlays, applied in order on top of style.css.
-  // v4 is PHONE-FIRST: the domestic smart-home apps are phone apps, so its
-  // design surface is a 390px viewport. A wide window only gets a centred
-  // phone preview frame, not a desktop workbench. It builds on the original
-  // single-column foundation (style.css), not on v3's three-column layout.
+  // v4 is DUAL-END: one stylesheet gives a 390px phone layout and a
+  // full-width three-column workbench on a laptop / projector. Both ends are
+  // real interfaces -- the demo runs on a laptop, Level-2 approvals are
+  // answered on a phone. It builds on the original style.css, not on v3.
   const VERSIONS = {
     v0: [],                                     // the original style.css
     v1: ["/themes/v1-calm.css"],
     v2: ["/themes/v2-night.css"],
     v3: ["/themes/v3-console.css"],
-    v4: ["/themes/v4-mobile.css"],
+    v4: ["/themes/v4-dual.css"],
   };
-  // This is a PHONE app. The default is the phone-first fusion: one column on
-  // a handset, a centred phone preview on a wide screen. v3's three-column
-  // workbench stays available as an alternative via ?ui=v3, but it is no
-  // longer what opens by default. Tang Bin explicitly asked for a phone
-  // version rather than a desktop one.
+  // Default is v4: both ends come from the same stylesheet, so nothing has to
+  // be switched when moving from a phone to a laptop. v0..v3 stay available
+  // via ?ui= for comparison; v3 is an alternative desktop-only workbench.
   const DEFAULT = "v4";
   const KEY = "lg-ui-version";
   const $ = (s) => document.querySelector(s);
@@ -69,7 +67,17 @@
     .ui-switch-label {
       padding: 0 8px 0 6px; color: rgba(255, 255, 255, .62);
       letter-spacing: .08em; font-size: 10px;
+      cursor: pointer; user-select: none;
     }
+    /* Collapsed by default: a floating button row would sit on top of the
+       content, and a mis-tap would swap the whole interface on someone who
+       did not ask for it -- bad for senior users. Only the tiny "UI" handle
+       stays visible; tapping it expands the five version buttons. */
+    .ui-switch { transition: opacity .2s; }
+    .ui-switch.collapsed { opacity: .5; }
+    .ui-switch.collapsed:hover, .ui-switch.collapsed:focus-within { opacity: 1; }
+    .ui-switch.collapsed button { display: none; }
+    .ui-switch.collapsed .ui-switch-label { padding: 0 10px; }
     .glance { display: none; }
     @media (max-width: 699px) {
       .ui-switch { top: 6px; right: 6px; transform: scale(.78); transform-origin: top right; }
@@ -84,7 +92,7 @@
     } else {
       link.href = sheets[0];
       // Extra overlays are appended after the first link, so the cascade is
-      // style.css -> v3-console.css -> v4-fused.css, in this exact order.
+      // style.css -> overlay 1 -> overlay 2 ..., in this exact order.
       for (const href of sheets.slice(1)) {
         const extra = document.createElement("link");
         extra.rel = "stylesheet";
@@ -189,6 +197,23 @@
   document.addEventListener("DOMContentLoaded", () => {
     const box = $("#uiSwitch");
     if (box) {
+      // Start collapsed. The label is the handle: click / Enter / Space
+      // expands the version row, clicking it again collapses it.
+      box.classList.add("collapsed");
+      const label = box.querySelector(".ui-switch-label");
+      if (label) {
+        label.setAttribute("role", "button");
+        label.setAttribute("tabindex", "0");
+        label.setAttribute("aria-expanded", "false");
+        const toggle = () => {
+          const collapsed = box.classList.toggle("collapsed");
+          label.setAttribute("aria-expanded", String(!collapsed));
+        };
+        label.addEventListener("click", toggle);
+        label.addEventListener("keydown", (e) => {
+          if (e.key === "Enter" || e.key === " ") { e.preventDefault(); toggle(); }
+        });
+      }
       box.querySelectorAll("[data-ui]").forEach((btn) => {
         const on = btn.dataset.ui === version;
         btn.classList.toggle("is-on", on);
