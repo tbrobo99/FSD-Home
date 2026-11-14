@@ -354,7 +354,7 @@ body {
 
 /* Keep the third reading out from under the version switcher on a phone. */
 @media (max-width: 620px) {
-  .glance { padding-right: 150px; }
+  .glance { padding-right: 170px; }
   .glance-metrics > div:nth-child(3) { display: none; }
   .glance-inner { gap: 12px; }
 }
