@@ -11,6 +11,11 @@
 <link rel="icon" href="/icon.svg" type="image/svg+xml">
 <link rel="apple-touch-icon" href="/icon.svg">
 <link rel="stylesheet" href="/style.css">
+<!-- The version stylesheet is attached by theme.js before the body renders.
+     style.css stays the shared base, so a version only has to describe what
+     it changes, and every existing id / class keeps working. -->
+<link id="uiTheme" rel="stylesheet">
+<script src="/theme.js"></script>
 </head>
 <body>
 
@@ -114,19 +119,19 @@
          another. Cards are rendered from GET /api/approvals. -->
     <div id="askQueue" aria-live="polite"></div>
 
-    <div class="sec-head"><h2>Quick actions</h2></div>
+    <div class="sec-head" data-sec="quick"><h2>Quick actions</h2></div>
     <div class="quick" id="quick"></div>
 
-    <div class="sec-head"><h2>Rooms</h2></div>
+    <div class="sec-head" data-sec="rooms"><h2>Rooms</h2></div>
     <div class="rooms" id="rooms"></div>
 
-    <div class="sec-head">
+    <div class="sec-head" data-sec="devices">
       <h2 id="deviceHead">Devices</h2>
     </div>
     <div class="devices" id="devices"></div>
 
     <!-- FR-6: the append-only trail, visible to the user. Read-only here. -->
-    <div class="sec-head">
+    <div class="sec-head" data-sec="audit">
       <h2>Safety log</h2>
       <span class="sec-note">append-only</span>
     </div>
@@ -196,6 +201,20 @@
   </nav>
 
   <div class="toast" id="toast" hidden></div>
+
+  <!-- Read-only "house at a glance" rail. Hidden by the base stylesheet and
+       only shown by the wide-console version; it never carries a control. -->
+  <aside class="glance" id="glance" aria-label="House at a glance"></aside>
+
+  <!-- Local UI version switcher. This is a development affordance for
+       comparing the three front-end proposals; it is not part of the agent. -->
+  <div class="ui-switch" id="uiSwitch" role="group" aria-label="UI version">
+    <button type="button" data-ui="v0" title="Original">0</button>
+    <button type="button" data-ui="v1" title="Warm Calm">1</button>
+    <button type="button" data-ui="v2" title="Night Console">2</button>
+    <button type="button" data-ui="v3" title="Wide Console">3</button>
+    <span class="ui-switch-label">UI</span>
+  </div>
 
 </div>
 

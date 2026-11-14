@@ -4,12 +4,17 @@
    screen during development. API calls are never cached: stale device state is
    exactly what this project promises not to show. */
 
-const CACHE = "home-agent-v11";
+const CACHE = "home-agent-v12";
 const SHELL = [
   "/",
   "/style.css",
   "/app.js",
+  "/theme.js",
+  "/themes/v1-calm.css",
+  "/themes/v2-night.css",
+  "/themes/v3-console.css",
   "/manifest.webmanifest",
+  "/icon.svg",
   "/icon-192.png",
   "/icon-512.png",
 ];
