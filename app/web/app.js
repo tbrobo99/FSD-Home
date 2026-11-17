@@ -120,6 +120,7 @@ function mascot(mood) {
 /* ---------- icons for questions and risks (words live in I18N) ---------- */
 
 const QUESTION = {
+  pause_washer: { icon: "i-washer", tone: "" },
   stop_dryer: { icon: "i-dryer", tone: "" },
   preheat_cooktop: { icon: "i-cooktop", tone: "pink" },
 };
@@ -127,7 +128,10 @@ const QUESTION = {
 const RISK = {
   mold: { key: "risk.washer", icon: "i-washer" },
   thermal: { key: "risk.kitchen", icon: "i-flame" },
+  heat_health: { key: "risk.heat", icon: "i-temp" },
+  energy: { key: "risk.power", icon: "i-bolt" },
 };
+const RISK_ORDER = ["mold", "thermal", "heat_health", "energy"];
 
 /* ---------- language (KO / EN) ----------
    The 한국어 | EN toggle switches the interface text, speech recognition and
@@ -156,7 +160,14 @@ const I18N = {
     "hero.watchIdle": "Turns off in {m} min if no cooking starts.",
     "hero.mold": "Airing the washer for you", "hero.moldSub": "Drum vent, dehumidifier and purifier are on.",
     "hero.heat": "Cooling the kitchen down", "hero.heatSub": "Range hood and kitchen AC are on.",
-    "risk.washer": "Washer", "risk.kitchen": "Kitchen", "risk.high": "On it", "risk.watch": "Watching", "risk.low": "All good",
+    "risk.washer": "Washer", "risk.kitchen": "Kitchen", "risk.heat": "Room heat", "risk.power": "Power",
+    "risk.feels": "{room} feels {t}°", "risk.cool": "{room} {t}° · cool", "risk.rate.peak": "peak rate", "risk.rate.offpeak": "normal rate",
+    "hero.hot": "Cooling the {room} for you", "hero.hotSub": "It feels like {t}° — AC set gently to 26°.",
+    "hero.power": "Saving power at the peak rate", "hero.powerSub": "{kw} kW now — an AC was raised 2°.",
+    "ask.energy": "Power is at the peak rate", "fact.peak": "Peak rate", "fact.load": "{kw} kW now", "fact.acs": "{n} ACs cooling",
+    "q.pause_washer": "Pause the wash until the peak ends?", "c.pause_washer": "You restart it yourself later.",
+    "act.roomHot": "Room getting hot", "act.powerHigh": "Power use high",
+    "set.hot": "Hot night", "set.peak": "Peak rate", "risk.high": "On it", "risk.watch": "Watching", "risk.low": "All good",
     "risk.open": "Washer is open or empty", "risk.humid": "{h}% humid", "risk.shut": "shut {n} h", "risk.sealed": "sealed", "risk.nothingHot": "Nothing hot",
     "risk.quiet": "Quiet for {m} min", "risk.aria": "{name} risk",
     "fact.drum": "Drum {h}% humid", "fact.shut": "Shut {t}", "fact.kw": "{kw} kW running", "fact.dinner": "Dinner in {m} min",
@@ -201,7 +212,14 @@ const I18N = {
     "hero.watchIdle": "요리를 시작하지 않으면 {m}분 뒤 꺼져요.",
     "hero.mold": "세탁기를 말리는 중이에요", "hero.moldSub": "통 환기, 제습기, 공기청정기를 켰어요.",
     "hero.heat": "주방을 식히는 중이에요", "hero.heatSub": "레인지 후드와 주방 에어컨을 켰어요.",
-    "risk.washer": "세탁기", "risk.kitchen": "주방", "risk.high": "처리 중", "risk.watch": "지켜보는 중", "risk.low": "좋아요",
+    "risk.washer": "세탁기", "risk.kitchen": "주방", "risk.heat": "실내 더위", "risk.power": "전기",
+    "risk.feels": "{room} 체감 {t}°", "risk.cool": "{room} {t}° · 쾌적", "risk.rate.peak": "피크 요금", "risk.rate.offpeak": "일반 요금",
+    "hero.hot": "{room}을 시원하게 하는 중이에요", "hero.hotSub": "체감 {t}°예요 — 에어컨을 26°로 약하게 켰어요.",
+    "hero.power": "피크 요금이라 전기를 아끼는 중", "hero.powerSub": "지금 {kw} kW — 에어컨 온도를 2° 올렸어요.",
+    "ask.energy": "지금은 피크 요금 시간이에요", "fact.peak": "피크 요금", "fact.load": "지금 {kw} kW", "fact.acs": "에어컨 {n}대 냉방 중",
+    "q.pause_washer": "피크가 끝날 때까지 세탁을 멈출까요?", "c.pause_washer": "나중에 직접 다시 켜 주세요.",
+    "act.roomHot": "실내가 더워짐", "act.powerHigh": "전력 사용이 높음",
+    "set.hot": "더운 밤", "set.peak": "피크 요금", "risk.high": "처리 중", "risk.watch": "지켜보는 중", "risk.low": "좋아요",
     "risk.open": "문 열림", "risk.humid": "습도 {h}%", "risk.shut": "{n}시간 닫힘", "risk.sealed": "문 닫힘", "risk.nothingHot": "이상 없음",
     "risk.quiet": "{m}분간 조용히", "risk.aria": "{name} 위험도",
     "fact.drum": "통 습도 {h}%", "fact.shut": "{t} 닫힘", "fact.kw": "{kw} kW 사용 중", "fact.dinner": "{m}분 후 저녁",
@@ -235,12 +253,16 @@ const ACTIONS = {
     purifier_on: ["Air purifier on", "Air purifier on"], ventilate_kitchen: ["Range hood on", "Range hood on"],
     precool_kitchen: ["Pre-cool the kitchen", "Kitchen pre-cooling to 24°"], stop_dryer: ["Stop the dryer", "Dryer stopped — restart it whenever you like"],
     preheat_cooktop: ["Preheat the cooktop", "Cooktop preheating for dinner"], cooktop_auto_off: ["Cooktop safety shut-off", "Cooktop switched off for safety"],
+    cool_room: ["Cool the room gently", "Room cooling gently to 26°"], eco_ac: ["Raise the AC 2°", "AC raised 2° to save power"],
+    pause_washer: ["Pause the wash", "Wash paused — restart it after the peak"],
   },
   ko: {
     ventilate_washer: ["세탁기 통 환기", "세탁기 통을 말리는 중"], dehumidifier_on: ["제습기 켜기", "제습기를 켰어요"],
     purifier_on: ["공기청정기 켜기", "공기청정기를 켰어요"], ventilate_kitchen: ["레인지 후드 켜기", "레인지 후드를 켰어요"],
     precool_kitchen: ["주방 미리 냉방", "주방을 24°로 미리 냉방 중"], stop_dryer: ["건조기 끄기", "건조기를 껐어요 — 원할 때 다시 켜세요"],
     preheat_cooktop: ["쿡탑 예열", "저녁을 위해 쿡탑 예열 중"], cooktop_auto_off: ["쿡탑 안전 끄기", "안전을 위해 쿡탑을 껐어요"],
+    cool_room: ["방을 약하게 냉방", "방을 26°로 약하게 냉방 중"], eco_ac: ["에어컨 2° 올리기", "전기를 아끼려고 에어컨을 2° 올렸어요"],
+    pause_washer: ["세탁 멈추기", "세탁을 멈췄어요 — 피크가 끝나면 다시 켜세요"],
   },
 };
 const ROOM_KO = { "Living Room": "거실", Kitchen: "주방", Bedroom: "침실", Balcony: "발코니" };
@@ -510,6 +532,13 @@ function riskFacts(r) {
     if (d.sealed_hours) out.push(["butter", t("fact.shut", { t: d.sealed_hours < 1 ? `${Math.round(d.sealed_hours * 60)}${lang === "ko" ? "분" : " min"}` : `${d.sealed_hours.toFixed(1)}${lang === "ko" ? "시간" : " h"}` })]);
     return out;
   }
+  if (r.kind === "energy") {
+    const out = [["sky", t("fact.load", { kw: ((d.total_load_w || 0) / 1000).toFixed(1) })]];
+    if (d.tariff === "peak") out.push(["pink", t("fact.peak")]);
+    if (d.cooling_acs) out.push(["butter", t("fact.acs", { n: d.cooling_acs })]);
+    return out;
+  }
+  if (r.kind === "heat_health") return [["peach", `${Math.round(d.apparent_temp || 0)}°`]];
   const out = [];
   if (d.kitchen_temp != null) out.push(["peach", `${Math.round(d.kitchen_temp)}°C`]);
   if (d.heat_load_w) out.push(["sky", t("fact.kw", { kw: (d.heat_load_w / 1000).toFixed(1) })]);
@@ -535,6 +564,13 @@ function heroState() {
   }
   if (risks.mold && risks.mold.firing) return { mood: "busy", title: t("hero.mold"), sub: t("hero.moldSub") };
   if (risks.thermal && risks.thermal.firing) return { mood: "busy", title: t("hero.heat"), sub: t("hero.heatSub") };
+  if (risks.heat_health && risks.heat_health.firing) {
+    const d = risks.heat_health.drivers || {};
+    return { mood: "busy", title: t("hero.hot", { room: roomName(d.room || "Bedroom") }), sub: t("hero.hotSub", { t: Math.round(d.apparent_temp || 0) }) };
+  }
+  if (risks.energy && risks.energy.firing) {
+    return { mood: "busy", title: t("hero.power"), sub: t("hero.powerSub", { kw: (((risks.energy.drivers || {}).total_load_w || 0) / 1000).toFixed(1) }) };
+  }
   return { mood: "calm", title: t("hero.calm"), sub: t("hero.calmSub") };
 }
 
@@ -557,6 +593,11 @@ function riskDetail(r) {
     if (d.drum_humidity == null) return t("risk.open");
     return `${t("risk.humid", { h: Math.round(d.drum_humidity) })} · ${d.sealed_hours >= 1 ? t("risk.shut", { n: d.sealed_hours.toFixed(0) }) : t("risk.sealed")}`;
   }
+  if (r && r.kind === "heat_health") {
+    const room = roomName(d.room || "Living Room");
+    return r.score >= 30 ? t("risk.feels", { room, t: Math.round(d.apparent_temp || 0) }) : t("risk.cool", { room, t: Math.round(d.room_temp || 0) });
+  }
+  if (r && r.kind === "energy") return `${((d.total_load_w || 0) / 1000).toFixed(1)} kW · ${t(`risk.rate.${d.tariff || "offpeak"}`)}`;
   if (!r || d.kitchen_temp == null) return t("risk.nothingHot");
   return `${d.kitchen_temp.toFixed(1)}°C · ${((d.heat_load_w || 0) / 1000).toFixed(1)} kW`;
 }
@@ -565,13 +606,14 @@ function renderRisks() {
   const risks = (pro && pro.risks) || {};
   const quiet = (pro && pro.quiet) || {};
   const asking = new Set(((pro && pro.pending_approvals) || []).map((a) => a.risk_kind));
-  $("#risks").innerHTML = ["mold", "thermal"].map((kind) => {
+  $("#risks").innerHTML = RISK_ORDER.map((kind) => {
     const r = risks[kind] || { kind, score: 0, threshold: 50, drivers: {} };
     const score = Math.round(r.score || 0);
     const level = r.firing ? "high" : score >= r.threshold * 0.6 ? "watch" : "low";
     const tag = { high: ["pink", t("risk.high")], watch: ["butter", t("risk.watch")], low: ["mint", t("risk.low")] }[level];
     const name = t(RISK[kind].key);
-    const q = quiet[kind] > 60 && !asking.has(kind) && r.firing
+    // Only risks that can ask a question have a quiet period worth showing.
+    const q = quiet[kind] > 60 && !asking.has(kind) && r.firing && (kind === "thermal" || kind === "energy")
       ? `<p class="quiet">${esc(t("risk.quiet", { m: Math.ceil(quiet[kind] / 60) }))}</p>` : "";
     return `<article class="tile" data-kind="${kind}" data-level="${level}">
       <div class="tile-top">${icon(RISK[kind].icon)}<span class="tag tag-${tag[0]}">${esc(tag[1])}</span></div>
@@ -593,6 +635,7 @@ function renderRisks() {
 const FULL_KITCHEN_W = 2500;   // risk.py: 2500 W counts as a full kitchen
 
 function renderHeat() {
+  if (!$("#heat")) return;   // folded into the Power tile on Home
   const w = (pro && pro.heat_load_w) || 0;
   const pct = Math.min(100, Math.round((w / FULL_KITCHEN_W) * 100));
   const level = w >= FULL_KITCHEN_W ? "high" : w >= FULL_KITCHEN_W * 0.6 ? "watch" : "low";
@@ -659,7 +702,7 @@ function renderAsk() {
   if (sig !== askSig) {
     askSig = sig;
     const r = ((pro && pro.risks) || {})[list[0].risk_kind];
-    const title = list[0].risk_kind === "mold" ? t("ask.mold") : t("ask.heat");
+    const title = { mold: t("ask.mold"), energy: t("ask.energy") }[list[0].risk_kind] || t("ask.heat");
     $("#askBody").innerHTML = `
       <div class="why">
         <div class="status-ic">${mascot("ask")}</div>
@@ -774,7 +817,7 @@ function auditItem(r) {
   const req = r.approval_id ? t("act.request", { id: String(r.approval_id).slice(0, 6) }) : "";
   switch (r.event_type) {
     case "risk.triggered":
-      return { tone: "warn", icon: "i-flame", title: r.risk_kind === "mold" ? t("act.washerDamp") : t("act.kitchenHot"),
+      return { tone: "warn", icon: "i-flame", title: { mold: t("act.washerDamp"), heat_health: t("act.roomHot"), energy: t("act.powerHigh") }[r.risk_kind] || t("act.kitchenHot"),
                detail: t("act.score", { s: Math.round(r.risk_score || 0) }) };
     case "approval.proposed": return { tone: "ask", icon: "i-sparkle", title: t("act.askedYou", { a: act }), detail: req };
     case "approval.confirmed": return { tone: "ok", icon: "i-check", title: t("act.yes", { a: act }), detail: req };

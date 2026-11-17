@@ -53,7 +53,7 @@ def main() -> None:
     parser.add_argument("--port", type=int, help="override server.port")
     parser.add_argument("--no-browser", action="store_true",
                         help="do not open a browser window")
-    parser.add_argument("--scenario", choices=["idle", "mold", "oven", "oven_running"],
+    parser.add_argument("--scenario", choices=["idle", "mold", "oven", "oven_running", "heatwave", "peak"],
                         help="load a deterministic starting state for the proactive engine")
     args = parser.parse_args()
 

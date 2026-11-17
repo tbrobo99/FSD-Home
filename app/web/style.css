@@ -145,16 +145,17 @@ h2 { margin: 0; font: 600 1.0625rem/1.25 var(--f-head); letter-spacing: -0.005em
 
 /* ---------- risk tiles with ring (FR-2) ---------- */
 
-.tiles { display: grid; grid-template-columns: 1fr 1fr; gap: 14px; }
+.tiles { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
 .tile {
   background: var(--card); border: 1px solid var(--line); border-radius: var(--r-card);
-  padding: 14px 16px 16px; display: flex; flex-direction: column; gap: 8px; min-width: 0;
+  padding: 12px 14px 14px; display: flex; flex-direction: column; gap: 6px; min-width: 0;
 }
 .tile-top { display: flex; align-items: center; justify-content: space-between; color: var(--ink-2); }
 .tile-top .ic { width: 22px; height: 22px; }
-.ring { position: relative; width: 84px; height: 84px; }
-.ring svg { width: 84px; height: 84px; transform: rotate(-90deg); }
-.ring circle { fill: none; stroke-width: 6; }
+/* Four risks on one phone screen: compact rings (64 px). */
+.ring { position: relative; width: 64px; height: 64px; }
+.ring svg { width: 64px; height: 64px; transform: rotate(-90deg); }
+.ring circle { fill: none; stroke-width: 7; }
 .ring .track { stroke: var(--line); }
 .ring .prog { stroke-linecap: round; transition: stroke-dashoffset .6s ease; }
 .tile[data-kind="mold"] .track { stroke: var(--sky-soft); }
@@ -163,11 +164,16 @@ h2 { margin: 0; font: 600 1.0625rem/1.25 var(--f-head); letter-spacing: -0.005em
 .tile[data-level="watch"] .prog { stroke: var(--butter-mid); }
 .tile[data-kind="mold"][data-level="high"] .prog { stroke: var(--sky-mid); }
 .tile[data-kind="thermal"][data-level="high"] .prog { stroke: var(--peach-mid); }
+.tile[data-kind="heat_health"] .track { stroke: var(--pink-soft); }
+.tile[data-kind="energy"] .track { stroke: var(--accent-soft); }
+.tile[data-kind="heat_health"][data-level="high"] .prog { stroke: var(--pink-mid); }
+.tile[data-kind="energy"][data-level="high"] .prog { stroke: var(--accent-mid); }
 .ring b {
   position: absolute; inset: 0; display: grid; place-items: center;
-  font: 600 1.625rem/1 var(--f-head); font-variant-numeric: tabular-nums;
+  font: 600 1.25rem/1 var(--f-head); font-variant-numeric: tabular-nums;
 }
-.tile h3 { margin: 0; font: 600 1.0625rem/1.2 var(--f-head); }
+.tile h3 { margin: 0; font: 600 1rem/1.2 var(--f-head); }
+.tile .tag { font-size: 0.6875rem; padding: 2px 8px; }
 .tile p { margin: 0; font-size: 0.875rem; font-weight: 700; color: var(--ink-2); overflow-wrap: anywhere; }
 .tile .quiet { color: var(--butter); }
 

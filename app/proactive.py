@@ -117,6 +117,15 @@ def _plain(r: risk.Risk, snap: dict) -> str:
                     f"with wet washing still inside it")
         return "The washing machine is shut with wet washing still inside it"
 
+    if r.kind == "heat_health":
+        room = str(r.drivers.get("room") or "room").lower()
+        return (f"It feels like {r.current:.0f}\u00b0C in the {room} \u2014 "
+                f"hot and humid enough to be hard on the body")
+
+    if r.kind == "energy":
+        band = "at the peak rate" if r.drivers.get("tariff") == "peak" else "right now"
+        return f"The house is drawing {r.current / 1000:.1f} kW {band}"
+
     running = [name for name, key in (("the dryer", "dryer"), ("the oven", "oven"))
                if snap["appliances"].get(key, {}).get("power")]
     if running:
@@ -787,11 +796,14 @@ class ProactiveEngine:
             # dashboard. A kind with nothing to score is reported as 0.
             "risks": self._risk_view(),
             "heat_load_w": self._last_snapshot.get("heat_load_w", 0),
+            "total_load_w": self._last_snapshot.get("total_load_w", 0),
+            "tariff": self._last_snapshot.get("tariff", "offpeak"),
             "cooktop_guard": self._cooktop_view(),
         }
 
     def _risk_view(self) -> dict:
-        thresholds = {"mold": risk.MOLD_THRESHOLD, "thermal": risk.THERMAL_THRESHOLD}
+        thresholds = {"mold": risk.MOLD_THRESHOLD, "thermal": risk.THERMAL_THRESHOLD,
+                      "heat_health": risk.HEAT_HEALTH_THRESHOLD, "energy": risk.ENERGY_THRESHOLD}
         out = {k: {"kind": k, "score": 0.0, "threshold": t, "current": None,
                    "predicted": None, "drivers": {}, "firing": False}
                for k, t in thresholds.items()}
