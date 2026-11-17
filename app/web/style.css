@@ -1,7 +1,8 @@
 /* FSD-Home — v3 "soft modern" interface.
 
 Source of truth: Figma file "FSD-Home — UI/UX", pages ★ v3 · Screens and
-★ v3 · Components. Tokens below mirror the "v3 · Soft modern tokens" collection.
+★ v3 · Components. Fonts: Outfit (headings), Plus Jakarta Sans (body), IBM Plex Sans KR (Korean).
+Tokens below mirror the "v3 · Soft modern tokens" collection.
 
 Rules this sheet follows:
 1. One phone screen per view. Nothing on Home scrolls on a 390 × 844 phone;
@@ -38,7 +39,7 @@ Rules this sheet follows:
   --r-pill: 999px;
 
   --f-head: "Outfit", -apple-system, BlinkMacSystemFont, "Segoe UI", "Apple SD Gothic Neo", "Noto Sans KR", sans-serif;
-  --f-body: "Nunito", -apple-system, BlinkMacSystemFont, "Segoe UI", "Apple SD Gothic Neo", "Noto Sans KR", sans-serif;
+  --f-body: "Plus Jakarta Sans", -apple-system, BlinkMacSystemFont, "Segoe UI", "Apple SD Gothic Neo", "Noto Sans KR", sans-serif;
   --f-ko: "IBM Plex Sans KR", "Apple SD Gothic Neo", "Noto Sans KR", sans-serif;
 
   --tabbar-h: 84px;
@@ -61,6 +62,10 @@ button { font: inherit; color: inherit; cursor: pointer; }
   fill: none; stroke: currentColor; stroke-width: 2.2;
   stroke-linecap: round; stroke-linejoin: round;
 }
+
+/* Korean: IBM Plex Sans KR for every role (Figma "v3/ko/*" text styles). */
+html:lang(ko) { --f-head: var(--f-ko); --f-body: var(--f-ko); }
+html:lang(ko) h1 { font-weight: 700; letter-spacing: -0.01em; }
 
 :focus-visible { outline: 3px solid var(--accent); outline-offset: 2px; border-radius: 10px; }
 
@@ -90,7 +95,7 @@ h2 { margin: 0; font: 600 1.0625rem/1.25 var(--f-head); letter-spacing: -0.005em
   min-height: 36px; padding: 0 14px; border: 0; border-radius: var(--r-pill);
   background: transparent; color: var(--ink-3); font-weight: 800; font-size: 0.8125rem;
 }
-.seg button[data-lang="ko-KR"] { font-family: var(--f-ko); font-weight: 500; }
+.seg button[data-lang="ko"] { font-family: var(--f-ko); font-weight: 600; }
 .seg button.on { background: var(--card); color: var(--ink); box-shadow: 0 1px 2px rgba(22,22,28,.08); }
 .seg.small button { min-height: 32px; padding: 0 10px; }
 

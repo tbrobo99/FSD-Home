@@ -117,41 +117,177 @@ function mascot(mood) {
     ${m.face}</svg>`;
 }
 
-/* ---------- words for actions and risks ---------- */
+/* ---------- icons for questions and risks (words live in I18N) ---------- */
 
-const ACTION_TEXT = {
-  ventilate_washer: "Air the washer drum",
-  dehumidifier_on: "Dehumidifier on",
-  purifier_on: "Air purifier on",
-  ventilate_kitchen: "Range hood on",
-  precool_kitchen: "Pre-cool the kitchen",
-  stop_dryer: "Stop the dryer",
-  preheat_cooktop: "Preheat the cooktop",
-  cooktop_auto_off: "Cooktop safety shut-off",
-};
-
-const ACTION_DONE = {
-  ventilate_washer: "Washer drum airing",
-  dehumidifier_on: "Dehumidifier on",
-  purifier_on: "Air purifier on",
-  ventilate_kitchen: "Range hood on",
-  precool_kitchen: "Kitchen pre-cooling to 24°",
-  stop_dryer: "Dryer stopped — restart it whenever you like",
-  preheat_cooktop: "Cooktop preheating for dinner",
-  cooktop_auto_off: "Cooktop switched off for safety",
-};
-
-/* The Level 2 questions, short. The engine's full sentence stays the
-   fallback for any action this table does not know. */
 const QUESTION = {
-  stop_dryer: { q: "Stop the dryer now?", c: "You restart it yourself later.", icon: "i-dryer", tone: "" },
-  preheat_cooktop: { q: "Preheat the cooktop?", c: "Turns itself off if no cooking starts.", icon: "i-cooktop", tone: "pink" },
+  stop_dryer: { icon: "i-dryer", tone: "" },
+  preheat_cooktop: { icon: "i-cooktop", tone: "pink" },
 };
 
 const RISK = {
-  mold: { title: "Washer", icon: "i-washer" },
-  thermal: { title: "Kitchen", icon: "i-flame" },
+  mold: { key: "risk.washer", icon: "i-washer" },
+  thermal: { key: "risk.kitchen", icon: "i-flame" },
 };
+
+/* ---------- language (KO / EN) ----------
+   The 한국어 | EN toggle switches the interface text, speech recognition and
+   read-aloud together. The house's own replies (chat answers, engine
+   messages) come from the server in English. Copy matches the Figma
+   ★ v3 · Screens rows "EN" and "KO". */
+
+const I18N = {
+  en: {
+    "home.title": "My Home", "home.check": "Home check", "home.acts": "acts at 50", "home.actsTitle": "The house steps in when a score reaches 50",
+    "tab.home": "Home", "tab.devices": "Devices", "tab.activity": "Activity", "tab.settings": "Settings", "tab.talk": "Talk",
+    "talk.aria": "Talk to the house", "talk.title": "Talk to the house", "talk.tap": "Tap to talk", "talk.listening": "Listening — pause when you're done",
+    "talk.placeholder": "Or type here…", "talk.listeningPh": "Listening…", "talk.send": "Send", "close": "Close",
+    "dev.title": "Devices", "dev.count": "{n} devices · {on} on", "dev.all": "All", "dev.empty": "Nothing in this room.",
+    "dev.temp": "Temperature", "dev.hum": "Humidity", "dev.on": "On", "dev.devicesOn": "Devices on", "dev.heat": "Heat load", "dev.rooms": "Rooms",
+    "dev.details": "{name} details", "dev.cooler": "Cooler", "dev.warmer": "Warmer", "dev.turnOn": "Turn on", "dev.turnOff": "Turn off",
+    "act.eyebrow": "What the house did, and why", "act.title": "Activity", "act.locked": "Can't be edited", "act.all": "All", "act.asked": "Asked you", "act.done": "Done",
+    "act.today": "Today", "act.empty": "Nothing recorded yet.",
+    "set.eyebrow": "Voice, schedules and demo", "set.title": "Settings", "set.tts": "Read replies aloud", "set.ttsSub": "Questions are always read",
+    "set.mode": "How it decides", "set.modeSub": "Rules first, or the agent", "set.cascade": "Cascade", "set.agent": "Agent",
+    "set.schedule": "Schedule", "set.none": "Nothing scheduled", "set.noneSub": "Ask the house to set something", "set.demo": "Demo", "set.demoTag": "for presentations",
+    "set.calm": "Calm house", "set.wet": "Wet washer", "set.dinner": "Dryer + dinner soon", "set.oven": "Dryer + oven on", "set.del": "Delete task",
+    "hero.calm": "All cozy at home", "hero.calmSub": "Nothing needs you right now.",
+    "hero.ask1": "Can I ask you something?", "hero.askN": "Can I ask you {n} things?", "hero.askSub": "It only takes a tap.", "hero.answer": "Answer",
+    "hero.watch": "Watching the cooktop", "hero.cooking": "Cooking in progress.", "hero.watchMeal": "Turns off by itself if no cooking starts. Dinner in {m} min.",
+    "hero.watchIdle": "Turns off in {m} min if no cooking starts.",
+    "hero.mold": "Airing the washer for you", "hero.moldSub": "Drum vent, dehumidifier and purifier are on.",
+    "hero.heat": "Cooling the kitchen down", "hero.heatSub": "Range hood and kitchen AC are on.",
+    "risk.washer": "Washer", "risk.kitchen": "Kitchen", "risk.high": "On it", "risk.watch": "Watching", "risk.low": "All good",
+    "risk.open": "Washer is open or empty", "risk.humid": "{h}% humid", "risk.shut": "shut {n} h", "risk.sealed": "sealed", "risk.nothingHot": "Nothing hot",
+    "risk.quiet": "Quiet for {m} min", "risk.aria": "{name} risk",
+    "fact.drum": "Drum {h}% humid", "fact.shut": "Shut {t}", "fact.kw": "{kw} kW running", "fact.dinner": "Dinner in {m} min",
+    "heat.title": "Heat load", "heat.aria": "Heat-producing load", "heat.running": "Running: {list}",
+    "app.oven": "oven", "app.cooktop": "cooktop", "app.dryer": "dryer", "app.dishwasher": "dishwasher",
+    "quick.off": "All off", "quick.cool": "Cool 24°", "quick.fresh": "Fresh air",
+    "recent.title": "Just now", "recent.cooled": "Kitchen cooled down — you can restart the dryer",
+    "ask.mold": "The washer is getting damp", "ask.heat": "The kitchen is getting hot", "ask.one": "1 quick question", "ask.n": "{n} quick questions",
+    "ask.left": "{t} left", "ask.up": "Time is up", "ask.rule": "No answer? Nothing changes.", "ask.yes": "Yes", "ask.no": "No",
+    "ask.speakOne": "One question.", "ask.speakN": "{n} questions.",
+    "q.stop_dryer": "Stop the dryer now?", "c.stop_dryer": "You restart it yourself later.",
+    "q.preheat_cooktop": "Preheat the cooktop?", "c.preheat_cooktop": "Turns itself off if no cooking starts.",
+    "toast.late": "Too late — nothing was changed.", "toast.closed": "That question had already closed.", "toast.done": "Done.", "toast.no": "Okay — nothing changed.",
+    "toast.unreach": "Could not reach the house: {e}", "toast.working": "Working on it…", "toast.scenario": "Scenario loaded.", "toast.scenarioFail": "Could not load the scenario: {e}",
+    "toast.ttsOn": "Reading replies aloud", "toast.ttsOff": "Reading aloud off", "toast.lang": "English", "toast.noResponse": "The device did not respond.", "toast.ctrl": "Control failed: {e}",
+    "state.off": "Off", "state.on": "On", "state.washing": "Washing · {m} min", "state.finished": "Cycle finished", "state.standby": "Standby", "state.fan": "Fan {f}", "state.heating": "Heating · {t}",
+    "mode.cool": "Cool", "mode.heat": "Heat", "mode.dry": "Dry", "mode.fan": "Fan",
+    "act.washerDamp": "Washer getting damp", "act.kitchenHot": "Kitchen getting hot", "act.score": "Score {s} · acts at 50",
+    "act.askedYou": "Asked you: {a}", "act.yes": "You said yes: {a}", "act.no": "You said no: {a}", "act.noAnswer": "No answer: {a}", "act.nothingChanged": "Nothing changed",
+    "act.saidYes": "You said yes", "act.safety": "Safety rule", "act.own": "Did it on its own", "act.fromApp": "From the app", "act.doneX": "Done: {a}",
+    "act.noRespond": "{a} didn't respond", "act.blocked": "Didn't go ahead: {a}", "act.cooled": "Kitchen cooled down", "act.restart": "You can restart the dryer",
+    "act.demo": "Demo scenario loaded", "act.request": "request {id}",
+    "job.next": "next {t}", "job.disabled": "disabled", "job.once": "once",
+  },
+  ko: {
+    "home.title": "우리 집", "home.check": "집 상태", "home.acts": "50점부터 작동", "home.actsTitle": "점수가 50이 되면 집이 직접 움직여요",
+    "tab.home": "홈", "tab.devices": "기기", "tab.activity": "활동", "tab.settings": "설정", "tab.talk": "말하기",
+    "talk.aria": "집에게 말하기", "talk.title": "집에게 말하기", "talk.tap": "눌러서 말하기", "talk.listening": "듣고 있어요 — 다 말하면 잠시 멈추세요",
+    "talk.placeholder": "또는 여기에 입력…", "talk.listeningPh": "듣는 중…", "talk.send": "보내기", "close": "닫기",
+    "dev.title": "기기", "dev.count": "기기 {n}개 · {on}개 켜짐", "dev.all": "전체", "dev.empty": "이 방에는 기기가 없어요.",
+    "dev.temp": "온도", "dev.hum": "습도", "dev.on": "켜짐", "dev.devicesOn": "켜진 기기", "dev.heat": "열 부하", "dev.rooms": "방",
+    "dev.details": "{name} 자세히", "dev.cooler": "온도 내리기", "dev.warmer": "온도 올리기", "dev.turnOn": "켜기", "dev.turnOff": "끄기",
+    "act.eyebrow": "집이 한 일과 그 이유", "act.title": "활동", "act.locked": "수정 불가", "act.all": "전체", "act.asked": "물어본 것", "act.done": "한 일",
+    "act.today": "오늘", "act.empty": "아직 기록이 없어요.",
+    "set.eyebrow": "음성, 예약, 데모", "set.title": "설정", "set.tts": "답변 소리 내어 읽기", "set.ttsSub": "질문은 항상 읽어 드려요",
+    "set.mode": "판단 방식", "set.modeSub": "규칙 또는 에이전트", "set.cascade": "규칙 우선", "set.agent": "에이전트",
+    "set.schedule": "예약", "set.none": "예약 없음", "set.noneSub": "집에게 예약을 부탁해 보세요", "set.demo": "데모", "set.demoTag": "발표용",
+    "set.calm": "평온한 집", "set.wet": "젖은 세탁기", "set.dinner": "건조기 + 곧 저녁", "set.oven": "건조기 + 오븐", "set.del": "예약 삭제",
+    "hero.calm": "집이 편안해요", "hero.calmSub": "지금은 신경 쓸 일이 없어요.",
+    "hero.ask1": "하나 여쭤봐도 될까요?", "hero.askN": "{n}가지 여쭤봐도 될까요?", "hero.askSub": "한 번만 눌러 주시면 돼요.", "hero.answer": "답하기",
+    "hero.watch": "쿡탑을 지켜보는 중", "hero.cooking": "요리하는 중이에요.", "hero.watchMeal": "요리를 시작하지 않으면 저절로 꺼져요. {m}분 후 저녁.",
+    "hero.watchIdle": "요리를 시작하지 않으면 {m}분 뒤 꺼져요.",
+    "hero.mold": "세탁기를 말리는 중이에요", "hero.moldSub": "통 환기, 제습기, 공기청정기를 켰어요.",
+    "hero.heat": "주방을 식히는 중이에요", "hero.heatSub": "레인지 후드와 주방 에어컨을 켰어요.",
+    "risk.washer": "세탁기", "risk.kitchen": "주방", "risk.high": "처리 중", "risk.watch": "지켜보는 중", "risk.low": "좋아요",
+    "risk.open": "문 열림", "risk.humid": "습도 {h}%", "risk.shut": "{n}시간 닫힘", "risk.sealed": "문 닫힘", "risk.nothingHot": "이상 없음",
+    "risk.quiet": "{m}분간 조용히", "risk.aria": "{name} 위험도",
+    "fact.drum": "통 습도 {h}%", "fact.shut": "{t} 닫힘", "fact.kw": "{kw} kW 사용 중", "fact.dinner": "{m}분 후 저녁",
+    "heat.title": "열 부하", "heat.aria": "열을 내는 기기 전력", "heat.running": "작동 중: {list}",
+    "app.oven": "오븐", "app.cooktop": "쿡탑", "app.dryer": "건조기", "app.dishwasher": "식기세척기",
+    "quick.off": "모두 끄기", "quick.cool": "24° 냉방", "quick.fresh": "환기",
+    "recent.title": "방금", "recent.cooled": "주방이 식었어요 — 건조기를 다시 켜도 돼요",
+    "ask.mold": "세탁기가 눅눅해지고 있어요", "ask.heat": "주방이 더워지고 있어요", "ask.one": "질문 1개", "ask.n": "질문 {n}개",
+    "ask.left": "{t} 남음", "ask.up": "시간이 지났어요", "ask.rule": "답하지 않으면 아무것도 바뀌지 않아요.", "ask.yes": "네", "ask.no": "아니요",
+    "ask.speakOne": "질문이 하나 있어요.", "ask.speakN": "질문이 {n}개 있어요.",
+    "q.stop_dryer": "지금 건조기를 끌까요?", "c.stop_dryer": "나중에 직접 다시 켜 주세요.",
+    "q.preheat_cooktop": "쿡탑을 미리 데울까요?", "c.preheat_cooktop": "요리를 시작하지 않으면 저절로 꺼져요.",
+    "toast.late": "시간이 지나서 아무것도 바꾸지 않았어요.", "toast.closed": "이미 끝난 질문이에요.", "toast.done": "완료했어요.", "toast.no": "알겠어요 — 그대로 둘게요.",
+    "toast.unreach": "집에 연결할 수 없어요: {e}", "toast.working": "처리 중이에요…", "toast.scenario": "시나리오를 불러왔어요.", "toast.scenarioFail": "시나리오를 불러올 수 없어요: {e}",
+    "toast.ttsOn": "답변을 소리 내어 읽어요", "toast.ttsOff": "소리 내어 읽기 끔", "toast.lang": "한국어", "toast.noResponse": "기기가 응답하지 않아요.", "toast.ctrl": "제어 실패: {e}",
+    "state.off": "꺼짐", "state.on": "켜짐", "state.washing": "세탁 중 · {m}분", "state.finished": "세탁 끝남", "state.standby": "대기", "state.fan": "바람 {f}", "state.heating": "가열 중 · {t}",
+    "mode.cool": "냉방", "mode.heat": "난방", "mode.dry": "제습", "mode.fan": "송풍",
+    "act.washerDamp": "세탁기가 눅눅해짐", "act.kitchenHot": "주방이 더워짐", "act.score": "점수 {s} · 50점부터 작동",
+    "act.askedYou": "여쭤봤어요: {a}", "act.yes": "'네' 답변: {a}", "act.no": "'아니요' 답변: {a}", "act.noAnswer": "답 없음: {a}", "act.nothingChanged": "아무것도 바꾸지 않았어요",
+    "act.saidYes": "'네'라고 답하셨어요", "act.safety": "안전 규칙", "act.own": "자동으로 처리", "act.fromApp": "앱에서 조작", "act.doneX": "완료: {a}",
+    "act.noRespond": "{a} 응답 없음", "act.blocked": "실행하지 않음: {a}", "act.cooled": "주방이 식었어요", "act.restart": "건조기를 다시 켜도 돼요",
+    "act.demo": "데모 시나리오 불러옴", "act.request": "요청 {id}",
+    "job.next": "다음 {t}", "job.disabled": "꺼짐", "job.once": "한 번",
+  },
+};
+
+/* Action names, done-lines and device words per language. */
+const ACTIONS = {
+  en: {
+    ventilate_washer: ["Air the washer drum", "Washer drum airing"], dehumidifier_on: ["Dehumidifier on", "Dehumidifier on"],
+    purifier_on: ["Air purifier on", "Air purifier on"], ventilate_kitchen: ["Range hood on", "Range hood on"],
+    precool_kitchen: ["Pre-cool the kitchen", "Kitchen pre-cooling to 24°"], stop_dryer: ["Stop the dryer", "Dryer stopped — restart it whenever you like"],
+    preheat_cooktop: ["Preheat the cooktop", "Cooktop preheating for dinner"], cooktop_auto_off: ["Cooktop safety shut-off", "Cooktop switched off for safety"],
+  },
+  ko: {
+    ventilate_washer: ["세탁기 통 환기", "세탁기 통을 말리는 중"], dehumidifier_on: ["제습기 켜기", "제습기를 켰어요"],
+    purifier_on: ["공기청정기 켜기", "공기청정기를 켰어요"], ventilate_kitchen: ["레인지 후드 켜기", "레인지 후드를 켰어요"],
+    precool_kitchen: ["주방 미리 냉방", "주방을 24°로 미리 냉방 중"], stop_dryer: ["건조기 끄기", "건조기를 껐어요 — 원할 때 다시 켜세요"],
+    preheat_cooktop: ["쿡탑 예열", "저녁을 위해 쿡탑 예열 중"], cooktop_auto_off: ["쿡탑 안전 끄기", "안전을 위해 쿡탑을 껐어요"],
+  },
+};
+const ROOM_KO = { "Living Room": "거실", Kitchen: "주방", Bedroom: "침실", Balcony: "발코니" };
+const ROOM_EN_SHORT = { "Living Room": "Living", Kitchen: "Kitchen", Bedroom: "Bedroom", Balcony: "Balcony" };
+const TYPE_KO = { air_conditioner: "에어컨", air_purifier: "공기청정기", washer: "세탁기", dryer: "건조기", dish_washer: "식기세척기",
+  refrigerator: "냉장고", water_heater: "온수기", dehumidifier: "제습기", range_hood: "레인지 후드", oven: "오븐", cooktop: "쿡탑" };
+
+// Korean first: the household is Korean. The choice is remembered per browser.
+let lang = "ko";
+try { const saved = localStorage.getItem("fsd-lang"); if (saved === "en" || saved === "ko") lang = saved; } catch (_) { /* private mode */ }
+
+function t(key, vars) {
+  let s = (I18N[lang] && I18N[lang][key]) || I18N.en[key] || key;
+  if (vars) for (const [k, v] of Object.entries(vars)) s = s.split(`{${k}}`).join(String(v));
+  return s;
+}
+const actionName = (k) => (ACTIONS[lang][k] || ACTIONS.en[k] || [k || ""])[0];
+const actionDone = (k) => (ACTIONS[lang][k] || ACTIONS.en[k] || [])[1];
+const roomName = (r) => lang === "ko" ? (ROOM_KO[r] || r) : (ROOM_EN_SHORT[r] || r);
+
+function deviceName(d, short) {
+  if (lang === "ko") return short ? (TYPE_KO[d.type] || d.name) : `${ROOM_KO[d.room] || ""} ${TYPE_KO[d.type] || d.name}`.trim();
+  const n = String(d.name || "");
+  return short && n.startsWith((d.room || "") + " ") ? n.slice(d.room.length + 1) : n;
+}
+
+/* Static copy in index.html: data-i18n (text), data-i18n-aria, data-i18n-ph, data-i18n-title. */
+function applyStatic() {
+  document.documentElement.lang = lang;
+  document.querySelectorAll("[data-i18n]").forEach((el) => { el.textContent = t(el.dataset.i18n); });
+  document.querySelectorAll("[data-i18n-aria]").forEach((el) => el.setAttribute("aria-label", t(el.dataset.i18nAria)));
+  document.querySelectorAll("[data-i18n-ph]").forEach((el) => { el.placeholder = t(el.dataset.i18nPh); });
+  document.querySelectorAll("[data-i18n-title]").forEach((el) => { el.title = t(el.dataset.i18nTitle); });
+}
+
+function setLang(next) {
+  lang = next === "en" ? "en" : "ko";
+  try { localStorage.setItem("fsd-lang", lang); } catch (_) { /* ignore */ }
+  voiceLang = lang === "ko" ? "ko-KR" : "en-US";
+  if (recognition) recognition.lang = voiceLang;
+  // Re-render the open question in the new language without reading it again.
+  const shown = askSig; askSig = ""; spokenAsks = shown; chipsSig = "";
+  applyStatic();
+  renderLangButton();
+  $("#quick").innerHTML = "";
+  renderAll();
+}
 
 /* ---------- voice ---------- */
 
@@ -199,9 +335,9 @@ function setListening(on) {
     btn.setAttribute("aria-pressed", String(on));
   }
   const label = $("#micLabel");
-  if (label) label.textContent = on ? "Listening — pause when you're done" : "Tap to talk";
+  if (label) label.textContent = on ? t("talk.listening") : t("talk.tap");
   const input = $("#input");
-  if (input) input.placeholder = on ? "Listening…" : "Or type here…";
+  if (input) input.placeholder = on ? t("talk.listeningPh") : t("talk.placeholder");
 }
 
 /* The engine hands back each phrase without the space that belonged between
@@ -357,7 +493,7 @@ function startVoice() {
 
 function renderLangButton() {
   document.querySelectorAll("#lang [data-lang]").forEach((b) => {
-    const on = b.dataset.lang === voiceLang;
+    const on = b.dataset.lang === lang;
     b.classList.toggle("on", on);
     b.setAttribute("aria-pressed", String(on));
   });
@@ -370,14 +506,14 @@ function riskFacts(r) {
   if (!r) return [];
   if (r.kind === "mold") {
     const out = [];
-    if (d.drum_humidity != null) out.push(["sky", `Drum ${Math.round(d.drum_humidity)}% humid`]);
-    if (d.sealed_hours) out.push(["butter", `Shut ${d.sealed_hours < 1 ? Math.round(d.sealed_hours * 60) + " min" : d.sealed_hours.toFixed(1) + " h"}`]);
+    if (d.drum_humidity != null) out.push(["sky", t("fact.drum", { h: Math.round(d.drum_humidity) })]);
+    if (d.sealed_hours) out.push(["butter", t("fact.shut", { t: d.sealed_hours < 1 ? `${Math.round(d.sealed_hours * 60)}${lang === "ko" ? "분" : " min"}` : `${d.sealed_hours.toFixed(1)}${lang === "ko" ? "시간" : " h"}` })]);
     return out;
   }
   const out = [];
   if (d.kitchen_temp != null) out.push(["peach", `${Math.round(d.kitchen_temp)}°C`]);
-  if (d.heat_load_w) out.push(["sky", `${(d.heat_load_w / 1000).toFixed(1)} kW running`]);
-  if (d.cooking_scheduled_in_min != null) out.push(["butter", `Dinner in ${d.cooking_scheduled_in_min} min`]);
+  if (d.heat_load_w) out.push(["sky", t("fact.kw", { kw: (d.heat_load_w / 1000).toFixed(1) })]);
+  if (d.cooking_scheduled_in_min != null) out.push(["butter", t("fact.dinner", { m: d.cooking_scheduled_in_min })]);
   return out;
 }
 
@@ -385,27 +521,21 @@ function heroState() {
   const pending = (pro && pro.pending_approvals) || [];
   const risks = (pro && pro.risks) || {};
   if (pending.length) {
-    const r = risks[pending[0].risk_kind];
-    const facts = riskFacts(r).map((f) => f[1]).slice(0, 2).join(" · ");
-    return { mood: "ask",
-             title: pending.length === 1 ? "Can I ask you something?" : `Can I ask you ${pending.length} things?`,
-             sub: facts || "It only takes a tap.", cta: true };
+    const facts = riskFacts(risks[pending[0].risk_kind]).map((f) => f[1]).slice(0, 2).join(" · ");
+    return { mood: "ask", title: pending.length === 1 ? t("hero.ask1") : t("hero.askN", { n: pending.length }),
+             sub: facts || t("hero.askSub"), cta: true };
   }
   const g = pro && pro.cooktop_guard;
   if (g) {
     let sub;
-    if (g.cooking) sub = "Cooking in progress.";
-    else if (g.meal_in_min != null) sub = `Turns off by itself if no cooking starts. Dinner in ${Math.round(g.meal_in_min)} min.`;
-    else sub = `Turns off in ${Math.ceil(g.idle_off_in / 60)} min if no cooking starts.`;
-    return { mood: "watch", title: "Watching the cooktop", sub };
+    if (g.cooking) sub = t("hero.cooking");
+    else if (g.meal_in_min != null) sub = t("hero.watchMeal", { m: Math.round(g.meal_in_min) });
+    else sub = t("hero.watchIdle", { m: Math.ceil(g.idle_off_in / 60) });
+    return { mood: "watch", title: t("hero.watch"), sub };
   }
-  if (risks.mold && risks.mold.firing) {
-    return { mood: "busy", title: "Airing the washer for you", sub: "Drum vent, dehumidifier and purifier are on." };
-  }
-  if (risks.thermal && risks.thermal.firing) {
-    return { mood: "busy", title: "Cooling the kitchen down", sub: "Range hood and kitchen AC are on." };
-  }
-  return { mood: "calm", title: "All cozy at home", sub: "Nothing needs you right now." };
+  if (risks.mold && risks.mold.firing) return { mood: "busy", title: t("hero.mold"), sub: t("hero.moldSub") };
+  if (risks.thermal && risks.thermal.firing) return { mood: "busy", title: t("hero.heat"), sub: t("hero.heatSub") };
+  return { mood: "calm", title: t("hero.calm"), sub: t("hero.calmSub") };
 }
 
 function renderHero() {
@@ -414,7 +544,7 @@ function renderHero() {
   box.dataset.mood = s.mood;
   box.innerHTML = `<div class="status-ic">${mascot(s.mood)}</div>
     <div class="hero-text"><strong>${esc(s.title)}</strong><span>${esc(s.sub)}</span></div>
-    ${s.cta && $("#askSheet").hidden ? `<button type="button" class="hero-cta" data-open-ask>Answer</button>` : ""}`;
+    ${s.cta && $("#askSheet").hidden ? `<button type="button" class="hero-cta" data-open-ask>${esc(t("hero.answer"))}</button>` : ""}`;
 }
 
 /* ---------- home: risk rings (FR-2) ---------- */
@@ -424,11 +554,11 @@ const RING_C = 2 * Math.PI * 38;
 function riskDetail(r) {
   const d = (r && r.drivers) || {};
   if (r && r.kind === "mold") {
-    if (d.drum_humidity == null) return "Washer is open or empty";
-    return `${Math.round(d.drum_humidity)}% humid · ${d.sealed_hours >= 1 ? "shut " + d.sealed_hours.toFixed(0) + " h" : "sealed"}`;
+    if (d.drum_humidity == null) return t("risk.open");
+    return `${t("risk.humid", { h: Math.round(d.drum_humidity) })} · ${d.sealed_hours >= 1 ? t("risk.shut", { n: d.sealed_hours.toFixed(0) }) : t("risk.sealed")}`;
   }
-  if (!r || d.kitchen_temp == null) return "Nothing hot";
-  return `${d.kitchen_temp.toFixed(1)}°C · ${(d.heat_load_w / 1000 || 0).toFixed(1)} kW`;
+  if (!r || d.kitchen_temp == null) return t("risk.nothingHot");
+  return `${d.kitchen_temp.toFixed(1)}°C · ${((d.heat_load_w || 0) / 1000).toFixed(1)} kW`;
 }
 
 function renderRisks() {
@@ -439,18 +569,19 @@ function renderRisks() {
     const r = risks[kind] || { kind, score: 0, threshold: 50, drivers: {} };
     const score = Math.round(r.score || 0);
     const level = r.firing ? "high" : score >= r.threshold * 0.6 ? "watch" : "low";
-    const tag = { high: ["pink", "On it"], watch: ["butter", "Watching"], low: ["mint", "All good"] }[level];
+    const tag = { high: ["pink", t("risk.high")], watch: ["butter", t("risk.watch")], low: ["mint", t("risk.low")] }[level];
+    const name = t(RISK[kind].key);
     const q = quiet[kind] > 60 && !asking.has(kind) && r.firing
-      ? `<p class="quiet">Quiet for ${Math.ceil(quiet[kind] / 60)} min</p>` : "";
+      ? `<p class="quiet">${esc(t("risk.quiet", { m: Math.ceil(quiet[kind] / 60) }))}</p>` : "";
     return `<article class="tile" data-kind="${kind}" data-level="${level}">
-      <div class="tile-top">${icon(RISK[kind].icon)}<span class="tag tag-${tag[0]}">${tag[1]}</span></div>
-      <div class="ring" role="meter" aria-label="${RISK[kind].title} risk" aria-valuemin="0" aria-valuemax="100" aria-valuenow="${score}">
+      <div class="tile-top">${icon(RISK[kind].icon)}<span class="tag tag-${tag[0]}">${esc(tag[1])}</span></div>
+      <div class="ring" role="meter" aria-label="${esc(t("risk.aria", { name }))}" aria-valuemin="0" aria-valuemax="100" aria-valuenow="${score}">
         <svg viewBox="0 0 84 84"><circle class="track" cx="42" cy="42" r="38"/>
           <circle class="prog" cx="42" cy="42" r="38" stroke-dasharray="${RING_C.toFixed(1)}"
             stroke-dashoffset="${(RING_C * (1 - Math.min(100, Math.max(3, score)) / 100)).toFixed(1)}"/></svg>
         <b>${score}</b>
       </div>
-      <h3>${RISK[kind].title}</h3>
+      <h3>${esc(name)}</h3>
       <p>${esc(riskDetail(r))}</p>
       ${q}
     </article>`;
@@ -466,51 +597,54 @@ function renderHeat() {
   const pct = Math.min(100, Math.round((w / FULL_KITCHEN_W) * 100));
   const level = w >= FULL_KITCHEN_W ? "high" : w >= FULL_KITCHEN_W * 0.6 ? "watch" : "low";
   const app = (pro && pro.appliances) || {};
-  const on = [["oven", "oven"], ["cooktop", "cooktop"], ["dryer", "dryer"], ["dish_washer", "dishwasher"]]
-    .filter(([k]) => app[k] && app[k].power).map(([, n]) => n);
+  const on = [["oven", "app.oven"], ["cooktop", "app.cooktop"], ["dryer", "app.dryer"], ["dish_washer", "app.dishwasher"]]
+    .filter(([k]) => app[k] && app[k].power).map(([, key]) => t(key));
   const box = $("#heat");
   box.dataset.level = level;
-  box.innerHTML = `<div class="heat-head">${icon("i-flame")}<span>Heat load</span><strong>${(w / 1000).toFixed(1)} kW</strong></div>
-    <div class="bar" role="meter" aria-label="Heat-producing load" aria-valuemin="0" aria-valuemax="${FULL_KITCHEN_W}" aria-valuenow="${w}"><span style="width:${pct}%"></span></div>
-    ${on.length ? `<small>Running: ${esc(on.join(", "))}</small>` : ""}`;
+  box.innerHTML = `<div class="heat-head">${icon("i-flame")}<span>${esc(t("heat.title"))}</span><strong>${(w / 1000).toFixed(1)} kW</strong></div>
+    <div class="bar" role="meter" aria-label="${esc(t("heat.aria"))}" aria-valuemin="0" aria-valuemax="${FULL_KITCHEN_W}" aria-valuenow="${w}"><span style="width:${pct}%"></span></div>
+    ${on.length ? `<small>${esc(t("heat.running", { list: on.join(", ") }))}</small>` : ""}`;
 }
 
 /* ---------- home: quick chips ---------- */
 
+// The phrases sent to the house stay English: they go through the same rule
+// parser the tests cover. Only the button labels change with the language.
 const SCENES = [
-  { key: "off", icon: "i-power", label: "All off",
-    say: () => "turn off everything in the living room" },
-  { key: "cool", icon: "i-temp", label: "Cool 24°",
-    say: () => "turn on the living room AC and set it to 24 degrees" },
-  { key: "fresh", icon: "i-wind", label: "Fresh air",
-    say: () => "it's stuffy in the living room" },
+  { key: "off", icon: "i-power", label: "quick.off", say: () => "turn off everything in the living room" },
+  { key: "cool", icon: "i-temp", label: "quick.cool", say: () => "turn on the living room AC and set it to 24 degrees" },
+  { key: "fresh", icon: "i-wind", label: "quick.fresh", say: () => "it's stuffy in the living room" },
 ];
 
 function renderQuick() {
   $("#quick").innerHTML = SCENES.map((s) =>
-    `<button type="button" data-scene="${s.key}">${icon(s.icon)}<span>${esc(s.label)}</span></button>`).join("");
+    `<button type="button" data-scene="${s.key}">${icon(s.icon)}<span>${esc(t(s.label))}</span></button>`).join("");
 }
 
 /* ---------- home: "just now" ---------- */
 
 function renderRecent() {
-  const rows = (auditRows || []).filter((r) => {
-    if (r.event_type === "notification.dryer_restart") return true;
-    return r.event_type === "action.executed" && ACTION_DONE[r.action_kind];
-  });
+  const rows = (auditRows || []).filter((r) => r.event_type === "notification.dryer_restart"
+    || (r.event_type === "action.executed" && actionDone(r.action_kind)));
   const fresh = rows.filter((r) => Date.now() - new Date(r.ts).getTime() < 15 * 60 * 1000).slice(0, 2);
   const box = $("#recent");
   if (!fresh.length || (pro && (pro.pending_approvals || []).length)) { box.hidden = true; return; }
   box.hidden = false;
-  box.innerHTML = `<p>Just now</p><ul>${fresh.map((r) => `<li>${icon("i-check")}<span>${esc(
-    r.event_type === "notification.dryer_restart" ? "Kitchen cooled down — you can restart the dryer"
-      : ACTION_DONE[r.action_kind])}</span></li>`).join("")}</ul>`;
+  box.innerHTML = `<p>${esc(t("recent.title"))}</p><ul>${fresh.map((r) => `<li>${icon("i-check")}<span>${esc(
+    r.event_type === "notification.dryer_restart" ? t("recent.cooled") : actionDone(r.action_kind))}</span></li>`).join("")}</ul>`;
 }
 
 /* ---------- the ask sheet (FR-3 / FR-4) ---------- */
 
 function askLeft(ap) {
   return (new Date(ap.expires_at).getTime() - Date.now()) / 1000;
+}
+
+function questionText(ap) {
+  const k = ap.action_kind || (ap.actions && ap.actions[0] && ap.actions[0].kind);
+  const known = I18N.en[`q.${k}`];
+  return { k, q: known ? t(`q.${k}`) : (ap.question || ap.summary), c: known ? t(`c.${k}`) : "",
+           icon: (QUESTION[k] || {}).icon || "i-sparkle", tone: (QUESTION[k] || {}).tone || "" };
 }
 
 function renderAsk() {
@@ -525,44 +659,43 @@ function renderAsk() {
   if (sig !== askSig) {
     askSig = sig;
     const r = ((pro && pro.risks) || {})[list[0].risk_kind];
-    const title = list[0].risk_kind === "mold" ? "The washer is getting damp" : "The kitchen is getting hot";
+    const title = list[0].risk_kind === "mold" ? t("ask.mold") : t("ask.heat");
     $("#askBody").innerHTML = `
       <div class="why">
         <div class="status-ic">${mascot("ask")}</div>
         <div><h2 id="askTitle">${esc(title)}</h2>
-          <div class="facts">${riskFacts(r).map(([t, l]) => `<span class="tag tag-${t}">${esc(l)}</span>`).join("")}</div></div>
+          <div class="facts">${riskFacts(r).map(([tone, l]) => `<span class="tag tag-${tone}">${esc(l)}</span>`).join("")}</div></div>
       </div>
-      <div class="count"><span>${list.length === 1 ? "1 quick question" : `${list.length} quick questions`}</span><span id="askClock"></span></div>
+      <div class="count"><span>${esc(list.length === 1 ? t("ask.one") : t("ask.n", { n: list.length }))}</span><span id="askClock"></span></div>
       ${list.map((ap) => {
-        const k = ap.action_kind || (ap.actions && ap.actions[0] && ap.actions[0].kind);
-        const q = QUESTION[k] || { q: ap.question || ap.summary, c: "", icon: "i-sparkle", tone: "" };
+        const q = questionText(ap);
         return `<div class="card q" role="group" aria-label="${esc(q.q)}" data-ask="${esc(ap.id)}">
           <div class="q-top"><div class="q-ic ${q.tone}">${icon(q.icon)}</div>
             <div><strong>${esc(q.q)}</strong>${q.c ? `<span>${esc(q.c)}</span>` : ""}
               <span class="q-own" data-clock="${esc(ap.id)}"></span></div></div>
           <div class="answers">
-            <button type="button" class="answer yes" data-answer="yes" data-id="${esc(ap.id)}">${icon("i-check")}Yes<small>네</small></button>
-            <button type="button" class="answer no" data-answer="no" data-id="${esc(ap.id)}">${icon("i-x")}No<small>아니요</small></button>
+            <button type="button" class="answer yes" data-answer="yes" data-id="${esc(ap.id)}">${icon("i-check")}${esc(t("ask.yes"))}${lang === "en" ? "<small>네</small>" : ""}</button>
+            <button type="button" class="answer no" data-answer="no" data-id="${esc(ap.id)}">${icon("i-x")}${esc(t("ask.no"))}${lang === "en" ? "<small>아니요</small>" : ""}</button>
           </div></div>`;
       }).join("")}
-      <p class="rule">No answer? Nothing changes.</p>`;
+      <p class="rule">${esc(t("ask.rule"))}</p>`;
     if (askDismissed !== sig) openSheet("askSheet");
     // One spoken prompt for the whole set, so two questions never cut each
     // other off. Read aloud regardless of the read-aloud setting.
     if (spokenAsks !== sig) {
       spokenAsks = sig;
-      const qs = list.map((ap) => (QUESTION[ap.action_kind] || {}).q || ap.question).join(" ");
-      speak(`${title}. ${list.length === 1 ? "One question." : list.length + " questions."} ${qs}`, true);
+      const qs = list.map((ap) => questionText(ap).q).join(" ");
+      speak(`${title}. ${list.length === 1 ? t("ask.speakOne") : t("ask.speakN", { n: list.length })} ${qs}`, true);
     }
   }
   const lefts = list.map(askLeft);
   const min = Math.min(...lefts);
   const spread = Math.max(...lefts) - min > 5;
   const c = $("#askClock");
-  if (c) c.textContent = min > 0 ? `${clock(min)} left` : "Time is up";
+  if (c) c.textContent = min > 0 ? t("ask.left", { t: clock(min) }) : t("ask.up");
   for (const ap of list) {
     const el = document.querySelector(`[data-clock="${ap.id}"]`);
-    if (el) el.textContent = spread ? `${clock(askLeft(ap))} left` : "";
+    if (el) el.textContent = spread ? t("ask.left", { t: clock(askLeft(ap)) }) : "";
   }
 }
 
@@ -574,13 +707,14 @@ async function answer(yes, id) {
     const res = await api(`/api/approvals/${encodeURIComponent(id)}/${yes ? "confirm" : "decline"}`,
       { method: "POST", body: JSON.stringify({ channel: "ui" }) });
     // `expired` and `blocked` are answers too, and the toast must say what the
-    // devices actually did (FR-4), not "Done".
-    if (res && res.expired) toast("Too late — nothing was changed.");
-    else if (res && res.ok === false) toast(cap(res.reason || res.error || "That question had already closed."));
-    else toast(yes ? "Done." : "Okay — nothing changed.");
+    // devices actually did (FR-4), not "Done". The reason text comes from the
+    // server in English.
+    if (res && res.expired) toast(t("toast.late"));
+    else if (res && res.ok === false) toast(cap(res.reason || res.error || t("toast.closed")));
+    else toast(yes ? t("toast.done") : t("toast.no"));
     await refresh();
   } catch (err) {
-    toast(`Could not reach the house: ${err.message}`);
+    toast(t("toast.unreach", { e: err.message }));
   } finally {
     askBusy = false;
   }
@@ -593,73 +727,68 @@ function devState(d) {
   const on = !!st.power;
   switch (d.type) {
     case "air_conditioner":
-      return on ? [MODE_LABEL[st.mode] || "On", st.target_temp != null ? `${st.target_temp}°` : ""].filter(Boolean).join(" ") : "Off";
-    case "air_purifier": return on ? `PM2.5 ${st.pm25 == null ? "—" : st.pm25}` : "Off";
-    case "washer": return on ? `Washing · ${st.remaining_min == null ? "?" : st.remaining_min} min` : (st.state === "done" ? "Cycle finished" : "Standby");
+      return on ? [t(`mode.${st.mode}`) !== `mode.${st.mode}` ? t(`mode.${st.mode}`) : t("state.on"), st.target_temp != null ? `${st.target_temp}°` : ""].filter(Boolean).join(" ") : t("state.off");
+    case "air_purifier": return on ? `PM2.5 ${st.pm25 == null ? "—" : st.pm25}` : t("state.off");
+    case "washer": return on ? t("state.washing", { m: st.remaining_min == null ? "?" : st.remaining_min }) : (st.state === "done" ? t("state.finished") : t("state.standby"));
     case "refrigerator": return `${st.fridge_temp == null ? "—" : st.fridge_temp}°C · ${st.duty_cycle == null ? "—" : Math.round(st.duty_cycle * 100) + "%"}`;
-    case "range_hood": return on ? `Fan ${st.fan || "auto"}` : "Off";
-    case "oven": return on ? `Heating · ${st.target_temp == null ? "—" : st.target_temp + "°C"}` : "Off";
-    default: return on ? "On" : "Off";
+    case "range_hood": return on ? t("state.fan", { f: lang === "ko" ? ({ high: "강", mid: "중", medium: "중", low: "약", auto: "자동" }[st.fan || "auto"] || st.fan) : (st.fan || "auto") }) : t("state.off");
+    case "oven": return on ? t("state.heating", { t: st.target_temp == null ? "—" : st.target_temp + "°C" }) : t("state.off");
+    default: return on ? t("state.on") : t("state.off");
   }
-}
-
-function shortName(d) {
-  const room = d.room || "";
-  const n = String(d.name || "");
-  return activeRoom !== "All" && n.startsWith(room + " ") ? n.slice(room.length + 1) : n;
 }
 
 function renderDevices() {
   const all = (snapshot && snapshot.devices) || [];
   const rooms = ROOM_ORDER.filter((r) => all.some((d) => d.room === r));
   const onCount = all.filter((d) => (d.state || {}).power).length;
-  $("#devCount").textContent = `${all.length} devices · ${onCount} on`;
+  $("#devCount").textContent = t("dev.count", { n: all.length, on: onCount });
   $("#roomFilter").innerHTML = ["All", ...rooms].map((r) =>
-    `<button type="button" role="tab" aria-selected="${r === activeRoom}" class="${r === activeRoom ? "on" : ""}" data-room="${esc(r)}">${esc(r === "All" ? "All" : ROOM_SHORT[r] || r)}</button>`).join("");
+    `<button type="button" role="tab" aria-selected="${r === activeRoom}" class="${r === activeRoom ? "on" : ""}" data-room="${esc(r)}">${esc(r === "All" ? t("dev.all") : roomName(r))}</button>`).join("");
   const list = activeRoom === "All" ? all : all.filter((d) => d.room === activeRoom);
   const sensor = ((pro && pro.rooms) || {})[activeRoom];
   const roomOn = list.filter((d) => (d.state || {}).power).length;
+  const kw = (((pro && pro.heat_load_w) || 0) / 1000).toFixed(1);
   const stats = activeRoom === "All"
-    ? [[`${onCount}/${all.length}`, "Devices on"], [`${((pro && pro.heat_load_w) || 0) / 1000 >= 0 ? (((pro && pro.heat_load_w) || 0) / 1000).toFixed(1) : "—"} kW`, "Heat load"], [String(rooms.length), "Rooms"]]
-    : [[sensor ? `${sensor.temp.toFixed(1)}°` : "—", "Temperature"], [sensor ? `${Math.round(sensor.humidity)}%` : "—", "Humidity"], [`${roomOn}/${list.length}`, "On"]];
+    ? [[`${onCount}/${all.length}`, t("dev.devicesOn")], [`${kw} kW`, t("dev.heat")], [String(rooms.length), t("dev.rooms")]]
+    : [[sensor ? `${sensor.temp.toFixed(1)}°` : "—", t("dev.temp")], [sensor ? `${Math.round(sensor.humidity)}%` : "—", t("dev.hum")], [`${roomOn}/${list.length}`, t("dev.on")]];
   $("#roomStats").innerHTML = stats.map(([v, l]) => `<div><strong>${esc(v)}</strong><span>${esc(l)}</span></div>`).join("");
   $("#devices").innerHTML = list.length ? list.map((d) => {
     const on = !!(d.state || {}).power;
+    const name = deviceName(d, activeRoom !== "All");
     return `<article class="dev${on ? " on" : ""}${d.online === false ? " offline" : ""}">
-      <button type="button" class="dev-open" data-open="${esc(d.id)}" aria-label="${esc(d.name)} details">
+      <button type="button" class="dev-open" data-open="${esc(d.id)}" aria-label="${esc(t("dev.details", { name: deviceName(d) }))}">
         <span class="dev-ic">${icon(ICON[d.type] || "i-devices")}</span>
-        <span class="dev-name">${esc(shortName(d))}</span>
+        <span class="dev-name">${esc(name)}</span>
         <span class="dev-state">${esc(devState(d))}</span>
       </button>
-      <button type="button" class="switch" role="switch" aria-checked="${on}" aria-label="${esc(d.name)}"
+      <button type="button" class="switch" role="switch" aria-checked="${on}" aria-label="${esc(deviceName(d))}"
               data-power="${esc(d.id)}" data-on="${on ? 1 : 0}"></button>
     </article>`;
-  }).join("") : `<p class="empty">Nothing in this room.</p>`;
+  }).join("") : `<p class="empty">${esc(t("dev.empty"))}</p>`;
 }
 
 /* ---------- activity: the audit trail in words (FR-6) ---------- */
 
 function auditItem(r) {
-  const act = ACTION_TEXT[r.action_kind] || r.action_kind || "";
-  const req = r.approval_id ? `request ${String(r.approval_id).slice(0, 6)}` : "";
+  const act = r.action_kind ? actionName(r.action_kind) : (r.device_id || "");
+  const req = r.approval_id ? t("act.request", { id: String(r.approval_id).slice(0, 6) }) : "";
   switch (r.event_type) {
     case "risk.triggered":
-      return { tone: "warn", icon: "i-flame",
-               title: r.risk_kind === "mold" ? "Washer getting damp" : "Kitchen getting hot",
-               detail: `Score ${Math.round(r.risk_score || 0)} · acts at 50` };
-    case "approval.proposed": return { tone: "ask", icon: "i-sparkle", title: `Asked you: ${act}`, detail: req };
-    case "approval.confirmed": return { tone: "ok", icon: "i-check", title: `You said yes: ${act}`, detail: req };
-    case "approval.declined": return { tone: "plain", icon: "i-x", title: `You said no: ${act}`, detail: req };
-    case "approval.expired": return { tone: "plain", icon: "i-clock", title: `No answer: ${act}`, detail: "Nothing changed" };
+      return { tone: "warn", icon: "i-flame", title: r.risk_kind === "mold" ? t("act.washerDamp") : t("act.kitchenHot"),
+               detail: t("act.score", { s: Math.round(r.risk_score || 0) }) };
+    case "approval.proposed": return { tone: "ask", icon: "i-sparkle", title: t("act.askedYou", { a: act }), detail: req };
+    case "approval.confirmed": return { tone: "ok", icon: "i-check", title: t("act.yes", { a: act }), detail: req };
+    case "approval.declined": return { tone: "plain", icon: "i-x", title: t("act.no", { a: act }), detail: req };
+    case "approval.expired": return { tone: "plain", icon: "i-clock", title: t("act.noAnswer", { a: act }), detail: t("act.nothingChanged") };
     case "action.executed": {
-      const who = r.approval_id ? "You said yes" : r.channel === "safety-interlock" ? "Safety rule"
-        : r.channel === "engine" ? "Did it on its own" : "From the app";
-      return { tone: "ok", icon: "i-check", title: ACTION_DONE[r.action_kind] || `Done: ${act || r.device_id || ""}`, detail: [who, req].filter(Boolean).join(" · ") };
+      const who = r.approval_id ? t("act.saidYes") : r.channel === "safety-interlock" ? t("act.safety")
+        : r.channel === "engine" ? t("act.own") : t("act.fromApp");
+      return { tone: "ok", icon: "i-check", title: actionDone(r.action_kind) || t("act.doneX", { a: act }), detail: [who, req].filter(Boolean).join(" · ") };
     }
-    case "action.failed": return { tone: "bad", icon: "i-x", title: `${act || r.device_id || "Device"} didn't respond`, detail: r.detail || "" };
-    case "action.blocked": return { tone: "plain", icon: "i-x", title: `Didn't go ahead: ${act || r.device_id || ""}`, detail: cap(r.detail || "") };
-    case "notification.dryer_restart": return { tone: "plain", icon: "i-check", title: "Kitchen cooled down", detail: "You can restart the dryer" };
-    case "scenario.reset": return { tone: "plain", icon: "i-sparkle", title: "Demo scenario loaded", detail: r.detail || "" };
+    case "action.failed": return { tone: "bad", icon: "i-x", title: t("act.noRespond", { a: act || "—" }), detail: r.detail || "" };
+    case "action.blocked": return { tone: "plain", icon: "i-x", title: t("act.blocked", { a: act }), detail: cap(r.detail || "") };
+    case "notification.dryer_restart": return { tone: "plain", icon: "i-check", title: t("act.cooled"), detail: t("act.restart") };
+    case "scenario.reset": return { tone: "plain", icon: "i-sparkle", title: t("act.demo"), detail: r.detail || "" };
     default: return { tone: "plain", icon: "i-clock", title: r.event_type, detail: r.detail || "" };
   }
 }
@@ -675,7 +804,7 @@ function renderActivity() {
     return `<li data-tone="${it.tone}"><span class="t-ic">${icon(it.icon)}</span>
       <div class="t-text"><strong>${esc(it.title)}</strong>${it.detail ? `<span>${esc(it.detail)}</span>` : ""}<code>${esc(r.event_type)}</code></div>
       <span class="t-time">${esc(hhmm(r.ts))}</span></li>`;
-  }).join("") : `<li class="empty">Nothing recorded yet.</li>`;
+  }).join("") : `<li class="empty">${esc(t("act.empty"))}</li>`;
 }
 
 /* ---------- settings ---------- */
@@ -685,10 +814,10 @@ function renderJobs() {
   $("#jobs").innerHTML = jobs.length ? jobs.map((j) => `
     <div class="li">${icon("i-clock")}
       <div class="li-text"><strong>${esc(cap(j.summary || j.device_name || "Scheduled task"))}</strong>
-        <span>${esc(repeatShort(j.repeat_label) || "once")} · ${j.enabled ? "next " + esc(fmtWhen(j.next_run_at)) : "disabled"}</span></div>
-      <button type="button" class="del" data-del="${esc(j.id)}" aria-label="Delete task">×</button>
+        <span>${esc(repeatShort(j.repeat_label) === "once" ? t("job.once") : repeatShort(j.repeat_label))} · ${j.enabled ? esc(t("job.next", { t: fmtWhen(j.next_run_at) })) : esc(t("job.disabled"))}</span></div>
+      <button type="button" class="del" data-del="${esc(j.id)}" aria-label="${esc(t("set.del"))}">×</button>
     </div>`).join("")
-    : `<div class="li">${icon("i-clock")}<div class="li-text"><strong>Nothing scheduled</strong><span>Ask the house to set something</span></div></div>`;
+    : `<div class="li">${icon("i-clock")}<div class="li-text"><strong>${esc(t("set.none"))}</strong><span>${esc(t("set.noneSub"))}</span></div></div>`;
 }
 
 function renderMode() {
@@ -901,7 +1030,7 @@ function showReply(text) {
 }
 
 function showPending(label) {
-  $("#replyText").textContent = label || "Working on it…";
+  $("#replyText").textContent = label || t("toast.working");
   $("#reply").hidden = false;
   $("#reply").classList.add("pending");
 }
@@ -909,14 +1038,14 @@ function showPending(label) {
 /* Quick chips run without leaving Home: the answer comes back as a toast long
    enough to read, and is spoken when read-aloud is on. */
 async function runScene(scene) {
-  toast("Working on it…", 8000);
+  toast(t("toast.working"), 8000);
   try {
     const data = await api("/api/chat", { method: "POST", body: JSON.stringify({ text: scene.say() }) });
     if (data.snapshot) { snapshot = data.snapshot; renderAll(); }
-    toast(data.reply || "Done.", 5000);
+    toast(data.reply || t("toast.done"), 5000);
     speak(data.reply || "");
   } catch (err) {
-    toast(`Could not reach the house: ${err.message}`);
+    toast(t("toast.unreach", { e: err.message }));
   }
 }
 
@@ -953,20 +1082,20 @@ function renderSheet() {
   const st = device.state || {};
   const on = !!st.power;
   const caps = device.capabilities || [];
-  const sub = [device.room || device.type_label, devState(device)].filter(Boolean).join(" · ");
-  let body = `<div><h2>${esc(device.name)}</h2><p class="sub">${esc(sub)}</p></div>`;
+  const sub = [roomName(device.room) || device.type_label, devState(device)].filter(Boolean).join(" · ");
+  let body = `<div><h2>${esc(deviceName(device))}</h2><p class="sub">${esc(sub)}</p></div>`;
   if (caps.includes("temperature")) {
     const target = st.target_temp == null ? 26 : st.target_temp;
     body += `<div class="stepper">
-      <button type="button" data-step="-1" ${on ? "" : "disabled"} aria-label="Cooler">−</button>
+      <button type="button" data-step="-1" ${on ? "" : "disabled"} aria-label="${esc(t("dev.cooler"))}">−</button>
       <span class="target">${target}°C</span>
-      <button type="button" data-step="1" ${on ? "" : "disabled"} aria-label="Warmer">+</button></div>`;
+      <button type="button" data-step="1" ${on ? "" : "disabled"} aria-label="${esc(t("dev.warmer"))}">+</button></div>`;
   }
   if (caps.includes("mode")) {
     body += `<div class="pills">${MODES.map((mode) =>
-      `<button type="button" data-mode="${mode}" class="${st.mode === mode ? "active" : ""}">${MODE_LABEL[mode]}</button>`).join("")}</div>`;
+      `<button type="button" data-mode="${mode}" class="${st.mode === mode ? "active" : ""}">${esc(t(`mode.${mode}`))}</button>`).join("")}</div>`;
   }
-  body += `<button type="button" class="sheet-power${on ? " on" : ""}" data-sheet-power="${on ? 0 : 1}">${on ? "Turn off" : "Turn on"}</button>`;
+  body += `<button type="button" class="sheet-power${on ? " on" : ""}" data-sheet-power="${on ? 0 : 1}">${esc(on ? t("dev.turnOff") : t("dev.turnOn"))}</button>`;
   $("#sheetBody").innerHTML = body;
 }
 
@@ -981,21 +1110,21 @@ async function control(deviceId, actions) {
   try {
     const data = await api("/api/control", { method: "POST", body: JSON.stringify({ device_id: deviceId, actions }) });
     if (data.snapshot) { snapshot = data.snapshot; renderAll(); }
-    if (data.ok === false) toast(data.error || "The device did not respond.");
+    if (data.ok === false) toast(data.error || t("toast.noResponse"));
   } catch (err) {
-    toast(`Control failed: ${err.message}`);
+    toast(t("toast.ctrl", { e: err.message }));
   }
 }
 
 async function loadScenario(name) {
   try {
     await api("/api/scenario", { method: "POST", body: JSON.stringify({ name }) });
-    toast("Scenario loaded.");
+    toast(t("toast.scenario"));
     askSig = ""; askDismissed = ""; spokenAsks = "";
     await refresh();
     switchTab("home");
   } catch (err) {
-    toast(`Could not load the scenario: ${err.message}`);
+    toast(t("toast.scenarioFail", { e: err.message }));
   }
 }
 
@@ -1003,8 +1132,8 @@ async function loadScenario(name) {
 
 function renderAll() {
   if (!snapshot) return;
-  $("#stamp").textContent = `${BACKEND_LABEL[snapshot.backend] || snapshot.backend || ""} · ${snapshot.build || ""}`;
-  $("#today").textContent = new Date().toLocaleDateString("en-US", { weekday: "short", month: "short", day: "numeric" });
+  $("#stamp").textContent = `${(lang === "ko" ? { mock: "시뮬레이터", thinq: "LG ThinQ" } : BACKEND_LABEL)[snapshot.backend] || snapshot.backend || ""} · ${snapshot.build || ""}`;
+  $("#today").textContent = new Date().toLocaleDateString(lang === "ko" ? "ko-KR" : "en-US", { weekday: "short", month: "short", day: "numeric" });
   renderAsk();
   renderHero();
   renderRisks();
@@ -1076,9 +1205,8 @@ document.addEventListener("click", (event) => {
   if ((el = hit("[data-open]"))) return openDevice(el.dataset.open);
   if ((el = hit("[data-tab]"))) return switchTab(el.dataset.tab);
   if ((el = hit("[data-lang]"))) {
-    voiceLang = el.dataset.lang;
-    renderLangButton();
-    return toast(voiceLang.startsWith("ko") ? "한국어 음성 인식" : "English voice input");
+    setLang(el.dataset.lang);
+    return toast(t("toast.lang"));
   }
   if ((el = hit("[data-del]"))) {
     return api(`/api/jobs/${el.dataset.del}`, { method: "DELETE" })
@@ -1105,13 +1233,15 @@ $("#tts").addEventListener("click", () => {
   ttsOn = !ttsOn;
   $("#tts").setAttribute("aria-checked", String(ttsOn));
   if (!ttsOn && "speechSynthesis" in window) window.speechSynthesis.cancel();
-  toast(ttsOn ? "Reading replies aloud" : "Reading aloud off");
+  toast(ttsOn ? t("toast.ttsOn") : t("toast.ttsOff"));
 });
 
 /* ---------- boot ---------- */
 
-refresh();
+voiceLang = lang === "ko" ? "ko-KR" : "en-US";
+applyStatic();
 renderLangButton();
+refresh();
 setInterval(refresh, 4000);
 setInterval(renderAsk, 1000);   // the clock is the point: it has to move
 

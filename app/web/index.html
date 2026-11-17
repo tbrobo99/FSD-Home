@@ -10,11 +10,11 @@
 <link rel="manifest" href="/manifest.webmanifest">
 <link rel="icon" href="/icon.svg" type="image/svg+xml">
 <link rel="apple-touch-icon" href="/icon.svg">
-<!-- v3 "soft modern" type: Outfit for headings and numbers, Nunito for body,
+<!-- v3 "soft modern" type: Outfit for headings and numbers, Plus Jakarta Sans for body,
      IBM Plex Sans KR for Korean. Offline, the stack falls back to system fonts. -->
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans+KR:wght@500&family=Nunito:wght@600;700;800&family=Outfit:wght@500;600&display=swap">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans+KR:wght@500;600;700&family=Plus+Jakarta+Sans:wght@500;600;700&family=Outfit:wght@500;600&display=swap">
 <link rel="stylesheet" href="/style.css">
 </head>
 <body>
@@ -59,21 +59,21 @@
     <header class="head">
       <div>
         <p class="eyebrow" id="today"></p>
-        <h1>My Home</h1>
+        <h1 data-i18n="home.title">My Home</h1>
       </div>
-      <!-- Voice language. The UI copy stays English for the course; speech
-           recognition and read-aloud switch. -->
-      <div class="seg" id="lang" role="group" aria-label="Voice language">
-        <button type="button" data-lang="ko-KR">한국어</button>
-        <button type="button" data-lang="en-US">EN</button>
+      <!-- Language: switches the interface text, speech recognition and
+           read-aloud together (Figma rows EN / KO). -->
+      <div class="seg" id="lang" role="group" aria-label="Language / 언어">
+        <button type="button" data-lang="ko">한국어</button>
+        <button type="button" data-lang="en">EN</button>
       </div>
     </header>
 
     <div class="hero" id="hero" role="status" aria-live="polite"></div>
 
     <div class="row-head">
-      <h2>Home check</h2>
-      <span class="tag tag-neutral" title="The house steps in when a score reaches 50">acts at 50</span>
+      <h2 data-i18n="home.check">Home check</h2>
+      <span class="tag tag-neutral" data-i18n="home.acts" data-i18n-title="home.actsTitle">acts at 50</span>
     </div>
     <div class="tiles" id="risks"></div>
 
@@ -91,7 +91,7 @@
     <header class="head">
       <div>
         <p class="eyebrow" id="devCount"></p>
-        <h1>Devices</h1>
+        <h1 data-i18n="dev.title">Devices</h1>
       </div>
     </header>
     <div class="filters" id="roomFilter" role="tablist" aria-label="Room"></div>
@@ -103,17 +103,17 @@
   <section class="view" id="view-activity" hidden aria-label="Activity">
     <header class="head">
       <div>
-        <p class="eyebrow">What the house did, and why</p>
-        <h1>Activity</h1>
+        <p class="eyebrow" data-i18n="act.eyebrow">What the house did, and why</p>
+        <h1 data-i18n="act.title">Activity</h1>
       </div>
-      <span class="locked"><svg class="ic"><use href="#i-lock"/></svg>Can't be edited</span>
+      <span class="locked"><svg class="ic"><use href="#i-lock"/></svg><span data-i18n="act.locked">Can't be edited</span></span>
     </header>
     <div class="filters" id="actFilter" role="tablist" aria-label="Show">
-      <button type="button" data-act="all" class="on">All</button>
-      <button type="button" data-act="asked">Asked you</button>
-      <button type="button" data-act="done">Done</button>
+      <button type="button" data-act="all" class="on" data-i18n="act.all">All</button>
+      <button type="button" data-act="asked" data-i18n="act.asked">Asked you</button>
+      <button type="button" data-act="done" data-i18n="act.done">Done</button>
     </div>
-    <p class="day">Today</p>
+    <p class="day" data-i18n="act.today">Today</p>
     <ol class="timeline" id="auditLog"></ol>
   </section>
 
@@ -121,50 +121,50 @@
   <section class="view" id="view-settings" hidden aria-label="Settings">
     <header class="head">
       <div>
-        <p class="eyebrow">Voice, schedules and demo</p>
-        <h1>Settings</h1>
+        <p class="eyebrow" data-i18n="set.eyebrow">Voice, schedules and demo</p>
+        <h1 data-i18n="set.title">Settings</h1>
       </div>
     </header>
 
     <div class="card list">
       <div class="li">
         <svg class="ic"><use href="#i-speaker"/></svg>
-        <div class="li-text"><strong>Read replies aloud</strong><span>Questions are always read</span></div>
-        <button type="button" id="tts" class="switch" role="switch" aria-checked="false" aria-label="Read replies aloud"></button>
+        <div class="li-text"><strong data-i18n="set.tts">Read replies aloud</strong><span data-i18n="set.ttsSub">Questions are always read</span></div>
+        <button type="button" id="tts" class="switch" role="switch" aria-checked="false" aria-label="Read replies aloud" data-i18n-aria="set.tts"></button>
       </div>
       <div class="li">
         <svg class="ic"><use href="#i-sparkle"/></svg>
-        <div class="li-text"><strong>How it decides</strong><span>Rules first, or the agent</span></div>
+        <div class="li-text"><strong data-i18n="set.mode">How it decides</strong><span data-i18n="set.modeSub">Rules first, or the agent</span></div>
         <div class="seg small" id="modeSwitch" role="group" aria-label="How it decides">
-          <button type="button" data-agent-mode="cascade">Cascade</button>
-          <button type="button" data-agent-mode="agent">Agent</button>
+          <button type="button" data-agent-mode="cascade" data-i18n="set.cascade">Cascade</button>
+          <button type="button" data-agent-mode="agent" data-i18n="set.agent">Agent</button>
         </div>
       </div>
     </div>
 
-    <div class="row-head"><h2>Schedule</h2></div>
+    <div class="row-head"><h2 data-i18n="set.schedule">Schedule</h2></div>
     <div class="card list" id="jobs"></div>
 
-    <div class="row-head"><h2>Demo</h2><span class="tag tag-neutral">for presentations</span></div>
+    <div class="row-head"><h2 data-i18n="set.demo">Demo</h2><span class="tag tag-neutral" data-i18n="set.demoTag">for presentations</span></div>
     <div class="demo" id="demo">
-      <button type="button" data-scenario="idle">Calm house</button>
-      <button type="button" data-scenario="mold">Wet washer</button>
-      <button type="button" data-scenario="oven">Dryer + dinner soon</button>
-      <button type="button" data-scenario="oven_running">Dryer + oven on</button>
+      <button type="button" data-scenario="idle" data-i18n="set.calm">Calm house</button>
+      <button type="button" data-scenario="mold" data-i18n="set.wet">Wet washer</button>
+      <button type="button" data-scenario="oven" data-i18n="set.dinner">Dryer + dinner soon</button>
+      <button type="button" data-scenario="oven_running" data-i18n="set.oven">Dryer + oven on</button>
     </div>
     <p class="stamp" id="stamp"></p>
   </section>
 
   <!-- ================= TAB BAR + TALK ================= -->
   <nav class="tabbar" aria-label="Main">
-    <button class="tab active" data-tab="home"><svg class="ic"><use href="#i-home"/></svg><span>Home</span></button>
-    <button class="tab" data-tab="devices"><svg class="ic"><use href="#i-devices"/></svg><span>Devices</span></button>
-    <button class="talk-fab" id="talkFab" aria-label="Talk to the house (말하기)">
+    <button class="tab active" data-tab="home"><svg class="ic"><use href="#i-home"/></svg><span data-i18n="tab.home">Home</span></button>
+    <button class="tab" data-tab="devices"><svg class="ic"><use href="#i-devices"/></svg><span data-i18n="tab.devices">Devices</span></button>
+    <button class="talk-fab" id="talkFab" aria-label="Talk to the house" data-i18n-aria="talk.aria">
       <svg class="ic"><use href="#i-mic"/></svg>
-      <span class="ko">말하기</span>
+      <span class="ko" data-i18n="tab.talk">말하기</span>
     </button>
-    <button class="tab" data-tab="activity"><svg class="ic"><use href="#i-activity"/></svg><span>Activity</span></button>
-    <button class="tab" data-tab="settings"><svg class="ic"><use href="#i-settings"/></svg><span>Settings</span></button>
+    <button class="tab" data-tab="activity"><svg class="ic"><use href="#i-activity"/></svg><span data-i18n="tab.activity">Activity</span></button>
+    <button class="tab" data-tab="settings"><svg class="ic"><use href="#i-settings"/></svg><span data-i18n="tab.settings">Settings</span></button>
   </nav>
 
   <div class="toast" id="toast" hidden role="status" aria-live="polite"></div>
@@ -183,18 +183,18 @@
 <section class="sheet talk-sheet" id="talkSheet" hidden role="dialog" aria-modal="true" aria-label="Talk to the house">
   <div class="grabber"></div>
   <div class="talk-head">
-    <h2>Talk to the house</h2>
-    <button type="button" class="close" data-close aria-label="Close">
+    <h2 data-i18n="talk.title">Talk to the house</h2>
+    <button type="button" class="close" data-close aria-label="Close" data-i18n-aria="close">
       <svg class="ic"><use href="#i-x"/></svg>
     </button>
   </div>
   <div class="reply" id="reply" hidden><p id="replyText"></p></div>
   <div class="chat" id="chat"></div>
   <div class="chips" id="chips"></div>
-  <button class="talk" id="mic"><svg class="ic"><use href="#i-mic"/></svg><span id="micLabel">Tap to talk</span></button>
+  <button class="talk" id="mic"><svg class="ic"><use href="#i-mic"/></svg><span id="micLabel" data-i18n="talk.tap">Tap to talk</span></button>
   <form class="composer" id="composer">
-    <input id="input" type="text" autocomplete="off" enterkeyhint="send" placeholder="Or type here…">
-    <button type="submit" class="send" aria-label="Send"><svg class="ic"><use href="#i-send"/></svg></button>
+    <input id="input" type="text" autocomplete="off" enterkeyhint="send" placeholder="Or type here…" data-i18n-ph="talk.placeholder">
+    <button type="submit" class="send" aria-label="Send" data-i18n-aria="talk.send"><svg class="ic"><use href="#i-send"/></svg></button>
   </form>
 </section>
 
