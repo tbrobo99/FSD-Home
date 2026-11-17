@@ -821,6 +821,35 @@ class ProactiveEngine:
             "cooking": self._cooking_detected(snap, datetime.now()) if snap else False,
         }
 
+    def _sync_simulated_devices(self) -> None:
+        """Make the simulated device list agree with the scenario just loaded.
+
+        The simulator and the mock adapter keep separate state; without this
+        the device list kept the previous run's appliances on or off while the
+        risk cards showed the new scenario. Only the mock backend is touched —
+        a demo reset must never switch real appliances.
+        """
+        if getattr(self.adapter, "backend_name", "") != "mock":
+            return
+        snap = self.sensors.snapshot()
+        appliances = snap.get("appliances") or {}
+        for dev in self.adapter.list_devices():
+            did = dev.get("id", "")
+            if did == "washer":
+                # Powering the mock washer starts a wash; leave its cycle to
+                # the simulator and only stop any drum ventilation.
+                acts = [{"action": "ventilate", "value": False}]
+            elif did in appliances and "power" in appliances[did]:
+                acts = [{"action": "power", "value": bool(appliances[did]["power"])}]
+            elif did.startswith("ac_"):
+                acts = [{"action": "power", "value": False}]
+            else:
+                continue
+            try:
+                self.adapter.apply(did, acts)
+            except Exception as exc:
+                db.log("scenario.sync_failed", f"{did}: {exc}", "error")
+
     def reset_scenario(self, name: str) -> None:
         """Demo control: load a scenario and start the engine's memory fresh.
 
@@ -830,6 +859,7 @@ class ProactiveEngine:
         """
         self.approvals.close_all("scenario reset")
         self.sensors.apply_scenario(name)
+        self._sync_simulated_devices()
         self._cooldown.clear()
         self._active.clear()
         self._logged_risks.clear()
