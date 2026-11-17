@@ -318,6 +318,30 @@ class FR456Test(unittest.TestCase):
         self.assertIn("did not respond", body)
         self.assertNotIn("So I started", body)
 
+    def test_scenario_reset_closes_questions_and_syncs_simulated_devices(self):
+        e = self._engine()
+        cards = self._oven(e)
+        self.adapter.backend_name = "mock"
+        self.adapter.devices.append({"id": "ac_kitchen", "name": "Kitchen AC",
+                                     "type": "ac", "room": "Kitchen", "online": True})
+        self.adapter.applied.clear()
+        e.reset_scenario("idle")
+        self.assertEqual(e.approvals.pending(), [])
+        for ap in cards.values():
+            self.assertEqual(e.approvals.get(ap.id).status, "expired")
+        applied = dict(self.adapter.applied)
+        self.assertEqual(applied["dryer"], [{"action": "power", "value": False}])
+        self.assertEqual(applied["ac_kitchen"], [{"action": "power", "value": False}])
+        self.assertEqual(applied["washer"], [{"action": "ventilate", "value": False}])
+
+    def test_scenario_reset_never_touches_a_real_backend(self):
+        e = self._engine()
+        self._oven(e)
+        self.adapter.backend_name = "thinq"
+        self.adapter.applied.clear()
+        e.reset_scenario("idle")
+        self.assertEqual(self.adapter.applied, [])
+
     def test_quiet_periods_are_visible_in_state(self):
         e = self._engine()
         for ap in self._oven(e).values():
