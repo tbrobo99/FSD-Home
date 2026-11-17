@@ -4,7 +4,7 @@
    screen during development. API calls are never cached: stale device state is
    exactly what this project promises not to show. */
 
-const CACHE = "home-agent-v11";
+const CACHE = "fsd-home-v12";
 const SHELL = [
   "/",
   "/style.css",
