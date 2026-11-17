@@ -45,7 +45,19 @@ ACTION_TIERS: dict[str, str] = {
     "precool_kitchen": TIER1,
     "stop_dryer": TIER2,
     "preheat_cooktop": TIER2,
+    # Heat stress where people live (HSI): gentle cooling is reversible and
+    # protective, so the house does it.
+    "cool_room": TIER1,
+    # Power load (PLI): raising a cold setpoint by 2 °C is reversible and
+    # barely felt; pausing a running wash changes the household's plan.
+    "eco_ac": TIER1,
+    "pause_washer": TIER2,
 }
+
+ROOM_AC = {"Living Room": "ac_living", "Bedroom": "ac_bedroom", "Kitchen": "ac_kitchen"}
+GENTLE_COOL_C = 26      # cooling target for older adults: cool, not cold
+ECO_STEP_C = 2
+ECO_CEILING_C = 26
 
 # How long a Tier-2 request waits before the fail-safe timeout (poster §II.E).
 APPROVAL_TTL_SECONDS = 300
@@ -195,5 +207,57 @@ def candidates(risk, snapshot: dict) -> list[Candidate]:
                     reason=(f"cooking starts in {cooking_in} min and the cooktop "
                             f"is off; it takes about five minutes to reach heat"),
                 ))
+
+    elif risk.kind == "heat_health":
+        room = risk.drivers.get("room", "Living Room")
+        ac = (snapshot.get("ac_targets") or {}).get(room, {})
+        already = ac.get("power") and ac.get("mode", "cool") == "cool" and (ac.get("target_temp") or 99) <= GENTLE_COOL_C
+        if room in ROOM_AC and not already:
+            where = room.lower()
+            out.append(Candidate(
+                kind="cool_room",
+                device_id=ROOM_AC[room],
+                device_name=f"{room} AC",
+                actions=[{"action": "power", "value": True},
+                         {"action": "mode", "value": "cool"},
+                         {"action": "temperature", "value": GENTLE_COOL_C}],
+                label=f"cool the {where} gently to {GENTLE_COOL_C}\u00b0C",
+                done=f"started cooling the {where} gently to {GENTLE_COOL_C}\u00b0C",
+                reason=(f"it feels like {risk.current:.1f}\u00b0C in the {where} "
+                        f"({risk.drivers.get('room_temp')}\u00b0C at {risk.drivers.get('humidity')}% humidity) "
+                        f"and someone is home"),
+            ))
+
+    elif risk.kind == "energy":
+        acs = [(room, ac) for room, ac in (snapshot.get("ac_targets") or {}).items()
+               if ac.get("power") and ac.get("mode", "cool") == "cool"
+               and (ac.get("target_temp") or 26) < ECO_CEILING_C and room in ROOM_AC]
+        if acs:
+            # One AC per pass, the coldest first: the next pass (after the
+            # cooldown) takes the next one if the load is still high.
+            room, ac = min(acs, key=lambda x: x[1].get("target_temp") or 26)
+            new_t = min(ECO_CEILING_C, int(ac.get("target_temp") or 22) + ECO_STEP_C)
+            out.append(Candidate(
+                kind="eco_ac",
+                device_id=ROOM_AC[room],
+                device_name=f"{room} AC",
+                actions=[{"action": "temperature", "value": new_t}],
+                label=f"raise the {room.lower()} AC from {ac.get('target_temp')}\u00b0 to {new_t}\u00b0",
+                done=f"raised the {room.lower()} AC to {new_t}\u00b0 to save power",
+                reason=(f"{risk.current / 1000:.1f} kW against a {risk.drivers.get('budget_w', 0) / 1000:.1f} kW "
+                        f"{risk.drivers.get('tariff')} budget; a colder setpoint is the largest flexible load"),
+            ))
+        washer = snapshot["appliances"].get("washer", {})
+        if washer.get("cycle") == "washing" and risk.drivers.get("tariff") == "peak":
+            out.append(Candidate(
+                kind="pause_washer",
+                device_id="washer",
+                device_name="Balcony Washer",
+                actions=[{"action": "power", "value": False}],
+                label="pause the wash until the peak rate ends; you restart it yourself",
+                done="paused the wash, and left it for you to restart after the peak",
+                tier=TIER2,
+                reason=f"the wash draws 0.5 kW during the peak price band",
+            ))
 
     return out

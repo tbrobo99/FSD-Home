@@ -155,7 +155,7 @@ class Handler(BaseHTTPRequestHandler):
             name = str(body.get("name") or "")
             if engine is None:
                 return self._json({"error": "proactive engine not running"}, 400)
-            if name not in ("idle", "mold", "oven", "oven_running"):
+            if name not in ("idle", "mold", "oven", "oven_running", "heatwave", "peak"):
                 return self._json({"error": "unknown scenario"}, 400)
             engine.reset_scenario(name)
             return self._json({"ok": True, "scenario": name})

@@ -207,7 +207,7 @@ class PolicyTest(Base):
         """A whitelist entry no rule can produce is a capability the code claims
         and does not have. This keeps the table and `candidates()` in step."""
         produced = set()
-        for scenario in ("mold", "oven", "oven_running"):
+        for scenario in ("mold", "oven", "oven_running", "heatwave", "peak"):
             e = self._engine()
             e.sensors.apply_scenario(scenario)
             snap = e.sensors.snapshot()
