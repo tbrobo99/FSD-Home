@@ -1,10 +1,12 @@
 "use strict";
 
-/* Senior-first front end. Three rules this file follows:
-   1. Every screen answers one question: "is anything wrong, and what do I do?"
-   2. The house speaks first. A Tier-2 request takes the top of the screen and
-      waits there with two big answers and an honest clock.
-   3. Voice is a channel, not the only one: the text box is always there. */
+/* FSD-Home front end — v3 "soft modern" (Figma: ★ v3 · Screens).
+
+   Four tabs, each one phone screen: Home (how the house is, in one sentence),
+   Devices, Activity (the append-only audit trail, FR-6) and Settings. Talking
+   is the button in the middle of the tab bar. A Level 2 question opens a
+   bottom sheet by itself: the reason once, then one card per action with its
+   own Yes / No (FR-3/FR-4). Silence changes nothing. */
 
 const $ = (sel) => document.querySelector(sel);
 
@@ -12,30 +14,34 @@ const ICON = {
   air_conditioner: "i-ac",
   air_purifier: "i-purifier",
   washer: "i-washer",
-  dryer: "i-washer",
+  dryer: "i-dryer",
   dish_washer: "i-washer",
   refrigerator: "i-fridge",
   water_heater: "i-fridge",
-  dehumidifier: "i-purifier",
+  dehumidifier: "i-dehumid",
   range_hood: "i-hood",
-  oven: "i-hood",
+  oven: "i-oven",
   cooktop: "i-cooktop",
 };
 
 const BACKEND_LABEL = { mock: "Simulator", thinq: "LG ThinQ" };
 const MODE_LABEL = { cool: "Cool", heat: "Heat", dry: "Dry", fan: "Fan" };
 const MODES = ["cool", "heat", "dry", "fan"];
+const ROOM_ORDER = ["Living Room", "Kitchen", "Bedroom", "Balcony"];
+const ROOM_SHORT = { "Living Room": "Living", Kitchen: "Kitchen", Bedroom: "Bedroom", Balcony: "Balcony" };
 
 let snapshot = null;   // /api/snapshot: devices, jobs, mode
-let pro = null;        // /api/proactive: risks, approvals, sensor state
+let pro = null;        // /api/proactive: live risks, approvals, sensor state
+let auditRows = null;  // /api/audit: the FR-6 trail
 let activeRoom = "All";
+let actFilter = "all";
 let currentTab = "home";
 let sheetId = null;
 let chipsSig = "";
-let askSig = "";          // signature of the pending approval queue
+let askSig = "";            // ids of the pending questions shown in the sheet
+let askDismissed = "";      // the user closed the sheet for this set of questions
 let askBusy = false;
-let spokenAsks = new Set();
-let auditRows = null;     // /api/audit, FR-6 trail
+let spokenAsks = "";
 
 /* ---------- helpers ---------- */
 
@@ -82,7 +88,73 @@ function repeatShort(label) {
   return s.replace(/\s+at\s+\d{1,2}:\d{2}\s*$/, "").trim();
 }
 
+function icon(id, cls = "ic") {
+  return `<svg class="${cls}" aria-hidden="true"><use href="#${id}"/></svg>`;
+}
+
+function clock(sec) {
+  const s = Math.max(0, Math.floor(sec));
+  return `${Math.floor(s / 60)}:${String(s % 60).padStart(2, "0")}`;
+}
+
+function hhmm(ts) {
+  return String(ts || "").slice(11, 16);
+}
+
+/* Homie, the house mascot, drawn at status-icon size. Same shapes as the
+   Figma "Homie (mascot)" component; one face per mood. */
+const MASCOT = {
+  calm: { body: "#7ccba8", face: '<circle cx="38" cy="56" r="4.2" fill="#16161c"/><circle cx="58" cy="56" r="4.2" fill="#16161c"/><path d="M41 65 Q48 72 55 65" stroke="#16161c" stroke-width="3.2" stroke-linecap="round" fill="none"/>' },
+  busy: { body: "#efa27f", face: '<path d="M33 58 q5 -6 10 0 M53 58 q5 -6 10 0" stroke="#16161c" stroke-width="3.2" stroke-linecap="round" fill="none"/><path d="M42 66 Q48 71 54 66" stroke="#16161c" stroke-width="3.2" stroke-linecap="round" fill="none"/>' },
+  ask: { body: "#e9c35b", face: '<circle cx="38" cy="56" r="4.2" fill="#16161c"/><circle cx="58" cy="56" r="4.2" fill="#16161c"/><circle cx="48" cy="68" r="3.6" stroke="#16161c" stroke-width="3" fill="none"/>' },
+  watch: { body: "#ea94ad", face: '<circle cx="38" cy="56" r="5.6" fill="#fff" stroke="#16161c" stroke-width="2.4"/><circle cx="58" cy="56" r="5.6" fill="#fff" stroke="#16161c" stroke-width="2.4"/><circle cx="40.5" cy="56" r="2.6" fill="#16161c"/><circle cx="60.5" cy="56" r="2.6" fill="#16161c"/><path d="M43 68 h10" stroke="#16161c" stroke-width="3.2" stroke-linecap="round"/>' },
+};
+
+function mascot(mood) {
+  const m = MASCOT[mood] || MASCOT.calm;
+  return `<svg viewBox="0 0 96 96" aria-hidden="true">
+    <use href="#m-house" fill="${m.body}" stroke="#16161c" stroke-width="3.4" stroke-linejoin="round"/>
+    ${m.face}</svg>`;
+}
+
+/* ---------- words for actions and risks ---------- */
+
+const ACTION_TEXT = {
+  ventilate_washer: "Air the washer drum",
+  dehumidifier_on: "Dehumidifier on",
+  purifier_on: "Air purifier on",
+  ventilate_kitchen: "Range hood on",
+  precool_kitchen: "Pre-cool the kitchen",
+  stop_dryer: "Stop the dryer",
+  preheat_cooktop: "Preheat the cooktop",
+  cooktop_auto_off: "Cooktop safety shut-off",
+};
+
+const ACTION_DONE = {
+  ventilate_washer: "Washer drum airing",
+  dehumidifier_on: "Dehumidifier on",
+  purifier_on: "Air purifier on",
+  ventilate_kitchen: "Range hood on",
+  precool_kitchen: "Kitchen pre-cooling to 24°",
+  stop_dryer: "Dryer stopped — restart it whenever you like",
+  preheat_cooktop: "Cooktop preheating for dinner",
+  cooktop_auto_off: "Cooktop switched off for safety",
+};
+
+/* The Level 2 questions, short. The engine's full sentence stays the
+   fallback for any action this table does not know. */
+const QUESTION = {
+  stop_dryer: { q: "Stop the dryer now?", c: "You restart it yourself later.", icon: "i-dryer", tone: "" },
+  preheat_cooktop: { q: "Preheat the cooktop?", c: "Turns itself off if no cooking starts.", icon: "i-cooktop", tone: "pink" },
+};
+
+const RISK = {
+  mold: { title: "Washer", icon: "i-washer" },
+  thermal: { title: "Kitchen", icon: "i-flame" },
+};
+
 /* ---------- voice ---------- */
+
 
 /* The browser listens (Web Speech API), the text box stays permanent: a
    misheard word is fixed by typing, never by repeating yourself at a machine.
@@ -120,19 +192,16 @@ function speak(text, force) {
 
 function setListening(on) {
   listening = on;
-  const btn = $("#mic");
-  if (btn) {
+  for (const id of ["#mic", "#talkFab"]) {
+    const btn = $(id);
+    if (!btn) continue;
     btn.classList.toggle("listening", on);
     btn.setAttribute("aria-pressed", String(on));
   }
-  // Say out loud that the turn is still open. Without this the only signal that
-  // the microphone is done is the words appearing in the box, and a pause of a
-  // second and a half looks identical to having been cut off.
+  const label = $("#micLabel");
+  if (label) label.textContent = on ? "Listening — pause when you're done" : "Tap to talk";
   const input = $("#input");
-  if (input) {
-    if (on) input.dataset.ph = input.dataset.ph || input.placeholder;
-    input.placeholder = on ? "Listening — pause when you're done" : (input.dataset.ph || "Or type here…");
-  }
+  if (input) input.placeholder = on ? "Listening…" : "Or type here…";
 }
 
 /* The engine hands back each phrase without the space that belonged between
@@ -287,275 +356,229 @@ function startVoice() {
 }
 
 function renderLangButton() {
-  const btn = $("#lang");
-  if (btn) btn.textContent = voiceLang.startsWith("ko") ? "KO" : "EN";
+  document.querySelectorAll("#lang [data-lang]").forEach((b) => {
+    const on = b.dataset.lang === voiceLang;
+    b.classList.toggle("on", on);
+    b.setAttribute("aria-pressed", String(on));
+  });
 }
 
-/* ---------- status: the one thing the house has to say ---------- */
+/* ---------- home: hero ---------- */
 
-function houseStatus() {
-  const pending = (pro && pro.pending_approvals) || [];
-  if (pending.length) {
-    return { tone: "ask",
-             line: pending.length === 1
-               ? "The house is waiting for your answer."
-               : `The house is waiting for ${pending.length} answers.`,
-             detail: "Each question has its own Yes / No — silence changes nothing." };
-  }
-  // Live scores, not the last intervention: a risk that cleared minutes ago
-  // must not still be reported as happening (FR-4).
-  const risks = (pro && pro.risks) || {};
-  const firing = Object.values(risks).filter((r) => r.firing);
-  if (firing.length) {
-    const names = firing.map((r) => RISK_TEXT[r.kind].short);
-    return { tone: "watch",
-             line: `The house is handling ${names.join(" and ")}.`,
-             detail: "Small fixes run on their own; anything bigger is asked first." };
-  }
-  return { tone: "ok", line: "Everything is fine.", detail: "No risks to deal with." };
-}
-
-function renderStatus() {
-  const s = houseStatus();
-  $("#status").dataset.tone = s.tone;
-  $("#statusLine").textContent = s.line;
-  $("#statusDetail").textContent = s.detail;
-}
-
-/* ---------- the ask: one card per Level-2 action (FR-4) ---------- */
-
-function renderAsk() {
-  const list = (pro && pro.pending_approvals) || [];
-  const box = $("#askQueue");
-  const sig = list.map((a) => a.id).join("|");
-  if (sig !== askSig) {
-    askSig = sig;
-    box.innerHTML = list.map((ap, i) => {
-      return `
-        <div class="ask" data-ask="${esc(ap.id)}" role="group" aria-label="Question ${i + 1} of ${list.length}">
-          <p class="ask-kicker">The house is asking
-            <span class="ask-index">${i + 1} of ${list.length}</span></p>
-          <p class="ask-action">${esc(askDevice(ap))}<span class="ask-id">request ${esc(ap.id)}</span></p>
-          <p class="ask-question">${esc(ap.question || ap.summary || "")}</p>
-          <div class="ask-answers">
-            <button class="answer yes" data-answer="yes" data-id="${esc(ap.id)}">
-              <svg viewBox="0 0 24 24"><use href="#i-check"/></svg>
-              <span>Yes<small>네</small></span>
-            </button>
-            <button class="answer no" data-answer="no" data-id="${esc(ap.id)}">
-              <svg viewBox="0 0 24 24"><use href="#i-x"/></svg>
-              <span>No<small>아니요</small></span>
-            </button>
-          </div>
-          <p class="ask-clock" data-clock="${esc(ap.id)}"></p>
-        </div>`;
-    }).join("");
-    // Spoken prompts are supplementary (FR-4). Two text-to-speech questions
-    // in a row cut each other off, so announce the first new card per batch.
-    if (list.length && !spokenAsks.has(list[0].id)) {
-      spokenAsks.add(list[0].id);
-      speak(list[0].question || list[0].summary, true);
-    }
-  }
-  for (const ap of list) {
-    const el = box.querySelector(`[data-clock="${ap.id}"]`);
-    if (!el) continue;
-    const left = Math.max(0, (new Date(ap.expires_at).getTime() - Date.now()) / 1000);
-    el.textContent = left > 0
-      ? `Answer within ${Math.floor(left / 60)}:${String(Math.floor(left % 60)).padStart(2, "0")} — no answer changes nothing.`
-      : "Time is up — nothing was changed.";
-  }
-}
-
-/* ---------- risks, cooktop guard, energy (FR-2, FR-5) ---------- */
-
-const RISK_TEXT = {
-  mold: { title: "Washer mold", short: "washer mold risk",
-          what: "Wet laundry sealed in the drum" },
-  thermal: { title: "Kitchen heat", short: "kitchen heat",
-             what: "Heat from appliances and cooking" },
-};
-
-const ACTION_TEXT = {
-  ventilate_washer: "Air the washer drum",
-  dehumidifier_on: "Dehumidifier on",
-  purifier_on: "Air purifier on",
-  ventilate_kitchen: "Range hood on",
-  precool_kitchen: "Pre-cool the kitchen",
-  stop_dryer: "Stop the dryer",
-  preheat_cooktop: "Preheat the cooktop",
-  cooktop_auto_off: "Cooktop safety shut-off",
-};
-
-const AUDIT_TEXT = {
-  "risk.triggered": { text: "Risk detected", tone: "warn" },
-  "approval.proposed": { text: "Asked you", tone: "ask" },
-  "approval.confirmed": { text: "You said yes", tone: "ok" },
-  "approval.declined": { text: "You said no", tone: "plain" },
-  "approval.expired": { text: "No answer — nothing done", tone: "plain" },
-  "action.intent": { text: "About to act", tone: "plain" },
-  "action.executed": { text: "Done", tone: "ok" },
-  "action.failed": { text: "Device did not respond", tone: "bad" },
-  "action.blocked": { text: "Not carried out", tone: "plain" },
-  "notification.dryer_restart": { text: "Told you the dryer can restart", tone: "plain" },
-  "scenario.reset": { text: "Demo scenario loaded", tone: "plain" },
-};
-
-function riskWhy(r) {
-  const d = r.drivers || {};
+function riskFacts(r) {
+  const d = (r && r.drivers) || {};
+  if (!r) return [];
   if (r.kind === "mold") {
-    if (d.drum_humidity == null) return "Washer is empty or open.";
-    const parts = [`Drum ${Math.round(d.drum_humidity)}% humid`];
-    if (d.sealed_hours) parts.push(`shut for ${d.sealed_hours < 1
-      ? `${Math.round(d.sealed_hours * 60)} min` : `${d.sealed_hours.toFixed(1)} h`}`);
-    return parts.join(", ") + ".";
+    const out = [];
+    if (d.drum_humidity != null) out.push(["sky", `Drum ${Math.round(d.drum_humidity)}% humid`]);
+    if (d.sealed_hours) out.push(["butter", `Shut ${d.sealed_hours < 1 ? Math.round(d.sealed_hours * 60) + " min" : d.sealed_hours.toFixed(1) + " h"}`]);
+    return out;
   }
-  if (d.kitchen_temp == null) return "No heat source on or coming up.";
-  const parts = [`Kitchen ${d.kitchen_temp.toFixed(1)}°C`];
-  if (d.heat_load_w) parts.push(`${(d.heat_load_w / 1000).toFixed(1)} kW of heat`);
-  if (d.fridge_duty_cycle != null) parts.push(`fridge working ${Math.round(d.fridge_duty_cycle * 100)}%`);
-  if (d.cooking_scheduled_in_min != null) parts.push(`cooking in ${d.cooking_scheduled_in_min} min`);
-  return parts.join(", ") + ".";
+  const out = [];
+  if (d.kitchen_temp != null) out.push(["peach", `${Math.round(d.kitchen_temp)}°C`]);
+  if (d.heat_load_w) out.push(["sky", `${(d.heat_load_w / 1000).toFixed(1)} kW running`]);
+  if (d.cooking_scheduled_in_min != null) out.push(["butter", `Dinner in ${d.cooking_scheduled_in_min} min`]);
+  return out;
 }
 
-function riskPrediction(r) {
-  if (r.predicted == null || r.current == null) return "";
-  const unit = r.kind === "mold" ? "%" : "°C";
-  const delta = r.predicted - r.current;
-  if (Math.abs(delta) < 0.2) return `Steady over the next 30 min.`;
-  return `${delta > 0 ? "Rising" : "Falling"} to ${r.predicted}${unit} in 30 min.`;
+function heroState() {
+  const pending = (pro && pro.pending_approvals) || [];
+  const risks = (pro && pro.risks) || {};
+  if (pending.length) {
+    const r = risks[pending[0].risk_kind];
+    const facts = riskFacts(r).map((f) => f[1]).slice(0, 2).join(" · ");
+    return { mood: "ask",
+             title: pending.length === 1 ? "Can I ask you something?" : `Can I ask you ${pending.length} things?`,
+             sub: facts || "It only takes a tap.", cta: true };
+  }
+  const g = pro && pro.cooktop_guard;
+  if (g) {
+    let sub;
+    if (g.cooking) sub = "Cooking in progress.";
+    else if (g.meal_in_min != null) sub = `Turns off by itself if no cooking starts. Dinner in ${Math.round(g.meal_in_min)} min.`;
+    else sub = `Turns off in ${Math.ceil(g.idle_off_in / 60)} min if no cooking starts.`;
+    return { mood: "watch", title: "Watching the cooktop", sub };
+  }
+  if (risks.mold && risks.mold.firing) {
+    return { mood: "busy", title: "Airing the washer for you", sub: "Drum vent, dehumidifier and purifier are on." };
+  }
+  if (risks.thermal && risks.thermal.firing) {
+    return { mood: "busy", title: "Cooling the kitchen down", sub: "Range hood and kitchen AC are on." };
+  }
+  return { mood: "calm", title: "All cozy at home", sub: "Nothing needs you right now." };
 }
 
-function fmtMin(sec) {
-  const m = Math.ceil(sec / 60);
-  return m <= 1 ? "under a minute" : `${m} min`;
+function renderHero() {
+  const s = heroState();
+  const box = $("#hero");
+  box.dataset.mood = s.mood;
+  box.innerHTML = `<div class="status-ic">${mascot(s.mood)}</div>
+    <div class="hero-text"><strong>${esc(s.title)}</strong><span>${esc(s.sub)}</span></div>
+    ${s.cta && $("#askSheet").hidden ? `<button type="button" class="hero-cta" data-open-ask>Answer</button>` : ""}`;
+}
+
+/* ---------- home: risk rings (FR-2) ---------- */
+
+const RING_C = 2 * Math.PI * 38;
+
+function riskDetail(r) {
+  const d = (r && r.drivers) || {};
+  if (r && r.kind === "mold") {
+    if (d.drum_humidity == null) return "Washer is open or empty";
+    return `${Math.round(d.drum_humidity)}% humid · ${d.sealed_hours >= 1 ? "shut " + d.sealed_hours.toFixed(0) + " h" : "sealed"}`;
+  }
+  if (!r || d.kitchen_temp == null) return "Nothing hot";
+  return `${d.kitchen_temp.toFixed(1)}°C · ${(d.heat_load_w / 1000 || 0).toFixed(1)} kW`;
 }
 
 function renderRisks() {
-  const box = $("#risks");
   const risks = (pro && pro.risks) || {};
   const quiet = (pro && pro.quiet) || {};
-  // While a question about a risk is open, the house *is* asking about it.
   const asking = new Set(((pro && pro.pending_approvals) || []).map((a) => a.risk_kind));
-  box.innerHTML = ["mold", "thermal"].map((kind) => {
+  $("#risks").innerHTML = ["mold", "thermal"].map((kind) => {
     const r = risks[kind] || { kind, score: 0, threshold: 50, drivers: {} };
-    const t = RISK_TEXT[kind];
     const score = Math.round(r.score || 0);
     const level = r.firing ? "high" : score >= r.threshold * 0.6 ? "watch" : "low";
-    const label = { high: "Acting", watch: "Watching", low: "Fine" }[level];
-    const q = quiet[kind] > 0 && !asking.has(kind)
-      ?`<p class="risk-quiet">Won’t ask about this again for ${fmtMin(quiet[kind])}.</p>` : "";
-    return `<article class="risk" data-level="${level}">
-      <header class="risk-head">
-        <h3>${t.title}</h3>
-        <span class="risk-label">${label}</span>
-      </header>
-      <p class="risk-score"><strong>${score}</strong><span>/100</span></p>
-      <div class="risk-bar" role="meter" aria-label="${t.title} risk"
-           aria-valuemin="0" aria-valuemax="100" aria-valuenow="${score}">
-        <span class="risk-fill" style="width:${Math.min(100, score)}%"></span>
-        <span class="risk-line" style="left:${r.threshold}%" title="acts at ${r.threshold}"></span>
+    const tag = { high: ["pink", "On it"], watch: ["butter", "Watching"], low: ["mint", "All good"] }[level];
+    const q = quiet[kind] > 60 && !asking.has(kind) && r.firing
+      ? `<p class="quiet">Quiet for ${Math.ceil(quiet[kind] / 60)} min</p>` : "";
+    return `<article class="tile" data-kind="${kind}" data-level="${level}">
+      <div class="tile-top">${icon(RISK[kind].icon)}<span class="tag tag-${tag[0]}">${tag[1]}</span></div>
+      <div class="ring" role="meter" aria-label="${RISK[kind].title} risk" aria-valuemin="0" aria-valuemax="100" aria-valuenow="${score}">
+        <svg viewBox="0 0 84 84"><circle class="track" cx="42" cy="42" r="38"/>
+          <circle class="prog" cx="42" cy="42" r="38" stroke-dasharray="${RING_C.toFixed(1)}"
+            stroke-dashoffset="${(RING_C * (1 - Math.min(100, Math.max(3, score)) / 100)).toFixed(1)}"/></svg>
+        <b>${score}</b>
       </div>
-      <p class="risk-why">${esc(riskWhy(r))}</p>
-      <p class="risk-pred">${esc(riskPrediction(r))}</p>
+      <h3>${RISK[kind].title}</h3>
+      <p>${esc(riskDetail(r))}</p>
       ${q}
     </article>`;
   }).join("");
 }
 
-function renderGuard() {
-  const box = $("#guard");
-  const g = pro && pro.cooktop_guard;
-  if (!g) { box.hidden = true; box.innerHTML = ""; return; }
-  box.hidden = false;
-  let line;
-  if (g.cooking) line = "Cooking in progress.";
-  else if (g.meal_in_min != null) line = `Waiting for cooking to start in ${Math.round(g.meal_in_min)} min.`;
-  else line = `Switches off in ${fmtMin(g.idle_off_in)} if no cooking starts.`;
-  box.innerHTML = `<svg viewBox="0 0 24 24"><use href="#i-cooktop"/></svg>
-    <div><strong>The cooktop is on and being watched.</strong>
-    <span>${esc(line)} It switches off by itself after ${fmtMin(g.max_off_in)} at most.</span></div>`;
-}
+/* ---------- home: heat load ---------- */
 
 const FULL_KITCHEN_W = 2500;   // risk.py: 2500 W counts as a full kitchen
 
-function renderEnergy() {
-  const box = $("#energy");
+function renderHeat() {
   const w = (pro && pro.heat_load_w) || 0;
   const pct = Math.min(100, Math.round((w / FULL_KITCHEN_W) * 100));
   const level = w >= FULL_KITCHEN_W ? "high" : w >= FULL_KITCHEN_W * 0.6 ? "watch" : "low";
   const app = (pro && pro.appliances) || {};
-  const on = [["oven", "oven"], ["cooktop", "cooktop"], ["dryer", "dryer"],
-              ["dish_washer", "dishwasher"], ["washer", "washer"]]
+  const on = [["oven", "oven"], ["cooktop", "cooktop"], ["dryer", "dryer"], ["dish_washer", "dishwasher"]]
     .filter(([k]) => app[k] && app[k].power).map(([, n]) => n);
+  const box = $("#heat");
   box.dataset.level = level;
-  box.innerHTML = `<div class="energy-head">
-      <span>Heat-producing load</span>
-      <strong>${(w / 1000).toFixed(1)} kW</strong>
-    </div>
-    <div class="energy-bar" role="meter" aria-label="Heat-producing load"
-         aria-valuemin="0" aria-valuemax="${FULL_KITCHEN_W}" aria-valuenow="${w}">
-      <span style="width:${pct}%"></span>
-    </div>
-    <p class="energy-note">${on.length ? `Running: ${esc(on.join(", "))}.` : "No heating appliances running."}</p>`;
+  box.innerHTML = `<div class="heat-head">${icon("i-flame")}<span>Heat load</span><strong>${(w / 1000).toFixed(1)} kW</strong></div>
+    <div class="bar" role="meter" aria-label="Heat-producing load" aria-valuemin="0" aria-valuemax="${FULL_KITCHEN_W}" aria-valuenow="${w}"><span style="width:${pct}%"></span></div>
+    ${on.length ? `<small>Running: ${esc(on.join(", "))}</small>` : ""}`;
 }
 
-async function loadScenario(name) {
-  try {
-    await api("/api/scenario", { method: "POST", body: JSON.stringify({ name }) });
-    toast("Scenario loaded.");
-    askSig = "";
-    await refresh();
-  } catch (err) {
-    toast(`Could not load the scenario: ${err.message}`);
-  }
+/* ---------- home: quick chips ---------- */
+
+const SCENES = [
+  { key: "off", icon: "i-power", label: "All off",
+    say: () => "turn off everything in the living room" },
+  { key: "cool", icon: "i-temp", label: "Cool 24°",
+    say: () => "turn on the living room AC and set it to 24 degrees" },
+  { key: "fresh", icon: "i-wind", label: "Fresh air",
+    say: () => "it's stuffy in the living room" },
+];
+
+function renderQuick() {
+  $("#quick").innerHTML = SCENES.map((s) =>
+    `<button type="button" data-scene="${s.key}">${icon(s.icon)}<span>${esc(s.label)}</span></button>`).join("");
 }
 
-function askDevice(ap) {
-  const item = (ap.actions && ap.actions[0]) || {};
-  const kind = ap.action_kind || item.kind;
-  return `${item.device_name || "Appliance"} · ${ACTION_TEXT[kind] || kind || "action"}`;
+/* ---------- home: "just now" ---------- */
+
+function renderRecent() {
+  const rows = (auditRows || []).filter((r) => {
+    if (r.event_type === "notification.dryer_restart") return true;
+    return r.event_type === "action.executed" && ACTION_DONE[r.action_kind];
+  });
+  const fresh = rows.filter((r) => Date.now() - new Date(r.ts).getTime() < 15 * 60 * 1000).slice(0, 2);
+  const box = $("#recent");
+  if (!fresh.length || (pro && (pro.pending_approvals || []).length)) { box.hidden = true; return; }
+  box.hidden = false;
+  box.innerHTML = `<p>Just now</p><ul>${fresh.map((r) => `<li>${icon("i-check")}<span>${esc(
+    r.event_type === "notification.dryer_restart" ? "Kitchen cooled down — you can restart the dryer"
+      : ACTION_DONE[r.action_kind])}</span></li>`).join("")}</ul>`;
 }
 
-/* ---------- the append-only trail (FR-6) ---------- */
+/* ---------- the ask sheet (FR-3 / FR-4) ---------- */
 
-function renderAudit() {
-  const box = $("#auditLog");
-  if (!box) return;
-  const rows = auditRows || [];
-  if (!rows.length) {
-    box.innerHTML = '<p class="audit-empty">No recorded events yet.</p>';
+function askLeft(ap) {
+  return (new Date(ap.expires_at).getTime() - Date.now()) / 1000;
+}
+
+function renderAsk() {
+  const list = (pro && pro.pending_approvals) || [];
+  const sheet = $("#askSheet");
+  const sig = list.map((a) => a.id).join("|");
+  if (!list.length) {
+    if (!sheet.hidden) closeSheets();
+    askSig = ""; askDismissed = "";
     return;
   }
-  box.innerHTML = rows.slice(0, 8).map((r) => {
-    const ev = AUDIT_TEXT[r.event_type] || { text: r.event_type, tone: "plain" };
-    const what = ACTION_TEXT[r.action_kind] || r.action_kind || "";
-    const meta = [r.approval_id ? `request ${r.approval_id}` : "", r.detail]
-      .filter((x) => x && x !== "write-before-act").join(" · ");
-    return `<div class="audit-row" data-tone="${ev.tone}">
-      <span class="audit-time">${esc(String(r.ts || "").slice(11, 19))}</span>
-      <span class="audit-event">${esc(ev.text)}${what ? ` <span class="audit-what">${esc(what)}</span>` : ""}</span>
-      <span class="audit-code" title="event type">${esc(r.event_type)}</span>
-      ${meta ? `<span class="audit-meta">${esc(meta)}</span>` : ""}
-    </div>`;
-  }).join("");
+  if (sig !== askSig) {
+    askSig = sig;
+    const r = ((pro && pro.risks) || {})[list[0].risk_kind];
+    const title = list[0].risk_kind === "mold" ? "The washer is getting damp" : "The kitchen is getting hot";
+    $("#askBody").innerHTML = `
+      <div class="why">
+        <div class="status-ic">${mascot("ask")}</div>
+        <div><h2 id="askTitle">${esc(title)}</h2>
+          <div class="facts">${riskFacts(r).map(([t, l]) => `<span class="tag tag-${t}">${esc(l)}</span>`).join("")}</div></div>
+      </div>
+      <div class="count"><span>${list.length === 1 ? "1 quick question" : `${list.length} quick questions`}</span><span id="askClock"></span></div>
+      ${list.map((ap) => {
+        const k = ap.action_kind || (ap.actions && ap.actions[0] && ap.actions[0].kind);
+        const q = QUESTION[k] || { q: ap.question || ap.summary, c: "", icon: "i-sparkle", tone: "" };
+        return `<div class="card q" role="group" aria-label="${esc(q.q)}" data-ask="${esc(ap.id)}">
+          <div class="q-top"><div class="q-ic ${q.tone}">${icon(q.icon)}</div>
+            <div><strong>${esc(q.q)}</strong>${q.c ? `<span>${esc(q.c)}</span>` : ""}
+              <span class="q-own" data-clock="${esc(ap.id)}"></span></div></div>
+          <div class="answers">
+            <button type="button" class="answer yes" data-answer="yes" data-id="${esc(ap.id)}">${icon("i-check")}Yes<small>네</small></button>
+            <button type="button" class="answer no" data-answer="no" data-id="${esc(ap.id)}">${icon("i-x")}No<small>아니요</small></button>
+          </div></div>`;
+      }).join("")}
+      <p class="rule">No answer? Nothing changes.</p>`;
+    if (askDismissed !== sig) openSheet("askSheet");
+    // One spoken prompt for the whole set, so two questions never cut each
+    // other off. Read aloud regardless of the read-aloud setting.
+    if (spokenAsks !== sig) {
+      spokenAsks = sig;
+      const qs = list.map((ap) => (QUESTION[ap.action_kind] || {}).q || ap.question).join(" ");
+      speak(`${title}. ${list.length === 1 ? "One question." : list.length + " questions."} ${qs}`, true);
+    }
+  }
+  const lefts = list.map(askLeft);
+  const min = Math.min(...lefts);
+  const spread = Math.max(...lefts) - min > 5;
+  const c = $("#askClock");
+  if (c) c.textContent = min > 0 ? `${clock(min)} left` : "Time is up";
+  for (const ap of list) {
+    const el = document.querySelector(`[data-clock="${ap.id}"]`);
+    if (el) el.textContent = spread ? `${clock(askLeft(ap))} left` : "";
+  }
 }
 
 async function answer(yes, id) {
   if (askBusy || !id) return;
   askBusy = true;
+  document.querySelectorAll(`[data-id="${CSS.escape(id)}"]`).forEach((b) => { b.disabled = true; });
   try {
-    const res = await api(
-      `/api/approvals/${encodeURIComponent(id)}/${yes ? "confirm" : "decline"}`,
+    const res = await api(`/api/approvals/${encodeURIComponent(id)}/${yes ? "confirm" : "decline"}`,
       { method: "POST", body: JSON.stringify({ channel: "ui" }) });
-    // The house reports `expired` when the deadline passed while the answer
-    // was in flight, and `blocked` with a reason when revalidation refused
-    // the action. Saying "Done." in either case would be a lie about devices.
+    // `expired` and `blocked` are answers too, and the toast must say what the
+    // devices actually did (FR-4), not "Done".
     if (res && res.expired) toast("Too late — nothing was changed.");
-    else if (res && res.ok === false) toast(res.reason || res.error || "That request had already closed.");
-    else toast(yes ? "Done." : "Nothing changed.");
+    else if (res && res.ok === false) toast(cap(res.reason || res.error || "That question had already closed."));
+    else toast(yes ? "Done." : "Okay — nothing changed.");
     await refresh();
-    loadMessages().catch(() => {});
   } catch (err) {
     toast(`Could not reach the house: ${err.message}`);
   } finally {
@@ -563,166 +586,118 @@ async function answer(yes, id) {
   }
 }
 
-/* ---------- rooms ---------- */
-
-const ROOM_ORDER = ["Living Room", "Kitchen", "Bedroom", "Balcony"];
-
-function roomStats(devices) {
-  const map = new Map();
-  const rooms = (pro && pro.rooms) || null;
-
-  // Room-level readings come from the sensor stream when it is there: it knows
-  // all four rooms, while the device list only knows rooms that happen to hold
-  // an appliance reporting a temperature. Without this the kitchen showed "—%"
-  // and the balcony "—°" — the data existed, the card just never asked for it.
-  if (rooms) {
-    for (const name of ROOM_ORDER) {
-      const r = rooms[name] || {};
-      map.set(name, {
-        name,
-        temps: r.temp == null ? [] : [r.temp],
-        hums: r.humidity == null ? [] : [r.humidity],
-        running: 0,
-        total: 0,
-      });
-    }
-  }
-
-  for (const d of devices) {
-    const room = d.room || "Other";
-    if (!map.has(room)) map.set(room, { name: room, temps: [], hums: [], running: 0, total: 0 });
-    const s = map.get(room);
-    const st = d.state || {};
-    s.total += 1;
-    if (st.power) s.running += 1;
-    // Only fall back to the device's own sensor when the room stream is absent.
-    if (!s.temps.length && st.current_temp != null) s.temps.push(st.current_temp);
-    if (!s.temps.length && st.external_temp != null) s.temps.push(st.external_temp);
-    if (!s.hums.length && st.humidity != null) s.hums.push(st.humidity);
-  }
-  return [...map.values()];
-}
-
-function renderRooms() {
-  const stats = roomStats((snapshot && snapshot.devices) || []);
-  $("#rooms").innerHTML = stats.map((s) => {
-    const t = s.temps.length
-      ? (s.temps.reduce((a, b) => a + b, 0) / s.temps.length).toFixed(1)
-      : "—";
-    const h = s.hums.length
-      ? Math.round(s.hums.reduce((a, b) => a + b, 0) / s.hums.length)
-      : "—";
-    return `<button class="room${activeRoom === s.name ? " active" : ""}" data-room="${esc(s.name)}">
-      <h3>${esc(s.name)}</h3>
-      <span class="temp">${t}°</span>
-      <span class="meta">
-        <svg viewBox="0 0 24 24"><use href="#i-drop"/></svg>${h}%
-        <span>·</span>${s.running}/${s.total} on
-      </span>
-    </button>`;
-  }).join("");
-}
-
 /* ---------- devices ---------- */
 
-function cardSub(d) {
+function devState(d) {
   const st = d.state || {};
   const on = !!st.power;
   switch (d.type) {
     case "air_conditioner":
-      return on
-        ? [MODE_LABEL[st.mode] || st.mode || "On",
-           st.target_temp != null ? `${st.target_temp}°C` : ""].filter(Boolean).join(" ")
-        : "Off";
-    case "air_purifier":
-      return on ? `PM2.5 ${st.pm25 == null ? "—" : st.pm25}` : "Off";
-    case "washer":
-      return on ? `Washing · ${st.remaining_min == null ? "?" : st.remaining_min} min`
-                : (st.state === "done" ? "Cycle finished" : "Standby");
-    case "refrigerator":
-      return `Fridge ${st.fridge_temp == null ? "—" : st.fridge_temp}°C · ` +
-             `Kitchen ${st.external_temp == null ? "—" : st.external_temp + "°C"} · ` +
-             `compressor ${st.duty_cycle == null ? "—" : Math.round(st.duty_cycle * 100) + "%"}`;
-    case "range_hood":
-      return on ? `Exhausting · fan ${st.fan || "auto"}` : "Off";
-    case "oven":
-      return on ? `Heating · ${st.target_temp == null ? "—" : st.target_temp + "°C"}` : "Off";
-    default:
-      return on ? "On" : "Off";
+      return on ? [MODE_LABEL[st.mode] || "On", st.target_temp != null ? `${st.target_temp}°` : ""].filter(Boolean).join(" ") : "Off";
+    case "air_purifier": return on ? `PM2.5 ${st.pm25 == null ? "—" : st.pm25}` : "Off";
+    case "washer": return on ? `Washing · ${st.remaining_min == null ? "?" : st.remaining_min} min` : (st.state === "done" ? "Cycle finished" : "Standby");
+    case "refrigerator": return `${st.fridge_temp == null ? "—" : st.fridge_temp}°C · ${st.duty_cycle == null ? "—" : Math.round(st.duty_cycle * 100) + "%"}`;
+    case "range_hood": return on ? `Fan ${st.fan || "auto"}` : "Off";
+    case "oven": return on ? `Heating · ${st.target_temp == null ? "—" : st.target_temp + "°C"}` : "Off";
+    default: return on ? "On" : "Off";
   }
+}
+
+function shortName(d) {
+  const room = d.room || "";
+  const n = String(d.name || "");
+  return activeRoom !== "All" && n.startsWith(room + " ") ? n.slice(room.length + 1) : n;
 }
 
 function renderDevices() {
   const all = (snapshot && snapshot.devices) || [];
-  const list = activeRoom === "All" ? all : all.filter((d) => (d.room || "") === activeRoom);
-  $("#deviceHead").textContent = activeRoom === "All" ? "Devices" : `Devices · ${activeRoom}`;
-  const box = $("#devices");
-  if (!list.length) {
-    box.innerHTML = `<p class="empty">Nothing in this room.</p>`;
-    return;
-  }
-  box.innerHTML = list.map((d) => {
-    const st = d.state || {};
-    const on = !!st.power;
-    const icon = ICON[d.type] || "i-ac";
-    return `<article class="device${on ? " on" : ""}${d.online === false ? " offline" : ""}"
-                     data-open="${esc(d.id)}">
-      <svg class="dev-icon" viewBox="0 0 24 24"><use href="#${icon}"/></svg>
-      <div class="dev-text">
-        <h3>${esc(d.name)}</h3>
-        <p>${esc(cardSub(d))}</p>
-      </div>
-      <button class="pwr" data-power="${esc(d.id)}" data-on="${on ? 1 : 0}"
-              aria-label="${on ? "Turn off" : "Turn on"} ${esc(d.name)}">
-        <svg viewBox="0 0 24 24"><use href="#i-power"/></svg>
+  const rooms = ROOM_ORDER.filter((r) => all.some((d) => d.room === r));
+  const onCount = all.filter((d) => (d.state || {}).power).length;
+  $("#devCount").textContent = `${all.length} devices · ${onCount} on`;
+  $("#roomFilter").innerHTML = ["All", ...rooms].map((r) =>
+    `<button type="button" role="tab" aria-selected="${r === activeRoom}" class="${r === activeRoom ? "on" : ""}" data-room="${esc(r)}">${esc(r === "All" ? "All" : ROOM_SHORT[r] || r)}</button>`).join("");
+  const list = activeRoom === "All" ? all : all.filter((d) => d.room === activeRoom);
+  const sensor = ((pro && pro.rooms) || {})[activeRoom];
+  const roomOn = list.filter((d) => (d.state || {}).power).length;
+  const stats = activeRoom === "All"
+    ? [[`${onCount}/${all.length}`, "Devices on"], [`${((pro && pro.heat_load_w) || 0) / 1000 >= 0 ? (((pro && pro.heat_load_w) || 0) / 1000).toFixed(1) : "—"} kW`, "Heat load"], [String(rooms.length), "Rooms"]]
+    : [[sensor ? `${sensor.temp.toFixed(1)}°` : "—", "Temperature"], [sensor ? `${Math.round(sensor.humidity)}%` : "—", "Humidity"], [`${roomOn}/${list.length}`, "On"]];
+  $("#roomStats").innerHTML = stats.map(([v, l]) => `<div><strong>${esc(v)}</strong><span>${esc(l)}</span></div>`).join("");
+  $("#devices").innerHTML = list.length ? list.map((d) => {
+    const on = !!(d.state || {}).power;
+    return `<article class="dev${on ? " on" : ""}${d.online === false ? " offline" : ""}">
+      <button type="button" class="dev-open" data-open="${esc(d.id)}" aria-label="${esc(d.name)} details">
+        <span class="dev-ic">${icon(ICON[d.type] || "i-devices")}</span>
+        <span class="dev-name">${esc(shortName(d))}</span>
+        <span class="dev-state">${esc(devState(d))}</span>
       </button>
+      <button type="button" class="switch" role="switch" aria-checked="${on}" aria-label="${esc(d.name)}"
+              data-power="${esc(d.id)}" data-on="${on ? 1 : 0}"></button>
     </article>`;
-  }).join("");
+  }).join("") : `<p class="empty">Nothing in this room.</p>`;
 }
 
-/* ---------- quick actions ---------- */
+/* ---------- activity: the audit trail in words (FR-6) ---------- */
 
-const SCENES = [
-  { key: "off", icon: "i-power", label: "All off",
-    say: (room) => room === "All" ? "turn off everything in the living room"
-                                  : `turn off everything in the ${room}` },
-  { key: "cool", icon: "i-temp", label: "Cool 24°",
-    say: (room) => room === "All"
-      ? "turn on the living room AC and set it to 24 degrees"
-      : `turn on the ${room} AC and set it to 24 degrees` },
-  { key: "stuffy", icon: "i-drop", label: "It's stuffy",
-    // Name the room. Without it the agent answers "Which room?" — a question
-    // the button gives no way to answer, which is a dead end, not a dialog.
-    say: (room) => room === "All" ? "it's stuffy in the living room"
-                                  : `it's stuffy in the ${room}` },
-];
-
-function renderQuick() {
-  $("#quick").innerHTML = SCENES.map((s) =>
-    `<button data-scene="${s.key}">
-      <svg viewBox="0 0 24 24"><use href="#${s.icon}"/></svg>
-      <span>${esc(s.label)}</span>
-    </button>`).join("");
+function auditItem(r) {
+  const act = ACTION_TEXT[r.action_kind] || r.action_kind || "";
+  const req = r.approval_id ? `request ${String(r.approval_id).slice(0, 6)}` : "";
+  switch (r.event_type) {
+    case "risk.triggered":
+      return { tone: "warn", icon: "i-flame",
+               title: r.risk_kind === "mold" ? "Washer getting damp" : "Kitchen getting hot",
+               detail: `Score ${Math.round(r.risk_score || 0)} · acts at 50` };
+    case "approval.proposed": return { tone: "ask", icon: "i-sparkle", title: `Asked you: ${act}`, detail: req };
+    case "approval.confirmed": return { tone: "ok", icon: "i-check", title: `You said yes: ${act}`, detail: req };
+    case "approval.declined": return { tone: "plain", icon: "i-x", title: `You said no: ${act}`, detail: req };
+    case "approval.expired": return { tone: "plain", icon: "i-clock", title: `No answer: ${act}`, detail: "Nothing changed" };
+    case "action.executed": {
+      const who = r.approval_id ? "You said yes" : r.channel === "safety-interlock" ? "Safety rule"
+        : r.channel === "engine" ? "Did it on its own" : "From the app";
+      return { tone: "ok", icon: "i-check", title: ACTION_DONE[r.action_kind] || `Done: ${act || r.device_id || ""}`, detail: [who, req].filter(Boolean).join(" · ") };
+    }
+    case "action.failed": return { tone: "bad", icon: "i-x", title: `${act || r.device_id || "Device"} didn't respond`, detail: r.detail || "" };
+    case "action.blocked": return { tone: "plain", icon: "i-x", title: `Didn't go ahead: ${act || r.device_id || ""}`, detail: cap(r.detail || "") };
+    case "notification.dryer_restart": return { tone: "plain", icon: "i-check", title: "Kitchen cooled down", detail: "You can restart the dryer" };
+    case "scenario.reset": return { tone: "plain", icon: "i-sparkle", title: "Demo scenario loaded", detail: r.detail || "" };
+    default: return { tone: "plain", icon: "i-clock", title: r.event_type, detail: r.detail || "" };
+  }
 }
 
-/* ---------- schedule ---------- */
+function renderActivity() {
+  document.querySelectorAll("#actFilter [data-act]").forEach((b) => b.classList.toggle("on", b.dataset.act === actFilter));
+  const rows = (auditRows || []).filter((r) => r.event_type !== "action.intent").filter((r) =>
+    actFilter === "all" ? true
+      : actFilter === "asked" ? r.event_type.startsWith("approval.")
+      : r.event_type === "action.executed");
+  $("#auditLog").innerHTML = rows.length ? rows.slice(0, 30).map((r) => {
+    const it = auditItem(r);
+    return `<li data-tone="${it.tone}"><span class="t-ic">${icon(it.icon)}</span>
+      <div class="t-text"><strong>${esc(it.title)}</strong>${it.detail ? `<span>${esc(it.detail)}</span>` : ""}<code>${esc(r.event_type)}</code></div>
+      <span class="t-time">${esc(hhmm(r.ts))}</span></li>`;
+  }).join("") : `<li class="empty">Nothing recorded yet.</li>`;
+}
+
+/* ---------- settings ---------- */
 
 function renderJobs() {
   const jobs = (snapshot && snapshot.jobs) || [];
-  const box = $("#jobs");
-  if (!jobs.length) {
-    box.innerHTML = `<p class="empty">Nothing scheduled.<br>Ask the assistant to set something.</p>`;
-    return;
-  }
-  box.innerHTML = jobs.map((j) => `
-    <div class="job${j.enabled ? "" : " disabled"}">
-      <div class="job-main">
-        <strong>${esc(cap(j.summary || j.device_name || "Scheduled task"))}</strong>
-        <span>${esc(repeatShort(j.repeat_label) || "once")} ·
-          ${j.enabled ? "next " + esc(fmtWhen(j.next_run_at)) : "disabled"}</span>
-      </div>
-      <button class="del" data-del="${esc(j.id)}" aria-label="Delete task">×</button>
-    </div>`).join("");
+  $("#jobs").innerHTML = jobs.length ? jobs.map((j) => `
+    <div class="li">${icon("i-clock")}
+      <div class="li-text"><strong>${esc(cap(j.summary || j.device_name || "Scheduled task"))}</strong>
+        <span>${esc(repeatShort(j.repeat_label) || "once")} · ${j.enabled ? "next " + esc(fmtWhen(j.next_run_at)) : "disabled"}</span></div>
+      <button type="button" class="del" data-del="${esc(j.id)}" aria-label="Delete task">×</button>
+    </div>`).join("")
+    : `<div class="li">${icon("i-clock")}<div class="li-text"><strong>Nothing scheduled</strong><span>Ask the house to set something</span></div></div>`;
+}
+
+function renderMode() {
+  const mode = (snapshot && snapshot.mode) || "cascade";
+  document.querySelectorAll("[data-agent-mode]").forEach((b) => {
+    const on = b.dataset.agentMode === mode;
+    b.classList.toggle("on", on);
+    b.setAttribute("aria-pressed", String(on));
+  });
 }
 
 /* ---------- chat ---------- */
@@ -838,7 +813,7 @@ function renderChips() {
 async function send(text) {
   const trimmed = (text || "").trim();
   if (!trimmed) return;
-  await switchTab("assistant");
+  await openTalk(false);
   addMsg("user", trimmed, { ts: new Date().toISOString() }, { force: true });
   $("#input").value = "";
   // The agent tier takes 4–8 s on a real model. Silence for that long reads as
@@ -856,7 +831,7 @@ async function send(text) {
       body: JSON.stringify({ text: trimmed }),
     });
     pending.remove();
-    addMsg("assistant", data.reply || "…", { ts: new Date().toISOString(), payload: data });
+    addMsg("assistant", data.reply || "…", { ts: new Date().toISOString(), payload: data }, { force: true });
     showReply(data.reply || "");
     await refresh();
     return data.reply || "";
@@ -903,32 +878,19 @@ async function setMode(mode) {
   }
 }
 
-function renderMode() {
-  const mode = (snapshot && snapshot.mode) || "cascade";
-  document.querySelectorAll("[data-agent-mode]").forEach((b) => {
-    const on = b.dataset.agentMode === mode;
-    b.classList.toggle("active", on);
-    b.setAttribute("aria-pressed", String(on));
-  });
-}
-
-/* ---------- toast ---------- */
+/* ---------- toast and replies ---------- */
 
 let toastTimer = null;
 
-function toast(text) {
+function toast(text, ms = 2600) {
   const el = $("#toast");
   el.textContent = text;
   el.hidden = false;
   clearTimeout(toastTimer);
-  toastTimer = setTimeout(() => { el.hidden = true; }, 2600);
+  toastTimer = setTimeout(() => { el.hidden = true; }, ms);
 }
 
-/* ---------- the house's last answer ---------- */
-
-/* Kept on screen until the next one. The old path showed a reply as a toast for
-   2.6 s and cut it to its first line — the answer to "it's stuffy" arrived,
-   was shown in 15 px type, and was gone before anyone could read it. */
+/* The house's last answer, kept in the talk sheet until the next one. */
 function showReply(text) {
   const clean = String(text || "").trim();
   if (!clean) return;
@@ -938,91 +900,102 @@ function showReply(text) {
   speak(clean);
 }
 
-/* Something on screen the moment the button is pressed. A 5-second wait with
-   no visible change is indistinguishable from a broken app. */
 function showPending(label) {
   $("#replyText").textContent = label || "Working on it…";
   $("#reply").hidden = false;
   $("#reply").classList.add("pending");
 }
 
+/* Quick chips run without leaving Home: the answer comes back as a toast long
+   enough to read, and is spoken when read-aloud is on. */
 async function runScene(scene) {
-  const phrase = scene.say(activeRoom);
-  showPending();
+  toast("Working on it…", 8000);
   try {
-    const data = await api("/api/chat", {
-      method: "POST",
-      body: JSON.stringify({ text: phrase }),
-    });
-    if (data.snapshot) {
-      snapshot = data.snapshot;
-      renderAll();
-    }
-    showReply(data.reply || "Done.");
+    const data = await api("/api/chat", { method: "POST", body: JSON.stringify({ text: scene.say() }) });
+    if (data.snapshot) { snapshot = data.snapshot; renderAll(); }
+    toast(data.reply || "Done.", 5000);
+    speak(data.reply || "");
   } catch (err) {
-    showReply("Sorry — I could not reach the house just now.");
     toast(`Could not reach the house: ${err.message}`);
   }
 }
 
-/* ---------- device sheet ---------- */
+/* ---------- sheets (ask, talk, device) ---------- */
+
+const SHEETS = ["askSheet", "talkSheet", "sheet"];
+
+function openSheet(id) {
+  for (const s of SHEETS) $(`#${s}`).hidden = s !== id;
+  $("#scrim").hidden = false;
+  renderHero();
+}
+
+function closeSheets() {
+  if (!$("#askSheet").hidden && askSig) askDismissed = askSig;   // reopen from the hero
+  for (const s of SHEETS) $(`#${s}`).hidden = true;
+  $("#scrim").hidden = true;
+  sheetId = null;
+  if (listening) voiceFinish();
+  renderHero();
+}
+
+async function openTalk(listen) {
+  if ($("#talkSheet").hidden) {
+    openSheet("talkSheet");
+    await loadMessages().catch(() => {});
+  }
+  if (listen && !listening) startVoice();
+}
 
 function renderSheet() {
   const device = findDevice(sheetId);
-  if (!device) return closeSheet();
-
+  if (!device) return closeSheets();
   const st = device.state || {};
   const on = !!st.power;
   const caps = device.capabilities || [];
-  const sub = [device.room || device.type_label, cap(device.brief)].filter(Boolean).join(" · ");
-
-  let body = `<h2>${esc(device.name)}</h2><p class="sub">${esc(sub)}</p>`;
-
+  const sub = [device.room || device.type_label, devState(device)].filter(Boolean).join(" · ");
+  let body = `<div><h2>${esc(device.name)}</h2><p class="sub">${esc(sub)}</p></div>`;
   if (caps.includes("temperature")) {
     const target = st.target_temp == null ? 26 : st.target_temp;
     body += `<div class="stepper">
-      <button data-step="-1" ${on ? "" : "disabled"}>−</button>
+      <button type="button" data-step="-1" ${on ? "" : "disabled"} aria-label="Cooler">−</button>
       <span class="target">${target}°C</span>
-      <button data-step="1" ${on ? "" : "disabled"}>+</button>
-    </div>`;
+      <button type="button" data-step="1" ${on ? "" : "disabled"} aria-label="Warmer">+</button></div>`;
   }
   if (caps.includes("mode")) {
     body += `<div class="pills">${MODES.map((mode) =>
-      `<button data-mode="${mode}" class="${st.mode === mode ? "active" : ""}">${MODE_LABEL[mode]}</button>`
-    ).join("")}</div>`;
+      `<button type="button" data-mode="${mode}" class="${st.mode === mode ? "active" : ""}">${MODE_LABEL[mode]}</button>`).join("")}</div>`;
   }
-  body += `<button class="sheet-power${on ? " on" : ""}" data-sheet-power="${on ? 0 : 1}">
-    ${on ? "Turn off" : "Turn on"}</button>`;
-
+  body += `<button type="button" class="sheet-power${on ? " on" : ""}" data-sheet-power="${on ? 0 : 1}">${on ? "Turn off" : "Turn on"}</button>`;
   $("#sheetBody").innerHTML = body;
 }
 
-function openSheet(id) {
+function openDevice(id) {
   if (!findDevice(id)) return;
   sheetId = id;
   renderSheet();
-  $("#scrim").hidden = false;
-  $("#sheet").hidden = false;
-}
-
-function closeSheet() {
-  sheetId = null;
-  $("#scrim").hidden = true;
-  $("#sheet").hidden = true;
+  openSheet("sheet");
 }
 
 async function control(deviceId, actions) {
   try {
-    const data = await api("/api/control", {
-      method: "POST",
-      body: JSON.stringify({ device_id: deviceId, actions }),
-    });
-    if (data.snapshot) {
-      snapshot = data.snapshot;
-      renderAll();
-    }
+    const data = await api("/api/control", { method: "POST", body: JSON.stringify({ device_id: deviceId, actions }) });
+    if (data.snapshot) { snapshot = data.snapshot; renderAll(); }
+    if (data.ok === false) toast(data.error || "The device did not respond.");
   } catch (err) {
-    addMsg("system", `Control failed: ${err.message}`);
+    toast(`Control failed: ${err.message}`);
+  }
+}
+
+async function loadScenario(name) {
+  try {
+    await api("/api/scenario", { method: "POST", body: JSON.stringify({ name }) });
+    toast("Scenario loaded.");
+    askSig = ""; askDismissed = ""; spokenAsks = "";
+    await refresh();
+    switchTab("home");
+  } catch (err) {
+    toast(`Could not load the scenario: ${err.message}`);
   }
 }
 
@@ -1030,17 +1003,16 @@ async function control(deviceId, actions) {
 
 function renderAll() {
   if (!snapshot) return;
-  $("#stamp").textContent =
-    `${BACKEND_LABEL[snapshot.backend] || snapshot.backend || ""} · ${snapshot.build || ""}`;
-  renderStatus();
+  $("#stamp").textContent = `${BACKEND_LABEL[snapshot.backend] || snapshot.backend || ""} · ${snapshot.build || ""}`;
+  $("#today").textContent = new Date().toLocaleDateString("en-US", { weekday: "short", month: "short", day: "numeric" });
   renderAsk();
+  renderHero();
   renderRisks();
-  renderGuard();
-  renderEnergy();
-  renderAudit();
-  renderRooms();
-  renderDevices();
+  renderHeat();
   if (!$("#quick").children.length) renderQuick();
+  renderRecent();
+  renderDevices();
+  renderActivity();
   renderJobs();
   renderChips();
   renderMode();
@@ -1052,7 +1024,7 @@ async function refresh() {
     const [snap, state, trail] = await Promise.all([
       api("/api/snapshot"),
       api("/api/proactive").catch(() => null),
-      api("/api/audit?limit=12").catch(() => null),
+      api("/api/audit?limit=60").catch(() => null),
     ]);
     snapshot = snap;
     pro = state;
@@ -1065,130 +1037,60 @@ async function refresh() {
 
 /* ---------- navigation ---------- */
 
-const TABS = ["home", "schedule", "assistant"];
+const TABS = ["home", "devices", "activity", "settings"];
 
-async function switchTab(name) {
+function switchTab(name) {
   if (!TABS.includes(name)) name = "home";
-  const changed = name !== currentTab;
   currentTab = name;
   document.querySelectorAll(".tab").forEach((btn) => {
-    btn.classList.toggle("active", btn.dataset.tab === name);
+    const on = btn.dataset.tab === name;
+    btn.classList.toggle("active", on);
+    if (on) btn.setAttribute("aria-current", "page"); else btn.removeAttribute("aria-current");
   });
-  for (const key of TABS) {
-    const view = $(`#view-${key}`);
-    if (view) view.hidden = key !== name;
-  }
-  if (history.replaceState && location.hash !== `#${name}`) {
-    history.replaceState(null, "", `#${name}`);
-  }
-  // Only when the tab actually changes. send() calls this on every message,
-  // and rebuilding the whole transcript each time reset the scroll position
-  // and re-read the history aloud. Awaited by send(), so the optimistic
-  // bubbles it appends next cannot be wiped by this rebuild.
-  if (name === "assistant" && changed) {
-    await loadMessages().catch(() => {});
-  }
+  for (const key of TABS) $(`#view-${key}`).hidden = key !== name;
+  if (history.replaceState && location.hash !== `#${name}`) history.replaceState(null, "", `#${name}`);
 }
 
 /* ---------- events ---------- */
 
 document.addEventListener("click", (event) => {
-  const target = event.target;
+  const t = event.target;
+  const hit = (sel) => t.closest(sel);
+  let el;
 
-  const scenarioBtn = target.closest("[data-scenario]");
-  if (scenarioBtn) {
-    loadScenario(scenarioBtn.dataset.scenario);
-    return;
+  if ((el = hit("[data-scenario]"))) return loadScenario(el.dataset.scenario);
+  if ((el = hit("[data-answer]"))) return answer(el.dataset.answer === "yes", el.dataset.id);
+  if (hit("[data-open-ask]")) { askDismissed = ""; return openSheet("askSheet"); }
+  if ((el = hit("[data-room]"))) { activeRoom = el.dataset.room; return renderDevices(); }
+  if ((el = hit("[data-act]"))) { actFilter = el.dataset.act; return renderActivity(); }
+  if ((el = hit("[data-power]"))) return control(el.dataset.power, [{ action: "power", value: el.dataset.on !== "1" }]);
+  if ((el = hit("[data-step]")) && sheetId) {
+    const current = (findDevice(sheetId).state || {}).target_temp;
+    const next = (current == null ? 26 : current) + Number(el.dataset.step);
+    return control(sheetId, [{ action: "temperature", value: Math.max(16, Math.min(30, next)) }]);
   }
-
-  const answerBtn = target.closest("[data-answer]");
-  if (answerBtn) {
-    answer(answerBtn.dataset.answer === "yes", answerBtn.dataset.id);
-    return;
+  if ((el = hit("[data-mode]")) && sheetId) return control(sheetId, [{ action: "mode", value: el.dataset.mode }]);
+  if ((el = hit("[data-sheet-power]")) && sheetId) return control(sheetId, [{ action: "power", value: el.dataset.sheetPower === "1" }]);
+  if ((el = hit("[data-agent-mode]"))) return setMode(el.dataset.agentMode);
+  if ((el = hit("[data-scene]"))) { const s = SCENES.find((x) => x.key === el.dataset.scene); return s && runScene(s); }
+  if ((el = hit("[data-open]"))) return openDevice(el.dataset.open);
+  if ((el = hit("[data-tab]"))) return switchTab(el.dataset.tab);
+  if ((el = hit("[data-lang]"))) {
+    voiceLang = el.dataset.lang;
+    renderLangButton();
+    return toast(voiceLang.startsWith("ko") ? "한국어 음성 인식" : "English voice input");
   }
-
-  const roomBtn = target.closest("[data-room]");
-  if (roomBtn) {
-    const name = roomBtn.dataset.room;
-    activeRoom = activeRoom === name ? "All" : name;
-    renderRooms();
-    renderDevices();
-    return;
-  }
-
-  const powerBtn = target.closest("[data-power]");
-  if (powerBtn) {
-    const on = powerBtn.dataset.on === "1";
-    control(powerBtn.dataset.power, [{ action: "power", value: !on }]);
-    return;
-  }
-
-  const stepBtn = target.closest("[data-step]");
-  if (stepBtn && sheetId) {
-    const device = findDevice(sheetId);
-    const current = (device.state || {}).target_temp;
-    const next = (current == null ? 26 : current) + Number(stepBtn.dataset.step);
-    control(sheetId, [{ action: "temperature", value: Math.max(16, Math.min(30, next)) }]);
-    return;
-  }
-
-  const modeBtn = target.closest("[data-mode]");
-  if (modeBtn && sheetId) {
-    control(sheetId, [{ action: "mode", value: modeBtn.dataset.mode }]);
-    return;
-  }
-
-  const sheetPower = target.closest("[data-sheet-power]");
-  if (sheetPower && sheetId) {
-    control(sheetId, [{ action: "power", value: sheetPower.dataset.sheetPower === "1" }]);
-    return;
-  }
-
-  const agentModeBtn = target.closest("[data-agent-mode]");
-  if (agentModeBtn) {
-    setMode(agentModeBtn.dataset.agentMode);
-    return;
-  }
-
-  const sceneBtn = target.closest("[data-scene]");
-  if (sceneBtn) {
-    const scene = SCENES.find((s) => s.key === sceneBtn.dataset.scene);
-    if (scene) runScene(scene);
-    return;
-  }
-
-  const card = target.closest("[data-open]");
-  if (card) {
-    openSheet(card.dataset.open);
-    return;
-  }
-
-  const tab = target.closest("[data-tab]");
-  if (tab) {
-    switchTab(tab.dataset.tab);
-    return;
-  }
-
-  const del = target.closest("[data-del]");
-  if (del) {
-    api(`/api/jobs/${del.dataset.del}`, { method: "DELETE" })
-      .then((data) => {
-        if (data.snapshot) {
-          snapshot = data.snapshot;
-          renderAll();
-        }
-      })
+  if ((el = hit("[data-del]"))) {
+    return api(`/api/jobs/${el.dataset.del}`, { method: "DELETE" })
+      .then((data) => { if (data.snapshot) { snapshot = data.snapshot; renderAll(); } })
       .catch(() => {});
-    return;
   }
+  if ((el = hit("[data-say]"))) return send(el.dataset.say);
+  if (hit("[data-close]") || t.id === "scrim") return closeSheets();
+});
 
-  const say = target.closest("[data-say]");
-  if (say) {
-    send(say.dataset.say);
-    return;
-  }
-
-  if (target.id === "scrim") closeSheet();
+document.addEventListener("keydown", (event) => {
+  if (event.key === "Escape" && !$("#scrim").hidden) closeSheets();
 });
 
 $("#composer").addEventListener("submit", (event) => {
@@ -1197,18 +1099,11 @@ $("#composer").addEventListener("submit", (event) => {
 });
 
 $("#mic").addEventListener("click", startVoice);
-
-$("#lang").addEventListener("click", () => {
-  voiceLang = VOICE_LANGS[(VOICE_LANGS.indexOf(voiceLang) + 1) % VOICE_LANGS.length];
-  renderLangButton();
-  toast(voiceLang.startsWith("ko") ? "한국어 음성 인식" : "English voice input");
-});
+$("#talkFab").addEventListener("click", () => openTalk(true));
 
 $("#tts").addEventListener("click", () => {
   ttsOn = !ttsOn;
-  const btn = $("#tts");
-  btn.classList.toggle("active", ttsOn);
-  btn.setAttribute("aria-pressed", String(ttsOn));
+  $("#tts").setAttribute("aria-checked", String(ttsOn));
   if (!ttsOn && "speechSynthesis" in window) window.speechSynthesis.cancel();
   toast(ttsOn ? "Reading replies aloud" : "Reading aloud off");
 });
