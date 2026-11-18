@@ -23,11 +23,18 @@
     v2: ["/themes/v2-night.css"],
     v3: ["/themes/v3-console.css"],
     v4: ["/themes/v4-dual.css"],
+    // V5 keeps V4's responsive phone / laptop structure, then replaces its
+    // visual language with the calmer senior-care presentation.
+    v5: ["/themes/v4-dual.css", "/themes/v5-care.css"],
+    // V6 is the mission console shown in the reference presentation: a dark
+    // signal-coloured field, an isometric home view and a read-only telemetry
+    // rail. It reuses V4's dual-end grid and replaces the visual language.
+    v6: ["/themes/v4-dual.css", "/themes/v6-mission.css"],
   };
-  // Default is v4: both ends come from the same stylesheet, so nothing has to
-  // be switched when moving from a phone to a laptop. v0..v3 stay available
-  // via ?ui= for comparison; v3 is an alternative desktop-only workbench.
-  const DEFAULT = "v4";
+  // Default is v6: both ends come from the same overlay, so nothing has to be
+  // switched when moving from a phone to a laptop / projector. v0..v5 stay
+  // available via ?ui= for comparison.
+  const DEFAULT = "v6";
   const KEY = "lg-ui-version";
   const $ = (s) => document.querySelector(s);
 
@@ -125,6 +132,118 @@
     }[c]));
   }
 
+  /* ---------------- v6 mission console: isometric home view ----------------
+   * Pure SVG, generated here so index.html and app.js stay untouched. Every
+   * light is driven by a device's real `power` state and the risk tone comes
+   * from /api/proactive. It is decorative and read-only: no click handlers.
+   */
+
+  const DEV_POINT = {
+    ac_living: [414, 176], purifier: [456, 199], ac_bedroom: [252, 112],
+    range_hood: [232, 138], oven: [272, 156], ac_kitchen: [204, 150],
+    cooktop: [257, 172], fridge: [150, 122], washer: [501, 244],
+    dryer: [526, 224], dehumidifier: [476, 266],
+  };
+
+  function isoBox(cx, cy, w, d, h, cls) {
+    const A = [cx, cy], B = [cx + w, cy + w * .5];
+    const C = [cx + w - d, cy + w * .5 + d * .5], D = [cx - d, cy + d * .5];
+    const pts = (a, b, c, e) => [a, b, c, e].map((p) => p.join(",")).join(" ");
+    const down = (p) => [p[0], p[1] + h];
+    return `<g class="${cls}">
+      <polygon class="block" points="${pts(A, B, C, D)}"/>
+      <polygon class="wall-shade" points="${pts(D, C, down(C), down(D))}"/>
+      <polygon class="block-top" points="${pts(B, C, down(C), down(B))}"/>
+    </g>`;
+  }
+
+  function missionScene() {
+    let grid = "";
+    for (let i = 1; i < 8; i++) {
+      const t = i / 8;
+      grid += `<line class="grid-line" x1="${40 + 280 * t}" y1="${190 - 130 * t}"
+        x2="${320 + 280 * t}" y2="${320 - 130 * t}"/>`;
+      grid += `<line class="grid-line" x1="${40 + 280 * t}" y1="${190 + 130 * t}"
+        x2="${320 + 280 * t}" y2="${60 + 130 * t}"/>`;
+    }
+    const dots = Object.entries(DEV_POINT).map(([id, p]) =>
+      `<g class="dev-dot" data-dev="${id}" transform="translate(${p[0]},${p[1]})">
+         <circle class="halo" r="12"/><circle class="core" r="4.2"/>
+       </g>`).join("");
+    const lamps = [232, 266, 300].map((x) => `
+      <line class="lamp" x1="${x}" y1="24" x2="${x}" y2="92"/>
+      <polygon class="lamp-shade" points="${x - 9},92 ${x + 9},92 ${x + 5},106 ${x - 5},106"/>
+      <polygon class="lamp-cone" points="${x - 5},106 ${x + 5},106 ${x + 20},164 ${x - 20},164"/>
+      <circle class="lamp-glow" cx="${x}" cy="164" r="7"/>`).join("");
+
+    const sec = document.createElement("section");
+    sec.className = "mission-stage";
+    sec.id = "missionStage";
+    sec.setAttribute("aria-label", "Live home view, read only");
+    sec.innerHTML = `
+      <div class="stage-top">
+        <span class="stage-id">LIVE HOME · SIMULATOR</span>
+        <span class="stage-state" id="stageState" data-tone="clear">SCANNING…</span>
+      </div>
+      <svg class="iso" viewBox="0 0 640 360" role="img" aria-label="Isometric view of the home">
+        <polygon class="wall" points="40,190 320,60 320,10 40,140"/>
+        <polygon class="wall" points="320,60 600,190 600,140 320,10"/>
+        <polygon class="floor" points="320,60 600,190 320,320 40,190"/>
+        <polygon class="zone-fill kitchen" points="40,190 320,60 320,190 180,255"/>
+        <polygon class="zone-fill living" points="180,255 320,190 600,190 320,320"/>
+        ${grid}
+        <polygon class="window" points="72,151 168,104 168,72 72,119"/>
+        <polygon class="window" points="472,104 568,151 568,119 472,72"/>
+        ${lamps}
+        ${isoBox(250, 176, 84, 38, 26, "island")}
+        ${isoBox(112, 118, 30, 28, 64, "fridge")}
+        ${isoBox(398, 218, 92, 40, 24, "sofa")}
+        ${isoBox(414, 262, 42, 24, 12, "table")}
+        ${isoBox(452, 126, 56, 34, 22, "dining")}
+        <ellipse class="hub-ring" cx="320" cy="268" rx="15" ry="7"/>
+        <circle class="hub-core" cx="320" cy="252" r="7"/>
+        <line class="hub-stem" x1="320" y1="252" x2="320" y2="268"/>
+        <text class="zone" x="96" y="222">KITCHEN</text>
+        <text class="zone" x="476" y="243">LIVING</text>
+        <text class="zone" x="264" y="52">BEDROOM</text>
+        <text class="zone" x="500" y="300">BALCONY</text>
+        ${dots}
+        <path class="scan" d="M40,190 L320,60 L600,190 L320,320 Z"/>
+      </svg>
+      <div class="stage-foot">
+        <span>DEVICE NODES · LIVE</span>
+        <span id="stageNodes">0 / 0 ON</span>
+      </div>`;
+    return sec;
+  }
+
+  function paintStage(snap, pro) {
+    const stage = $("#missionStage");
+    if (!stage) return;
+    const devices = (snap && snap.devices) || [];
+    const active = (pro && pro.active) || {};
+    const risks = Object.keys(active);
+    const riskKind = risks[0] || "";
+    const state = $("#stageState");
+    if (state) {
+      state.textContent = riskKind ? `RISK ACTIVE · ${riskKind.toUpperCase()}` : "ALL CLEAR · NO ACTIVE RISK";
+      state.dataset.tone = riskKind ? "risk" : "clear";
+    }
+    let onCount = 0;
+    stage.querySelectorAll("[data-dev]").forEach((node) => {
+      const dev = devices.find((d) => d.id === node.dataset.dev);
+      const st = (dev && dev.state) || {};
+      const power = !!st.power;
+      if (power) onCount++;
+      node.classList.toggle("on", power);
+      node.classList.toggle("risk", !power && (riskKind === "thermal" || riskKind === "mold")
+        && ["cooktop", "oven", "dryer"].includes(node.dataset.dev));
+      node.classList.toggle("heat", power && st.current_temp != null && st.current_temp >= 30);
+    });
+    const nodes = $("#stageNodes");
+    if (nodes) nodes.textContent = `${onCount} / ${devices.length} ON`;
+  }
+
   function paint(snap, pro, trail) {
     const rail = $("#glance");
     if (!rail) return;
@@ -153,32 +272,49 @@
         <time>${escapeHtml(String(a.ts || "").slice(11, 19))}</time>
       </div>`).join("") || `<p class="glance-none">No recorded events yet.</p>`;
 
+    // v6 turns the rail into a signal console. The bars are real readings:
+    // kitchen temperature, kitchen humidity and how many devices are on.
+    // Nothing here is a radio measurement the program cannot actually make.
+    const mission = version === "v6";
+    const pct = (v, lo, hi) => Math.max(4, Math.min(100,
+      Math.round(((Number(v) - lo) / (hi - lo)) * 100)));
+    const channel = (label, value, fill, tone) => `
+      <div><b>${value}</b><span>${label}</span>
+        <span class="chan-bar ${tone}"><i style="width:${fill}%"></i></span>
+      </div>`;
+    const metrics = mission ? (
+      channel("THERMAL · °C", number(kitchen.temp, ""), pct(kitchen.temp, 16, 34), "amber")
+      + channel("HUMIDITY · %", number(kitchen.humidity, ""), pct(kitchen.humidity, 0, 100), "")
+      + channel("DEVICE LOAD", `${on}/${devices.length}`, devices.length
+        ? Math.round((on / devices.length) * 100) : 0, "green")
+    ) : `
+      <div><b>${number(kitchen.temp, "°")}</b><span>Kitchen</span></div>
+      <div><b>${number(kitchen.humidity, "%")}</b><span>Humidity</span></div>
+      <div><b>${on}/${devices.length}</b><span>Devices on</span></div>`;
+
     rail.innerHTML = `
       <div class="glance-inner">
-        <p class="glance-eyebrow">House at a glance</p>
-        <div class="glance-hero">
-          <span class="glance-score">${score == null ? "clear" : score}</span>
+        <p class="glance-eyebrow">${mission ? "CHANNEL SCORES · LIVE" : "House at a glance"}</p>
+        <div class="glance-hero"${risk ? ' data-tone="risk"' : ""}>
+          <span class="glance-score">${score == null ? "CLEAR" : score}</span>
           <span class="glance-score-label">${score == null ? "no active risk" : "risk score / 100"}</span>
         </div>
-        <div class="glance-metrics">
-          <div><b>${number(kitchen.temp, "°")}</b><span>Kitchen</span></div>
-          <div><b>${number(kitchen.humidity, "%")}</b><span>Humidity</span></div>
-          <div><b>${on}/${devices.length}</b><span>Devices on</span></div>
-        </div>
+        <div class="glance-metrics">${metrics}</div>
         <div class="glance-meta">
           <span>${pending.length ? `${pending.length} waiting for an answer` : "Nothing needs an answer"}</span>
           <span>${escapeHtml((snap && snap.backend) || "simulator")}</span>
         </div>
         <div class="glance-block">
-          <p class="glance-caption">Rooms</p>
+          <p class="glance-caption">${mission ? "CONTEXT REGISTRY" : "Rooms"} <span>${mission ? "temperature" : ""}</span></p>
           <div class="glance-rooms">${roomRows}</div>
         </div>
         <div class="glance-block">
-          <p class="glance-caption">Safety log <span>append-only</span></p>
+          <p class="glance-caption">${mission ? "PROCESS LOG" : "Safety log"} <span>append-only</span></p>
           <div class="glance-trail">${trailRows}</div>
         </div>
-        <p class="glance-foot">Read-only view · no controls here</p>
+        <p class="glance-foot">${mission ? "READ-ONLY TELEMETRY · NO DEVICE CONTROL" : "Read-only view · no controls here"}</p>
       </div>`;
+    if (mission) paintStage(snap, pro);
   }
 
   async function refreshGlance() {
@@ -195,6 +331,13 @@
   /* ---------------- switcher ---------------- */
 
   document.addEventListener("DOMContentLoaded", () => {
+    if (version === "v6") {
+      const home = $("#view-home");
+      const first = home && home.querySelector("#askQueue");
+      if (home && first && !$("#missionStage")) {
+        home.insertBefore(missionScene(), first);
+      }
+    }
     const box = $("#uiSwitch");
     if (box) {
       // Start collapsed. The label is the handle: click / Enter / Space

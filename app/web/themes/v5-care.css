@@ -1,0 +1,169 @@
+/* V5 — Care
+ *
+ * A quiet, warm senior-care surface layered on top of V4's responsive
+ * structure.  It deliberately changes presentation only: app.js, APIs,
+ * approvals and device controls stay exactly as they are.
+ */
+
+:root {
+  --bg: #f7f7f2;
+  --surface: #ffffff;
+  --surface-press: #eef2eb;
+  --line: #e4e8df;
+  --line-strong: #d7ddd1;
+  --ink: #1b2924;
+  --ink-2: #52625b;
+  --ink-3: #7d8c84;
+  --ink-4: #a7b2ab;
+  --accent: #167a62;
+  --accent-ink: #0d5c49;
+  --accent-weak: #e5f3ed;
+  --green: #178062;
+  --green-weak: #e4f5ed;
+  --red: #c84d4d;
+  --red-weak: #fceced;
+  --amber: #9a681b;
+  --amber-weak: #fff7e8;
+  --amber-line: #e8cf9d;
+  --radius-block: 22px;
+  --radius-control: 15px;
+  --card-shadow: 0 1px 2px rgba(29, 48, 40, .04), 0 10px 28px rgba(29, 48, 40, .045);
+}
+
+body { background: #e8ece5; }
+.app { background: var(--bg); }
+
+/* A small brand cue makes the experience feel like one product, not a set of
+   unrelated controls. The label is intentionally quiet; the home state leads. */
+.eyebrow {
+  margin: 0 0 2px;
+  color: var(--accent);
+  font-size: .66rem;
+  font-weight: 800;
+  letter-spacing: .13em;
+  line-height: 1;
+}
+.masthead { padding-top: 18px; padding-bottom: 14px; }
+.masthead h1 { font-size: 1.72rem; }
+#view-home .masthead::after { content: "LIVE"; color: var(--accent-ink); background: var(--accent-weak); border-color: #cce6da; }
+
+/* Keep engineering switches available in the source for testing, but never
+   present them as a choice a household member must understand. */
+.ui-switch, .mode-switch { display: none !important; }
+.assistant-tools { margin-left: auto; }
+.tts { width: 46px; min-height: 46px; padding: 0; justify-content: center; border-radius: 50%; }
+.tts span { display: none; }
+.tts svg { width: 21px; height: 21px; }
+
+/* House status becomes a single reassuring hero rather than another tile. */
+.status {
+  position: relative;
+  overflow: hidden;
+  align-items: flex-start;
+  flex-direction: column;
+  gap: 3px;
+  min-height: 92px;
+  padding: 19px 20px;
+  border: 1px solid #d7e8df;
+  background: linear-gradient(135deg, #effaf4 0%, #ffffff 66%);
+}
+.status::before { position: absolute; top: 23px; left: 21px; width: 9px; height: 9px; }
+.status strong { padding-left: 17px; font-size: 1.16rem; }
+.status span { padding-left: 17px; font-size: .9rem; }
+.status::after {
+  content: "⌂";
+  position: absolute;
+  right: 20px;
+  top: 13px;
+  color: #b9dacb;
+  font: 700 3.5rem/1 Georgia, serif;
+}
+.status[data-tone="ask"] { background: linear-gradient(135deg, #fff8eb, #fffdf8 72%); }
+
+.glance-inner, .quick button, .room, .device, .audit, .reply, .ask {
+  box-shadow: var(--card-shadow);
+}
+.glance-inner { border-color: var(--line); }
+.glance-metrics > div { background: #f4f7f1; }
+
+.sec-head { padding-top: 25px; }
+.sec-head h2 { font-size: .74rem; color: var(--ink-3); letter-spacing: .08em; text-transform: uppercase; }
+
+/* Scene cards describe outcomes, using a calmer green rather than three
+   unrelated bright colours. */
+.quick button { min-height: 82px; color: var(--ink-2); }
+.quick button svg { background: var(--accent-weak) !important; stroke: var(--accent) !important; }
+.quick button:first-child svg { background: #f2f1ea !important; stroke: #67766f !important; }
+
+.room { min-height: 112px; background: #fff; }
+.room.active { background: linear-gradient(150deg, #ebf8f1, #fff 76%); border-color: #91cdb4; }
+.room .temp { color: var(--ink); }
+.room .meta { color: var(--ink-3); }
+
+/* Appliances read as calm, touch-friendly product cards.  Active equipment
+   uses colour only in the power button and state line, leaving text legible. */
+.device { min-height: 137px; border-radius: 20px; }
+.device .dev-icon { background: #e8f4ee; stroke: var(--accent); }
+.device .pwr { width: 44px; height: 44px; background: #f5f7f3; }
+.device.on .pwr { background: var(--accent); border-color: var(--accent); }
+.device.on p { color: var(--accent-ink); }
+
+/* The approval is deliberately compact and human-readable. Internal action
+   ids are removed in app.js; users see the question and clear consequence. */
+.ask { border-left: 4px solid #d7a03c; background: #fffdf8; }
+.ask-kicker { margin-bottom: 6px; }
+.ask-question { margin-bottom: 13px; font-size: 1.05rem; }
+.answer { min-height: 62px; border-radius: 14px; }
+.answer.yes { background: var(--accent); }
+.ask-clock { margin-top: 10px; }
+
+/* Conversation now has breathing space and avoids a wall of timestamp/debug
+   labels. User bubbles remain clearly distinct without high-saturation blue. */
+.chat { padding-top: 8px; }
+.msg { max-width: 78%; border-radius: 18px; padding: 13px 15px; font-size: 1rem; line-height: 1.5; }
+.msg.user { background: var(--accent); }
+.msg.assistant { background: #fff; border-color: var(--line); }
+.msg .stamp { margin-top: 6px; font-size: .68rem; color: var(--ink-4); }
+.msg.user .stamp { color: rgba(255,255,255,.64); }
+/* Internal rule-engine traces are valuable to developers but read like an
+   error state in an everyday conversation. The safety log remains visible on
+   Home; this only removes implementation jargon from the user transcript. */
+.msg .trace { display: none; }
+.chips { gap: 7px; }
+.chips button { padding: 8px 12px; background: #fff; border-color: var(--line-strong); color: var(--ink-2); }
+
+/* A single compact composer prioritises typing.  Speech remains one tap away,
+   but no longer takes half the screen on a laptop or a phone. */
+.talkbar { padding: 9px 16px 10px; background: rgba(247,247,242,.96); }
+.talk {
+  position: absolute;
+  left: 27px;
+  bottom: 20px;
+  z-index: 2;
+  width: 36px;
+  min-height: 36px;
+  padding: 0;
+  background: transparent;
+  color: var(--accent);
+}
+.talk svg { width: 21px; height: 21px; }
+.talk span { display: none; }
+.composer { margin: 0; }
+.composer input { min-height: 52px; padding-left: 55px; border-color: var(--line-strong); border-radius: 16px; }
+.composer .lang { display: none; }
+.composer .send { width: 52px; height: 52px; border-radius: 16px; background: var(--accent); }
+
+.tabbar .tab.active { color: var(--accent); }
+.tabbar .tab.active::before { background: var(--accent-weak); }
+
+@media (min-width: 1100px) {
+  .tabbar { background: #fbfcfa; }
+  .tabbar .tab.active { background: var(--accent-weak); color: var(--accent-ink); }
+  .tabbar::before { content: "FSD-HOME"; color: var(--accent-ink); }
+  .tabbar::after { content: "Home comfort · safe by design"; }
+  .glance { background: #f0f3ee; }
+  .glance-hero { border-color: #d5e6dc; background: linear-gradient(145deg, #effaf4, #fff); }
+  .glance-score { color: var(--accent-ink); }
+  .talk { position: absolute; left: 42px; bottom: 24px; }
+  .composer input { padding-left: 55px; }
+}

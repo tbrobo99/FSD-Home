@@ -335,7 +335,6 @@ function renderAsk() {
         <div class="ask" data-ask="${esc(ap.id)}">
           <p class="ask-kicker">The house is asking
             <span class="ask-index">${i + 1} of ${list.length}</span></p>
-          <p class="ask-action">${esc(kind)} · id ${esc(ap.id)}</p>
           <p class="ask-question">${esc(ap.question || ap.summary || "")}</p>
           <div class="ask-answers">
             <button class="answer yes" data-answer="yes" data-id="${esc(ap.id)}">
@@ -655,7 +654,10 @@ function tagFor(msg) {
   // bubble has no payload, and stamping it "older build" a second after it was
   // typed is a false alarm — the one thing a diagnostic must never do.
   const b = (msg.payload || {}).build;
-  if (b && liveBuild() && b !== liveBuild()) rows.push(`old build ${b}`);
+  // Build hashes are helpful in a developer console, but a care recipient
+  // should never have to decide whether a perfectly ordinary answer is safe
+  // to read. Version information stays available in the local development
+  // tools, not in the conversation.
   return rows.length ? rows.join(" · ") : null;
 }
 
@@ -672,7 +674,7 @@ function renderChips() {
     [`Set the ${name} to 24 degrees`, "24°C"],
     ["It's stuffy in here", "It's stuffy"],
     ["What scheduled tasks do I have?", "Schedules"],
-    ["거실 에어컨 꺼줘", "한국어 예시"],
+    ["What can you help me with?", "How can you help?"],
   ];
   if (room) chips.push([`Turn off everything in the ${room}`, "Whole room"]);
 

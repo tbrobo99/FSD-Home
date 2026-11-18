@@ -97,7 +97,10 @@
   <!-- ================= HOME ================= -->
   <section class="view" id="view-home">
     <header class="masthead">
-      <h1>My Home</h1>
+      <div>
+        <p class="eyebrow">FSD-HOME</p>
+        <h1>My Home</h1>
+      </div>
     </header>
 
     <!-- The one thing the house has to say, in plain words. A line, not a card:
@@ -146,14 +149,17 @@
 
   <!-- ================= SCHEDULE ================= -->
   <section class="view" id="view-schedule" hidden>
-    <header class="masthead"><h1>Schedule</h1></header>
+    <header class="masthead"><div><p class="eyebrow">YOUR DAY</p><h1>Schedule</h1></div></header>
     <div class="jobs" id="jobs"></div>
   </section>
 
   <!-- ================= ASSISTANT ================= -->
   <section class="view" id="view-assistant" hidden>
     <header class="masthead">
-      <h1>Assistant</h1>
+      <div>
+        <p class="eyebrow">ASK YOUR HOME</p>
+        <h1>Assistant</h1>
+      </div>
       <div class="assistant-tools">
         <div class="mode-switch" id="modeSwitch" role="group" aria-label="How it decides">
           <button type="button" data-agent-mode="cascade" aria-pressed="false">Cascade</button>
@@ -174,7 +180,7 @@
   <div class="talkbar">
     <button class="talk" id="mic">
       <svg viewBox="0 0 24 24"><use href="#i-mic"/></svg>
-      <span>Talk<small>말하기</small></span>
+      <span>Talk to your home</span>
     </button>
     <form class="composer" id="composer">
       <input id="input" type="text" autocomplete="off" enterkeyhint="send" placeholder="Or type here…">
@@ -215,6 +221,8 @@
     <button type="button" data-ui="v2" title="Night Console">2</button>
     <button type="button" data-ui="v3" title="Wide Console">3</button>
     <button type="button" data-ui="v4" title="Dual End: phone layout + laptop workbench">4</button>
+    <button type="button" data-ui="v5" title="Care">5</button>
+    <button type="button" data-ui="v6" title="Mission Console: dark isometric live view">6</button>
     <span class="ui-switch-label">UI</span>
   </div>
 
