@@ -62,21 +62,54 @@ class SummarizeTest(unittest.TestCase):
     def test_country_sets_currency_price_and_co2(self):
         rows = [row("action.executed", "ventilate_washer", "washer", 0),
                 row("action.executed", "pause_washer", "washer", 1)]
-        kr, us = savings.summarize(rows, T0, "KR"), savings.summarize(rows, T0, "US")
+        kr, us = savings.summarize(rows, T0, "KR"), savings.summarize(rows, T0, "US-CA")
         self.assertEqual(kr["kwh_saved"], us["kwh_saved"])          # energy does not depend on the country
         self.assertEqual((kr["currency"], kr["symbol"], kr["decimals"]), ("KRW", "₩", 0))
         self.assertEqual((us["currency"], us["symbol"], us["decimals"]), ("USD", "$", 2))
-        U = regions.REGIONS["US"]
+        U = regions.REGIONS["US-CA"]
         self.assertAlmostEqual(us["money_saved"], round(savings.TUB_CLEAN_KWH * U["price"]
                                + savings.WASH_SHIFT_KWH * (U["peak"] - U["offpeak"]), 2))
         self.assertAlmostEqual(us["co2_kg"], round(savings.TUB_CLEAN_KWH * U["co2_kg_per_kwh"], 2))
+
+    def test_no_time_of_use_plan_means_shifting_earns_nothing(self):
+        rows = [row("action.executed", "pause_washer", "washer", 0)]
+        for code in ("US", "US-TX", "GB", "DE", "IT"):
+            s = savings.summarize(rows, T0, code)
+            self.assertFalse(s["tou"], code)
+            self.assertEqual(s["money_saved"], 0, code)
+            self.assertGreater(s["kwh_shifted"], 0, code)
+
+    def test_states_differ(self):
+        ca, wa = regions.get("US-CA"), regions.get("us-wa")
+        self.assertGreater(ca["price"], wa["price"])
+        self.assertGreater(ca["co2_kg_per_kwh"], wa["co2_kg_per_kwh"])
+        self.assertTrue(all(r["parent"] == "US" for k, r in regions.REGIONS.items() if k.startswith("US-")))
+
+    def test_every_region_is_complete(self):
+        need = {"code", "group", "lang", "locale", "currency", "symbol", "decimals", "price",
+                "peak", "offpeak", "peak_hours", "co2_kg_per_kwh", "tariff_source", "co2_source"}
+        for code, r in regions.REGIONS.items():
+            self.assertLessEqual(need, set(r), code)
+            self.assertEqual(r["code"], code)
+            self.assertIn(r["lang"], regions.LANGS, code)
+            self.assertGreater(r["price"], 0, code)
+            self.assertTrue(0 < r["co2_kg_per_kwh"] < 1, code)
+            if regions.has_tou(r):
+                self.assertGreater(r["peak"], r["offpeak"], code)
+                self.assertTrue(r["peak_hours"], code)
+
+    def test_euro_countries_use_their_own_language(self):
+        self.assertEqual({c: regions.get(c)["lang"] for c in ("DE", "FR", "ES", "IT", "GB")},
+                         {"DE": "de", "FR": "fr", "ES": "es", "IT": "it", "GB": "en"})
+        self.assertEqual(regions.get("GB")["symbol"], "£")
+        self.assertEqual(regions.get("FR")["currency"], "EUR")
 
     def test_unknown_country_falls_back_to_default(self):
         self.assertEqual(savings.summarize([], T0, "ZZ")["region"], regions.DEFAULT)
         self.assertEqual(regions.get(None)["code"], "KR")
 
     def test_each_country_maps_to_an_interface_language(self):
-        self.assertEqual({r["lang"] for r in regions.REGIONS.values()}, {"ko", "en"})
+        self.assertEqual({r["lang"] for r in regions.REGIONS.values()}, set(regions.LANGS))
 
     def test_week_starts_on_monday(self):
         thu = datetime(2026, 11, 19, 15, 0)
@@ -107,7 +140,10 @@ class ReportFromEngineTest(unittest.TestCase):
         self.assertIn("eco_ac", kinds)
         self.assertIn("pause_washer", kinds)
         self.assertGreater(r["money_saved"], 0)
-        self.assertGreater(savings.report("today", region="US")["money_saved"], 0)
+        self.assertGreater(savings.report("today", region="US-CA")["money_saved"], 0)
+        de = savings.report("today", region="DE")      # no time-of-use plan: the moved wash earns nothing
+        self.assertGreater(de["kwh_shifted"], 0)
+        self.assertEqual(de["symbol"], "€")
 
 
 if __name__ == "__main__":
