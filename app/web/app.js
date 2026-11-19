@@ -273,6 +273,8 @@ const TYPE_KO = { air_conditioner: "에어컨", air_purifier: "공기청정기",
 // Korean first: the household is Korean. The choice is remembered per browser.
 let lang = "ko";
 try { const saved = localStorage.getItem("fsd-lang"); if (saved === "en" || saved === "ko") lang = saved; } catch (_) { /* private mode */ }
+// A link can choose the language: /?lang=en or /?lang=ko (demos, screenshots).
+try { const q = new URLSearchParams(location.search).get("lang"); if (q === "en" || q === "ko") lang = q; } catch (_) { /* ignore */ }
 
 function t(key, vars) {
   let s = (I18N[lang] && I18N[lang][key]) || I18N.en[key] || key;
