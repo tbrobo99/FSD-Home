@@ -14,7 +14,7 @@ Three kinds of saving are kept apart, because they are not the same thing:
   shifted  kWh moved out of the peak band  (a wash paused until the peak ends,
            or out of a kitchen overload     a dryer stopped during cooking) —
                                            the same energy, used later
-  money    the energy saving at the average price plus the shifted peak
+  money    the energy saving at the household's marginal price plus the shifted peak
            energy at the peak/off-peak price difference
 
 CO2 is counted on energy saved only; shifting load changes cost and peak
@@ -24,21 +24,38 @@ from __future__ import annotations
 
 from datetime import datetime, timedelta
 
-# ---- assumptions (change here; the paper's FR-7 lists the same values) ----
-# Prices are demo values in the range of Korean residential tariffs, not a
-# specific KEPCO schedule. The emission factor is the national grid factor
-# commonly used in Korean greenhouse-gas inventories (kg CO2-eq per kWh).
-PRICE_AVG_KRW = 150.0
-PRICE_PEAK_KRW = 250.0
-PRICE_OFFPEAK_KRW = 110.0
-CO2_KG_PER_KWH = 0.4594
+# ---- assumptions (change here; the paper's Table "Assumptions of the
+# Savings Estimate" lists the same values and their sources) ----------------
+#
+# Prices: KEPCO tariff table (effective 2023-05-16, still current in 2026).
+#   PRICE_KRW      residential low-voltage, 2nd progressive tier (201-400 kWh,
+#                  301-450 kWh in July-August), where a typical household's
+#                  last kWh falls -- a kWh not used is billed at this rate.
+#   PEAK/OFFPEAK   residential time-of-use tariff (Jeju), summer/winter:
+#                  max load 16-22 h 220.5, light load 22-08 h 138.7. Mainland
+#                  households have no time-of-use rate yet; this is the only
+#                  published residential one and its 16-22 h peak matches the
+#                  simulator's evening peak band.
+#   Energy charge only: excludes the climate-environment and fuel-cost
+#   adjustment charges, VAT and the power-industry fund, so the won figure
+#   is conservative.
+# Emission factor: national grid factor for 2023, 0.4173 tCO2eq/MWh
+#   (Ministry of Climate, Energy and Environment, announced 2025-12-18).
+PRICE_KRW = 214.6
+PRICE_PEAK_KRW = 220.5
+PRICE_OFFPEAK_KRW = 138.7
+CO2_KG_PER_KWH = 0.4173
 
-ECO_SAVED_W = 200.0          # eco_ac raises a setpoint 2 °C; 100 W per degree (sensors.py)
+# Appliance energy, from LG Electronics Korea product specifications:
+AC_RATED_W = 845.0           # LG Whisen wall AC SQ09MDKWMS, rated cooling draw
+AC_SAVING_PER_C = 0.047      # Korea Energy Agency: -4.7 % per +1 degC setpoint
+ECO_STEP_C = 2               # eco_ac raises the setpoint 2 degC (policy.py)
+ECO_SAVED_W = AC_RATED_W * AC_SAVING_PER_C * ECO_STEP_C   # ~79 W
 ECO_CAP_H = 3.0              # count at most three hours per adjustment
-COOKTOP_AVOIDED_KWH = 0.45   # 1.8 kW cooktop that would have kept heating ~15 min
-TUB_CLEAN_KWH = 1.0          # one hot-water tub-clean cycle avoided per mold episode
-WASH_SHIFT_KWH = 0.5         # 0.5 kW wash moved out of the peak band for ~1 h
-DRYER_SHIFT_KWH = 0.9        # 1.8 kW dryer kept out of a kitchen overload for ~30 min
+COOKTOP_AVOIDED_KWH = 2.0 * 0.25   # LG DIOS induction BEI3ASS4E large zone 2,000 W, ~15 min
+TUB_CLEAN_KWH = 2.2 * 0.5          # LG TROMM F24VDLPR 2,200 W heater, ~30 min heating in a tub-clean course
+WASH_SHIFT_KWH = 0.5 * 1.0         # wash without heating, 500 W (simulator), ~1 h moved out of the peak
+DRYER_SHIFT_KWH = 1.4 * 0.5        # LG TROMM heat-pump dryer RD25GS 1,400 W, ~30 min kept out of cooking
 
 KINDS = ("eco_ac", "cooktop_auto_off", "ventilate_washer", "pause_washer", "stop_dryer")
 
@@ -80,15 +97,15 @@ def summarize(rows: list[dict], now: datetime | None = None) -> dict:
             hours = max(0.0, min(ECO_CAP_H, (end - start).total_seconds() / 3600.0))
             kwh = ECO_SAVED_W / 1000.0 * hours
             b["kwh_saved"] += kwh
-            b["krw"] += kwh * PRICE_AVG_KRW
+            b["krw"] += kwh * PRICE_KRW
         elif kind == "cooktop_auto_off":
             b["kwh_saved"] += COOKTOP_AVOIDED_KWH
-            b["krw"] += COOKTOP_AVOIDED_KWH * PRICE_AVG_KRW
+            b["krw"] += COOKTOP_AVOIDED_KWH * PRICE_KRW
         elif kind == "ventilate_washer":
             # One avoided tub-clean per wet episode, however many airing passes.
             mold_episodes += 1
             b["kwh_saved"] += TUB_CLEAN_KWH
-            b["krw"] += TUB_CLEAN_KWH * PRICE_AVG_KRW
+            b["krw"] += TUB_CLEAN_KWH * PRICE_KRW
         elif kind == "pause_washer":
             b["kwh_shifted"] += WASH_SHIFT_KWH
             b["krw"] += WASH_SHIFT_KWH * (PRICE_PEAK_KRW - PRICE_OFFPEAK_KRW)
@@ -108,7 +125,7 @@ def summarize(rows: list[dict], now: datetime | None = None) -> dict:
         "mold_prevented": mold_episodes,
         "actions": actions,
         "assumptions": {
-            "price_avg_krw": PRICE_AVG_KRW, "price_peak_krw": PRICE_PEAK_KRW,
+            "price_krw": PRICE_KRW, "price_peak_krw": PRICE_PEAK_KRW,
             "price_offpeak_krw": PRICE_OFFPEAK_KRW, "co2_kg_per_kwh": CO2_KG_PER_KWH,
         },
         "estimate": True,
