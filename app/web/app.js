@@ -161,7 +161,7 @@ const I18N = {
     "hero.mold": "Airing the washer for you", "hero.moldSub": "Drum vent, dehumidifier and purifier are on.",
     "hero.heat": "Cooling the kitchen down", "hero.heatSub": "Range hood and kitchen AC are on.",
     "risk.washer": "Washer", "risk.kitchen": "Kitchen", "risk.heat": "Room heat", "risk.power": "Power",
-    "risk.feels": "{room} feels {t}°", "risk.cool": "{room} {t}° · cool", "risk.rate.peak": "peak rate", "risk.rate.offpeak": "normal rate",
+    "risk.feels": "{room} feels {t}°", "risk.away": "Nobody home", "risk.cool": "{room} {t}° · cool", "risk.rate.peak": "peak rate", "risk.rate.offpeak": "normal rate",
     "hero.hot": "Cooling the {room} for you", "hero.hotSub": "It feels like {t}° — AC set gently to 26°.",
     "hero.power": "Saving power at the peak rate", "hero.powerSub": "{kw} kW now — an AC was raised 2°.",
     "ask.energy": "Power is at the peak rate", "fact.peak": "Peak rate", "fact.load": "{kw} kW now", "fact.acs": "{n} ACs cooling",
@@ -213,7 +213,7 @@ const I18N = {
     "hero.mold": "세탁기를 말리는 중이에요", "hero.moldSub": "통 환기, 제습기, 공기청정기를 켰어요.",
     "hero.heat": "주방을 식히는 중이에요", "hero.heatSub": "레인지 후드와 주방 에어컨을 켰어요.",
     "risk.washer": "세탁기", "risk.kitchen": "주방", "risk.heat": "실내 더위", "risk.power": "전기",
-    "risk.feels": "{room} 체감 {t}°", "risk.cool": "{room} {t}° · 쾌적", "risk.rate.peak": "피크 요금", "risk.rate.offpeak": "일반 요금",
+    "risk.feels": "{room} 체감 {t}°", "risk.away": "집에 아무도 없음", "risk.cool": "{room} {t}° · 쾌적", "risk.rate.peak": "피크 요금", "risk.rate.offpeak": "일반 요금",
     "hero.hot": "{room}을 시원하게 하는 중이에요", "hero.hotSub": "체감 {t}°예요 — 에어컨을 26°로 약하게 켰어요.",
     "hero.power": "피크 요금이라 전기를 아끼는 중", "hero.powerSub": "지금 {kw} kW — 에어컨 온도를 2° 올렸어요.",
     "ask.energy": "지금은 피크 요금 시간이에요", "fact.peak": "피크 요금", "fact.load": "지금 {kw} kW", "fact.acs": "에어컨 {n}대 냉방 중",
@@ -568,7 +568,8 @@ function heroState() {
   if (risks.thermal && risks.thermal.firing) return { mood: "busy", title: t("hero.heat"), sub: t("hero.heatSub") };
   if (risks.heat_health && risks.heat_health.firing) {
     const d = risks.heat_health.drivers || {};
-    return { mood: "busy", title: t("hero.hot", { room: roomName(d.room || "Bedroom") }), sub: t("hero.hotSub", { t: Math.round(d.apparent_temp || 0) }) };
+    const rn = roomName(d.room || "Bedroom");
+    return { mood: "busy", title: t("hero.hot", { room: lang === "en" ? rn.toLowerCase() : rn }), sub: t("hero.hotSub", { t: Math.round(d.apparent_temp || 0) }) };
   }
   if (risks.energy && risks.energy.firing) {
     return { mood: "busy", title: t("hero.power"), sub: t("hero.powerSub", { kw: (((risks.energy.drivers || {}).total_load_w || 0) / 1000).toFixed(1) }) };
@@ -595,6 +596,7 @@ function riskDetail(r) {
     if (d.drum_humidity == null) return t("risk.open");
     return `${t("risk.humid", { h: Math.round(d.drum_humidity) })} · ${d.sealed_hours >= 1 ? t("risk.shut", { n: d.sealed_hours.toFixed(0) }) : t("risk.sealed")}`;
   }
+  if (r && r.kind === "heat_health" && !(r.drivers || {}).room) return t("risk.away");   // no reading: nobody home
   if (r && r.kind === "heat_health") {
     const room = roomName(d.room || "Living Room");
     return r.score >= 30 ? t("risk.feels", { room, t: Math.round(d.apparent_temp || 0) }) : t("risk.cool", { room, t: Math.round(d.room_temp || 0) });
