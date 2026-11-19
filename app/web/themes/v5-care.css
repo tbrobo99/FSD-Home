@@ -47,9 +47,14 @@ body { background: #e8ece5; }
 .masthead h1 { font-size: 1.72rem; }
 #view-home .masthead::after { content: "LIVE"; color: var(--accent-ink); background: var(--accent-weak); border-color: #cce6da; }
 
-/* Keep engineering switches available in the source for testing, but never
-   present them as a choice a household member must understand. */
-.ui-switch, .mode-switch { display: none !important; }
+/* The senior-care layout keeps engineering controls out of the way, but a
+   completely hidden switcher is a trap: once `?ui=v5` is selected there is no
+   way back without editing the URL or clearing storage. Keep the tiny handle
+   (collapsed by theme.js) and let the version buttons appear only on click. */
+.mode-switch { display: none !important; }
+.ui-switch { opacity: 0.35; }
+.ui-switch:hover, .ui-switch:focus-within { opacity: 1; }
+.ui-switch:not(.collapsed) { opacity: 1; }
 .assistant-tools { margin-left: auto; }
 .tts { width: 46px; min-height: 46px; padding: 0; justify-content: center; border-radius: 50%; }
 .tts span { display: none; }
