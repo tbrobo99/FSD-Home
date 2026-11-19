@@ -102,7 +102,7 @@ let voiceRestarts = 0;
 let voiceBase = "";            // words finalised before the current session
 let voiceSaid = "";            // finalised words so far in this turn
 let voiceWarned = false;       // the "I heard nothing" hint, once per turn
-let voiceDone = false;         // this turn has already been handed to send()
+let voiceDone = false;         // this listening turn has already been closed
 let voiceFinals = 0;           // finalised phrases the engine has handed back
 let voiceInterim = "";         // the last thing the engine was still guessing at
 let voiceLastHeard = 0;        // when any text last arrived from the engine
@@ -145,9 +145,11 @@ function glue(a, b) {
   return `${a} ${b}`;
 }
 
-/* End the turn: take whatever is in the box and send it. Guarded by voiceDone so
-   the three ways a turn can end — the pause timer, a second tap, the engine
-   giving up — cannot send the same sentence twice. */
+/* End the listening turn: stop the mic and leave the recognised words in the
+   input box for the person to check and edit. Crucially this does NOT send —
+   sending is only ever the Send button / Enter / a quick chip, so a misheard
+   word can be fixed first. Guarded by voiceDone so the pause timer, a second
+   tap and the engine giving up cannot all fight over the same text. */
 function voiceFinish() {
   if (voiceDone) return;
   voiceDone = true;
@@ -156,7 +158,15 @@ function voiceFinish() {
   const text = ($("#input").value || voiceSaid).replace(/\s+/g, " ").trim();
   setListening(false);
   try { if (recognition) recognition.stop(); } catch (_) { /* already stopped */ }
-  if (text) send(text);
+  if (text) {
+    // Keep the transcript visible and editable; focus the box with the caret
+    // at the end so a typo is one keystroke away, not a full re-say.
+    const input = $("#input");
+    input.value = text;
+    input.focus();
+    try { input.setSelectionRange(text.length, text.length); } catch (_) { /* ignore */ }
+    toast("Tap Send to check and send, or edit first.");
+  }
 }
 
 /* The pause, not the engine, decides when the sentence is over. Every result
@@ -171,7 +181,7 @@ function startVoice() {
     toast("Voice needs Chrome or Safari — please type.");
     return;
   }
-  if (listening) { voiceFinish(); return; }   // a second tap means "send now"
+  if (listening) { voiceFinish(); return; }   // a second tap just closes the mic; text stays for review
   if (!recognition) {
     recognition = new SpeechRecognition();
     recognition.interimResults = true;
