@@ -53,21 +53,31 @@ CALENDAR_FILE = DATA_DIR / "calendar.json"
 
 ROOMS = ("Living Room", "Kitchen", "Bedroom", "Balcony")
 
-# Nameplate draw of the heat-generating appliances, watts. The thermal risk
+# Nameplate draw of the heat-generating appliances, watts, from LG
+# Electronics Korea product specifications (lge.co.kr). The thermal risk
 # index is a load ratio, so these numbers are the units it is measured in.
-HEAT_LOAD_W = {"oven": 2200, "dryer": 1800, "dish_washer": 1200, "washer": 500,
-               "cooktop": 1800}
+#   oven         DIOS light-wave oven ML32UW1, oven element      2,200 W
+#   dryer        TROMM heat-pump dryer RD25GS                    1,400 W
+#   dish_washer  DIOS dishwasher DUBJ1E                          1,600 W
+#   cooktop      DIOS induction BEI3ASS4E, large zone (no turbo) 2,000 W
+#   washer       washing without heating (motor and pump); the TROMM's 2,200 W
+#                rating includes its water heater, which a wash at the
+#                simulator's temperature does not run                500 W
+HEAT_LOAD_W = {"oven": 2200, "dryer": 1400, "dish_washer": 1600, "washer": 500,
+               "cooktop": 2000}
 
 # Whole-house draw for the energy index, watts. Heat appliances use their
 # nameplate figure above; the rest are typical running loads. An air
-# conditioner draws less the higher its setpoint: 900 W at 22 °C, 100 W less
-# per degree above that (floor 400 W). That is what makes "raise the
-# setpoint" an energy action and not only a comfort one.
+# conditioner draws less the higher its setpoint: LG Whisen wall AC
+# SQ09MDKWMS is rated 845 W cooling (127 W minimum), and the Korea Energy
+# Agency measured 4.7 % less power per degree raised (22-26 °C), i.e. about
+# 40 W per degree. That is what makes "raise the setpoint" an energy action
+# and not only a comfort one.
 BASE_LOAD_W = {"dehumidifier": 300, "purifier": 40, "range_hood": 150}
 FRIDGE_W = (60, 150)          # idle draw + extra at 100 % compressor duty
-AC_W_AT_22 = 900
-AC_W_PER_DEGREE = 100
-AC_W_MIN = 400
+AC_W_AT_22 = 845
+AC_W_PER_DEGREE = 40
+AC_W_MIN = 127
 
 ROOM_BASE = {
     "Living Room": {"temp": 29.0, "humidity": 52.0},
