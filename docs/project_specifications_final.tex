@@ -183,7 +183,7 @@ The risk assessment module (\texttt{app/risk.py}) computes four indices determin
     \item \textbf{Environmental \& Hygiene Optimization (MRI):} Prevents mold proliferation in sealed appliances early using low-wattage ventilation or dehumidification, avoiding harsh chemical cleaners and energy-heavy hot-water tub-clean cycles \cite{epa2022, who2009}.
     \item \textbf{Thermodynamic \& Energy Load Balancing (TOI):} Tracks concurrent heat wattage ($W$), kitchen temperature ($T_k$), and refrigerator compressor duty cycle ($D > 0.6$, signaling excess thermal strain) alongside scheduled cooking events ($C = 1$ when a cooking session starts within 30 minutes, otherwise $0$) \cite{ashrae2023}.
     \item \textbf{Heat Stress Where Residents Live (HSI):} Older adults lose heat less efficiently and feel thirst later. HSI uses Steadman's apparent temperature $AT = T + 0.33e - 4.0$, where $e$ is the water-vapour pressure from temperature and relative humidity \cite{steadman1984}, in the living room or bedroom, and only while someone is at home: $\text{HSI} = \text{clamp}[6.0\,(AT - 29.0)]$, which reaches the threshold near $AT = 37\,^\circ$C.
-    \item \textbf{Power Load Against the Tariff (PLI):} The simulator sums the draw of every running appliance; an air conditioner draws less at a warmer setpoint (900~W at 22~$^\circ$C, 100~W less per degree, floor 400~W). With a time-of-use budget $B$ of 2.5~kW in the peak band and 7~kW otherwise, $\text{PLI} = \text{clamp}[60\,L/B]$, so the house acts above about 2.1~kW at peak and 5.8~kW off-peak.
+    \item \textbf{Power Load Against the Tariff (PLI):} The simulator sums the draw of every running appliance; appliance draws follow LG product specifications (oven 2.2~kW, induction zone 2.0~kW, dishwasher 1.6~kW, heat-pump dryer 1.4~kW) \cite{lgcook2026,lgdry2026}, and an air conditioner draws less at a warmer setpoint: 845~W at 22~$^\circ$C \cite{lgac2024}, 40~W (4.7\%) less per degree \cite{kea2017}, 127~W minimum. With a time-of-use budget $B$ of 2.5~kW in the peak band and 7~kW otherwise, $\text{PLI} = \text{clamp}[60\,L/B]$, so the house acts above about 2.1~kW at peak and 5.8~kW off-peak.
     \item \textbf{Trigger \& Tier Separation:} When either index reaches or exceeds its configured threshold ($50.0$), an intervention event is dispatched. The risk threshold determines \emph{whether} an intervention is considered, whereas the predefined action tier determines \emph{whether} the action runs automatically or requires user approval.
 \end{itemize}
 
@@ -436,7 +436,7 @@ All use cases run on a laptop with \texttt{python run.py}. Screenshots were take
 \textbf{Satisfies:} FR-4, FR-5, FR-6.
 \begin{enumerate}
     \item Press \emph{Yes} on the dryer card. The engine revalidates (still valid, overload still active, dryer still on), records the intent, stops the dryer and records the outcome.
-    \item Removing the dryer's 1.8~kW clears the overload; the house sends one reminder that the dryer can be restarted by hand and never restarts it itself.
+    \item Removing the dryer's 1.4~kW clears the overload; the house sends one reminder that the dryer can be restarted by hand and never restarts it itself.
     \item Press \emph{Yes} on the cooktop card. It is revalidated against the meal --- someone at home, cooking still scheduled, cooktop still off --- and switches on.
     \item Home now says ``Watching the cooktop'': it turns off by itself if no cooking starts after the scheduled time, and after 30 minutes at most (Fig.~\ref{fig:uc3}). The cooktop's own load raises TOI again, which the kitchen ring reports truthfully.
 \end{enumerate}
@@ -505,10 +505,10 @@ These paths are exercised by unit tests in \texttt{tests/test\_fr456.py}.
 \subsection{Use Case 8: Power Load at the Peak Rate}
 \textbf{Satisfies:} FR-2 (PLI), FR-3 (Level~1 and Level~2), FR-4, FR-5.
 \begin{enumerate}
-    \item Choose \emph{Demo} $\rightarrow$ \emph{Peak rate}: evening peak band, two air conditioners set to 22~$^\circ$C and a wash running --- about 2.4~kW against a 2.5~kW peak budget.
+    \item Choose \emph{Demo} $\rightarrow$ \emph{Peak rate}: evening peak band, two air conditioners set to 22~$^\circ$C and a wash running --- about 2.4~kW against a 2.5~kW peak budget (PLI~57; 2.3~kW and PLI~55 once the AC is raised).
     \item PLI exceeds 50. The house raises the coldest AC by 2~$^\circ$C on its own (Level~1); the load falls but stays above the threshold.
     \item The sheet asks one question: ``Pause the wash until the peak ends?'' (Fig.~\ref{fig:uc8}).
-    \item On \emph{Yes} the wash pauses (it does not count as finished, so the mold index does not start), the load drops to about 1.8~kW, PLI falls below 50 and Home returns to ``All cozy at home''.
+    \item On \emph{Yes} the wash pauses (it does not count as finished, so the mold index does not start), the load drops to about 1.7~kW, PLI falls to about 41 and Home returns to ``All cozy at home''.
 \end{enumerate}
 
 \begin{figure}[htbp]
