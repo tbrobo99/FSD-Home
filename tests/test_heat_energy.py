@@ -140,5 +140,35 @@ class EnergyTest(Base):
         self.assertNotIn("pause_washer", [c.kind for c in policy.candidates(r, snap)])
 
 
+class TrendHistoryTest(Base):
+    def test_history_is_recorded_and_drives_the_prediction(self):
+        from datetime import datetime, timedelta
+        e = self.engine("oven")
+        t0 = datetime.now()
+        for i in range(10):
+            with e.sensors._lock:
+                e.sensors.rooms["Kitchen"]["temp"] = 30.0 + 0.1 * i
+            e.sensors.push_history(e.sensors.snapshot(), now=t0 + timedelta(seconds=i))
+        self.assertEqual(len(e.sensors.history["Kitchen.temp"]), 10)
+        r = risk.thermal_risk(e.sensors.snapshot(), e.sensors.history, t0)
+        self.assertGreater(r.predicted, r.current)   # rising room -> warmer in 30 min
+
+    def test_same_tick_is_not_recorded_twice(self):
+        from datetime import datetime
+        e = self.engine("idle")
+        now = datetime.now()
+        snap = e.sensors.snapshot()
+        e.sensors.push_history(snap, now=now)
+        e.sensors.push_history(snap, now=now)
+        self.assertEqual(len(e.sensors.history["home.load_w"]), 1)
+
+    def test_scenario_change_clears_the_trend(self):
+        e = self.engine("oven")
+        e.tick()
+        self.assertTrue(e.sensors.history["Kitchen.temp"])
+        e.sensors.apply_scenario("idle")
+        self.assertFalse(e.sensors.history["Kitchen.temp"])
+
+
 if __name__ == "__main__":
     unittest.main()

@@ -136,6 +136,7 @@ class SensorSimulator:
         self.history.update({f"{r}.humidity": deque(maxlen=history_len) for r in ROOMS})
         self.history["washer.drum_humidity"] = deque(maxlen=history_len)
         self.history["home.heat_w"] = deque(maxlen=history_len)
+        self.history["home.load_w"] = deque(maxlen=history_len)
 
         self._scenario = "idle"
         self._scenario_since = time.monotonic()
@@ -339,6 +340,8 @@ class SensorSimulator:
         with self._lock:
             self._scenario = name
             self._scenario_since = time.monotonic()
+            for series in self.history.values():   # trends do not carry across scenarios
+                series.clear()
             # reset
             for room, base in ROOM_BASE.items():
                 self.rooms[room] = {"temp": base["temp"], "humidity": base["humidity"]}
@@ -460,8 +463,34 @@ class SensorSimulator:
                 return 0.0
         return max(0.0, (now - since).total_seconds() / 3600.0)
 
+    def push_history(self, snap: dict, now: datetime | None = None) -> None:
+        """Append one sample per signal for the 30-minute trend in risk.py.
+
+        Both the sensor thread and the engine record each tick; a sample
+        closer than half a tick to the previous one is the same tick and is
+        dropped, so the slope is not skewed by duplicates.
+        """
+        now = now or datetime.now()
+        with self._lock:
+            last = self.history["home.load_w"]
+            if last and (now - last[-1][0]).total_seconds() < self.tick_seconds / 2:
+                return
+            for room, vals in (snap.get("rooms") or {}).items():
+                if f"{room}.temp" in self.history:
+                    self.history[f"{room}.temp"].append((now, vals.get("temp")))
+                    self.history[f"{room}.humidity"].append((now, vals.get("humidity")))
+            w = (snap.get("appliances") or {}).get("washer", {})
+            if w.get("cycle") == "done" and w.get("door_closed"):
+                self.history["washer.drum_humidity"].append((now, w.get("drum_humidity")))
+            else:
+                self.history["washer.drum_humidity"].clear()   # a new wet period starts fresh
+            self.history["home.heat_w"].append((now, snap.get("heat_load_w")))
+            self.history["home.load_w"].append((now, snap.get("total_load_w")))
+
     def record(self, snap: dict) -> None:
-        """Append to readings.jsonl and rewrite latest.csv (NFR: local JSON/CSV)."""
+        """Keep the trend history, then append to readings.jsonl and rewrite
+        latest.csv (NFR: local JSON/CSV)."""
+        self.push_history(snap)
         if not self.write_files:
             return
         try:
