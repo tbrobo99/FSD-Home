@@ -71,6 +71,7 @@ Current commercial tools offer strong single-device features: LG AI DD\textsuper
     \item \textbf{FR-4 (Inclusive UI/UX \& Per-Action Consent Overlay):} Provide WCAG 2.2 compliant touch controls, separate approval prompts per Level 2 action, supplementary TTS voice prompts, manual quiet-period status review, and truthful adapter-grounded result messages.
     \item \textbf{FR-5 (Fail-Safe Default \& Pre-Execution Safety Policy):} Enforce a 300-second approval expiration defaulting to safe standby, pre-execution state/risk revalidation, cooktop presence and auto-off safeguards, and dryer restart reminders.
     \item \textbf{FR-6 (Structured Append-Only Audit Trail):} Maintain an immutable SQLite \texttt{audit\_log} linking risk triggers, per-action approvals (\texttt{approval\_id}), and actual device execution outcomes.
+    \item \textbf{FR-7 (Energy \& Environment Savings Report):} Estimate, from executed actions in the audit trail only, the energy saved (kWh), peak energy shifted (kWh), cost saved (KRW) and CO$_2$ avoided (kg) for today and this week, and show them as labelled estimates with their assumptions.
 \end{itemize}
 
 \subsection{Non-Functional Requirements (NFR)}
@@ -239,6 +240,36 @@ To ensure end-to-end traceability across risk evaluation, user consent, and hard
     \item \textbf{Write-Before-Act Integrity:} Action intent is recorded prior to invoking the device adapter, and actual adapter outcomes are logged immediately afterward. If audit persistence fails prior to a Level 2 execution, the action is aborted.
 \end{itemize}
 
+\subsection{FR-7: Energy and Environment Savings Report}
+The household should be able to see what the agent's interventions were worth, not only what they were (\texttt{app/savings.py}, \texttt{GET /api/savings?period=today|week}). Because what would have happened without an action is not observable, every figure is an \emph{estimate} derived only from \texttt{action.executed} rows of the audit trail: a declined question, an expired request or a failed command counts for nothing. Three quantities are kept apart:
+\begin{itemize}
+    \item \textbf{Energy saved} (kWh not consumed): \texttt{eco\_ac} raises a setpoint by 2~$^\circ$C, counted at 200~W until the same AC is changed again, the demo is reset or three hours pass; a cooktop auto-off avoids about 0.45~kWh (1.8~kW for 15~min); a mold episode handled by \texttt{ventilate\_washer} avoids one 1.0~kWh hot-water tub-clean cycle.
+    \item \textbf{Energy shifted} (same kWh, used later): \texttt{pause\_washer} moves about 0.5~kWh out of the peak band; \texttt{stop\_dryer} keeps about 0.9~kWh out of a kitchen overload.
+    \item \textbf{Cost and CO$_2$}: energy saved at the average price plus shifted peak energy at the peak/off-peak price difference; CO$_2$ is counted on energy saved only, since shifting changes cost and peak demand but not total consumption.
+\end{itemize}
+Table~\ref{tab:savings} lists the assumptions; they are constants in one module so they can be replaced with a household's actual tariff. The interface states that the numbers are estimates and prints the price and emission factor used.
+
+\begin{table}[htbp]
+\caption{Assumptions of the Savings Estimate (FR-7)}
+\label{tab:savings}
+\centering
+\footnotesize
+\begin{tabular}{p{4.3cm}p{2.9cm}}
+\toprule
+\textbf{Quantity} & \textbf{Value} \\
+\midrule
+Average / peak / off-peak price & 150 / 250 / 110 KRW/kWh$^{\dagger}$ \\
+Grid emission factor & 0.4594 kg CO$_2$/kWh$^{\dagger}$ \\
+\texttt{eco\_ac} (+2~$^\circ$C) & 200 W, at most 3 h \\
+Cooktop auto-off & 0.45 kWh saved \\
+Tub-clean cycle avoided & 1.0 kWh saved \\
+Wash paused at peak & 0.5 kWh shifted \\
+Dryer stopped during cooking & 0.9 kWh shifted \\
+\bottomrule
+\multicolumn{2}{p{7.2cm}}{\scriptsize $^{\dagger}$Demonstration values; to be replaced with the current KEPCO residential tariff and the officially published national grid emission factor.}
+\end{tabular}
+\end{table}
+
 \subsection{Control Flow and Algorithmic Execution}
 Algorithm~\ref{alg:control} defines the 1~Hz orchestration loop, per-action Level 2 approval queuing, and pre-execution revalidation.
 
@@ -311,6 +342,7 @@ Table~\ref{tab:dirs} lists the source tree. The core runtime uses only the Pytho
 \texttt{app/} & \texttt{policy.py} & Safety Policy & \texttt{Candidate}, \texttt{ACTION\_TIERS}, \texttt{candidates()}, \texttt{tier\_of()} \\
 \texttt{app/} & \texttt{proactive.py} & Proactive Engine & \texttt{ProactiveEngine}: loop, revalidation, cooktop interlock, dryer reminder \\
 \texttt{app/} & \texttt{approval.py} & Approval Queue & \texttt{Approval}, \texttt{ApprovalQueue}: per-action requests, 300~s expiry \\
+\texttt{app/} & \texttt{savings.py} & Savings Report & \texttt{summarize()}, \texttt{report()}: kWh, KRW and CO$_2$ estimated from executed actions (FR-7) \\
 \texttt{app/} & \texttt{audit.py}, \texttt{db.py} & Audit Gate, Persistence & \texttt{execute()}, \texttt{record()}, \texttt{blocked()}; SQLite schema with append-only triggers \\
 \texttt{app/} & \texttt{llm.py} & LLM Client & OpenAI-compatible \texttt{chat()}; used for ranking and conversation \\
 \texttt{app/} & \texttt{server.py} & HTTP Server & \texttt{Handler}: REST API and static files \\
@@ -318,7 +350,7 @@ Table~\ref{tab:dirs} lists the source tree. The core runtime uses only the Pytho
 \texttt{app/} & \texttt{config.py}, \texttt{build.py} & Configuration & Defaults, \texttt{config.json}, build stamp \\
 \texttt{app/devices/} & \texttt{base.py}, \texttt{mock.py}, \texttt{thinq.py} & Device Adapters & \texttt{DeviceAdapter}, \texttt{MockAdapter} (11 simulated appliances), \texttt{ThinQAdapter} (dry-run by default) \\
 \texttt{app/web/} & \texttt{index.html}, \texttt{app.js}, \texttt{style.css}, \texttt{sw.js} & Web UI & Four phone-screen tabs, ask sheet, talk sheet; Korean / English; no build step \\
-\texttt{tests/} & \texttt{test\_phase2.py}, \texttt{test\_fr456.py}, \ldots & Unit tests & 293 tests (incl.\ \texttt{test\_heat\_energy.py}); run on Windows and Linux in GitHub Actions \\
+\texttt{tests/} & \texttt{test\_phase2.py}, \texttt{test\_fr456.py}, \ldots & Unit tests & 301 tests (incl.\ \texttt{test\_heat\_energy.py}, \texttt{test\_savings.py}); run on Windows and Linux in GitHub Actions \\
 \texttt{eval/} & \texttt{run.py}, \texttt{latency.py}, \texttt{dataset.jsonl} & Benchmarks & Intent-parser regression and latency measurement \\
 \texttt{docs/} & \texttt{*.tex}, \texttt{figures/} & Documentation & This paper, figures and screenshots \\
 \bottomrule
@@ -359,7 +391,7 @@ It also reports the whole-house load (\texttt{total\_load\_w}) and the time-of-u
 
 \subsection{HTTP Server and Web UI (\texttt{app/server.py}, \texttt{app/web/})}
 \textbf{Purpose.} Give the household one accessible screen (FR-4).
-\textbf{Functionality.} \texttt{Handler} serves the static interface and a small REST API: \texttt{GET /api/proactive}, \texttt{/api/approvals}, \texttt{/api/audit}, \texttt{/api/snapshot}; \texttt{POST /api/approvals/<id>/confirm} and \texttt{/decline} (the only route into Level~2 execution), \texttt{/api/control}, \texttt{/api/chat} and \texttt{/api/scenario} for demonstrations. The interface is vanilla HTML, CSS and JavaScript with no build step, designed first in Figma (Section~VI shows it). It has four tabs that each fit one phone screen: \emph{Home} (a one-sentence status from a small house mascot, four risk rings with the threshold at 50, quick actions), \emph{Devices}, \emph{Activity} (the audit trail in plain language) and \emph{Settings}; talking is the button in the middle of the tab bar. Level~2 questions open a bottom sheet by themselves: the reason once, then one card per action with its own Yes~/~No and a shared countdown. A \emph{Korean | English} toggle switches the whole interface, speech recognition and read-aloud; Korean is the default. Text and signal colours meet WCAG~2.2 AA contrast ($\geq 4.5{:}1$), controls show a visible keyboard focus, touch targets are 44--56~px, and the status line, banner and notifications are ARIA live regions \cite{wcag2023}.
+\textbf{Functionality.} \texttt{Handler} serves the static interface and a small REST API: \texttt{GET /api/proactive}, \texttt{/api/approvals}, \texttt{/api/audit}, \texttt{/api/savings}, \texttt{/api/snapshot}; \texttt{POST /api/approvals/<id>/confirm} and \texttt{/decline} (the only route into Level~2 execution), \texttt{/api/control}, \texttt{/api/chat} and \texttt{/api/scenario} for demonstrations. The interface is vanilla HTML, CSS and JavaScript with no build step, designed first in Figma (Section~VI shows it). It has four tabs that each fit one phone screen: \emph{Home} (a one-sentence status from a small house mascot, four risk rings with the threshold at 50, quick actions and a one-line savings summary), \emph{Devices}, \emph{Activity} (the savings estimate and the audit trail in plain language) and \emph{Settings}; talking is the button in the middle of the tab bar. Level~2 questions open a bottom sheet by themselves: the reason once, then one card per action with its own Yes~/~No and a shared countdown. A \emph{Korean | English} toggle switches the whole interface, speech recognition and read-aloud; Korean is the default. Text and signal colours meet WCAG~2.2 AA contrast ($\geq 4.5{:}1$), controls show a visible keyboard focus, touch targets are 44--56~px, and the status line, banner and notifications are ARIA live regions \cite{wcag2023}.
 
 \subsection{Conversational Agent (\texttt{app/agent.py} and related)}
 \textbf{Purpose.} Keep the Phase~1 voice and text assistant working on the same safety path.
@@ -506,8 +538,24 @@ These paths are exercised by unit tests in \texttt{tests/test\_fr456.py}.
 \begin{enumerate}
     \item Start the system with the model pointed at an unreachable address: \texttt{LLM\_BASE\_URL=http://127.0.0.1:9 python run.py --scenario oven}.
     \item The engine logs \texttt{proactive.decide\_fallback} and the rules choose the Level~1 actions. Questions, revalidation, the interlock and the audit trail behave exactly as above.
-    \item \texttt{python -m unittest discover -s tests} (293 tests) and \texttt{python -m eval.run} verify the same behaviour with no network access.
+    \item \texttt{python -m unittest discover -s tests} (301 tests) and \texttt{python -m eval.run} verify the same behaviour with no network access.
 \end{enumerate}
+
+\subsection{Use Case 11: What the House Saved}
+\textbf{Satisfies:} FR-7, FR-6.
+\begin{enumerate}
+    \item Run Use Case~8 and answer \emph{Yes}, then choose \emph{Demo} $\rightarrow$ \emph{Wet washer} (Use Case~1).
+    \item Home shows one line, ``Saved this week: \ldots''; tapping it opens \emph{Activity}.
+    \item The savings card shows energy saved, won saved and CO$_2$ avoided for \emph{Today} or \emph{This week}, a bar per contributing action (green for energy saved, violet for energy moved off the peak), the mold episodes prevented, and the price and emission factor behind the estimate (Fig.~\ref{fig:uc11}).
+    \item Every figure can be traced to an \texttt{action.executed} row in the timeline below it; declining the question in Use Case~8 removes the wash line and its saving.
+\end{enumerate}
+
+\begin{figure}[htbp]
+\centering
+\includegraphics[width=0.58\columnwidth]{figures/v3-uc11-savings.png}
+\caption{Use Case 11: the savings estimate on top of the Activity tab, computed only from executed actions.}
+\label{fig:uc11}
+\end{figure}
 
 \section{Software Installation Guide}
 Not required for this milestone. The repository README lists the commands: Python~3.10 or later, \texttt{python run.py}, then open \texttt{http://127.0.0.1:8848}.
