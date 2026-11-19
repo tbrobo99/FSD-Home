@@ -294,8 +294,13 @@ function startVoice() {
     };
   }
   recognition.lang = voiceLang;
-  voiceBase = "";
-  voiceSaid = "";
+  // An unsent transcript is a DRAFT, not garbage. If the engine ended early,
+  // or the person tapped the mic again mid-sentence, the words already in the
+  // box are kept and the next dictation is appended to them. Only Send (or a
+  // deliberate edit) removes them — the mic must never silently erase work.
+  const draft = ($("#input").value || "").replace(/\s+/g, " ").trim();
+  voiceBase = draft;        // words already finalised and still on the screen
+  voiceSaid = "";           // words NEW in this turn; voiceBase holds the draft
   voiceWarned = false;
   voiceDone = false;
   voiceFinals = 0;
@@ -306,7 +311,8 @@ function startVoice() {
   clearTimeout(voiceWatchdog);
   voiceTimer = null;
   voiceWatchdog = null;
-  $("#input").value = "";
+  $("#input").value = draft;
+  if (draft) toast("Keeping your draft — new words are added after it.");
   try {
     recognition.start();
     setListening(true);
