@@ -35,6 +35,9 @@ let pro = null;        // /api/proactive: live risks, approvals, sensor state
 let auditRows = null;  // /api/audit: the FR-6 trail
 let activeRoom = "All";
 let actFilter = "all";
+let savePeriod = "week";
+let saveWeek = null;     // /api/savings?period=week (FR-7)
+let saveToday = null;
 let currentTab = "home";
 let sheetId = null;
 let chipsSig = "";
@@ -174,6 +177,13 @@ const I18N = {
     "heat.title": "Heat load", "heat.aria": "Heat-producing load", "heat.running": "Running: {list}",
     "app.oven": "oven", "app.cooktop": "cooktop", "app.dryer": "dryer", "app.dishwasher": "dishwasher",
     "quick.off": "All off", "quick.cool": "Cool 24°", "quick.fresh": "Fresh air",
+    "save.strip": "Saved this week: {kwh} kWh · ₩{krw} · {co2} kg CO₂", "save.stripShift": "Saved this week: ₩{krw} · {kwh} kWh off peak",
+    "save.title": "Saved", "save.today": "Today", "save.week": "This week",
+    "save.kwh": "kWh saved", "save.krw": "won saved", "save.co2": "kg CO₂ avoided",
+    "save.shifted": "{kwh} kWh moved off the peak", "save.mold": "Mold prevented {n}×",
+    "save.none": "Nothing saved yet in this period.", "save.note": "Estimate from executed actions · ₩{avg}/kWh · {f} kg CO₂/kWh",
+    "save.k.eco_ac": "AC raised at peak", "save.k.cooktop_auto_off": "Cooktop auto-off", "save.k.ventilate_washer": "Washer aired (no tub clean)",
+    "save.k.pause_washer": "Wash moved off peak", "save.k.stop_dryer": "Dryer paused while cooking",
     "recent.title": "Just now", "recent.cooled": "Kitchen cooled down — you can restart the dryer",
     "ask.mold": "The washer is getting damp", "ask.heat": "The kitchen is getting hot", "ask.one": "1 quick question", "ask.n": "{n} quick questions",
     "ask.left": "{t} left", "ask.up": "Time is up", "ask.rule": "No answer? Nothing changes.", "ask.yes": "Yes", "ask.no": "No",
@@ -226,6 +236,13 @@ const I18N = {
     "heat.title": "열 부하", "heat.aria": "열을 내는 기기 전력", "heat.running": "작동 중: {list}",
     "app.oven": "오븐", "app.cooktop": "쿡탑", "app.dryer": "건조기", "app.dishwasher": "식기세척기",
     "quick.off": "모두 끄기", "quick.cool": "24° 냉방", "quick.fresh": "환기",
+    "save.strip": "이번 주 {kwh} kWh · ₩{krw} · CO₂ {co2}kg 절약", "save.stripShift": "이번 주 ₩{krw} 절약 · 피크 {kwh} kWh 이동",
+    "save.title": "집이 아낀 것", "save.today": "오늘", "save.week": "이번 주",
+    "save.kwh": "kWh 절약", "save.krw": "원 절약", "save.co2": "kg CO₂ 감축",
+    "save.shifted": "피크 전력 {kwh} kWh 이동", "save.mold": "곰팡이 예방 {n}회",
+    "save.none": "이 기간에는 아직 아낀 게 없어요.", "save.note": "실행된 동작 기준 추정치 · ₩{avg}/kWh · {f} kg CO₂/kWh",
+    "save.k.eco_ac": "피크 때 에어컨 온도 올림", "save.k.cooktop_auto_off": "쿡탑 자동 꺼짐", "save.k.ventilate_washer": "세탁기 환기 (통세척 생략)",
+    "save.k.pause_washer": "피크 피해 세탁 미룸", "save.k.stop_dryer": "요리 중 건조기 멈춤",
     "recent.title": "방금", "recent.cooled": "주방이 식었어요 — 건조기를 다시 켜도 돼요",
     "ask.mold": "세탁기가 눅눅해지고 있어요", "ask.heat": "주방이 더워지고 있어요", "ask.one": "질문 1개", "ask.n": "질문 {n}개",
     "ask.left": "{t} 남음", "ask.up": "시간이 지났어요", "ask.rule": "답하지 않으면 아무것도 바뀌지 않아요.", "ask.yes": "네", "ask.no": "아니요",
@@ -679,6 +696,51 @@ function renderRecent() {
   box.hidden = false;
   box.innerHTML = `<p>${esc(t("recent.title"))}</p><ul>${fresh.map((r) => `<li>${icon("i-check")}<span>${esc(
     r.event_type === "notification.dryer_restart" ? t("recent.cooled") : actionDone(r.action_kind))}</span></li>`).join("")}</ul>`;
+}
+
+/* ---------- savings (FR-7) ---------- */
+
+function num(v, d = 1) {
+  return Number(v || 0).toLocaleString(lang === "ko" ? "ko-KR" : "en-US", { maximumFractionDigits: d, minimumFractionDigits: 0 });
+}
+
+function renderSaveStrip() {
+  const box = $("#saveStrip");
+  const s = saveWeek;
+  // Home stays one phone screen: the strip gives way while "Just now" is up.
+  if (!s || (!s.kwh_saved && !s.kwh_shifted && !s.krw_saved) || !$("#recent").hidden) { box.hidden = true; return; }
+  box.hidden = false;
+  const text = s.kwh_saved
+    ? t("save.strip", { kwh: num(s.kwh_saved), krw: num(s.krw_saved, 0), co2: num(s.co2_kg) })
+    : t("save.stripShift", { kwh: num(s.kwh_shifted), krw: num(s.krw_saved, 0) });
+  box.innerHTML = `${icon("i-leaf")}<span>${esc(text)}</span>${icon("i-chevron")}`;
+}
+
+function renderSavings() {
+  const box = $("#savings");
+  const s = savePeriod === "today" ? saveToday : saveWeek;
+  if (!s) { box.hidden = true; return; }
+  box.hidden = false;
+  const max = Math.max(0.001, ...s.actions.map((a) => a.kwh_saved + a.kwh_shifted));
+  const extra = [s.kwh_shifted ? t("save.shifted", { kwh: num(s.kwh_shifted) }) : "",
+    s.mold_prevented ? t("save.mold", { n: s.mold_prevented }) : ""].filter(Boolean);
+  const a = s.assumptions || {};
+  box.innerHTML = `
+    <div class="sv-head"><h2>${icon("i-leaf")}${esc(t("save.title"))}</h2>
+      <div class="seg small" role="group">${["today", "week"].map((p) =>
+        `<button type="button" data-save="${p}" class="${p === savePeriod ? "on" : ""}" aria-pressed="${p === savePeriod}">${esc(t(`save.${p}`))}</button>`).join("")}</div></div>
+    <div class="stats sv-stats">
+      <div><strong>${esc(num(s.kwh_saved))}</strong><span>${esc(t("save.kwh"))}</span></div>
+      <div><strong>₩${esc(num(s.krw_saved, 0))}</strong><span>${esc(t("save.krw"))}</span></div>
+      <div><strong>${esc(num(s.co2_kg, 2))}</strong><span>${esc(t("save.co2"))}</span></div>
+    </div>
+    ${s.actions.length ? `<ul class="sv-bars">${s.actions.map((x) => `<li>
+      <span>${esc(t(`save.k.${x.kind}`))}${x.count > 1 ? ` ×${x.count}` : ""}</span>
+      <i style="--w:${Math.round(100 * (x.kwh_saved + x.kwh_shifted) / max)}%" data-shift="${x.kwh_saved ? 0 : 1}"></i>
+      <b>${esc(num(x.kwh_saved + x.kwh_shifted, 2))} kWh</b></li>`).join("")}</ul>`
+      : `<p class="sv-none">${esc(t("save.none"))}</p>`}
+    ${extra.length ? `<p class="sv-extra">${esc(extra.join(" · "))}</p>` : ""}
+    <p class="sv-note">${esc(t("save.note", { avg: a.price_avg_krw, f: a.co2_kg_per_kwh }))}</p>`;
 }
 
 /* ---------- the ask sheet (FR-3 / FR-4) ---------- */
@@ -1187,7 +1249,9 @@ function renderAll() {
   renderHeat();
   if (!$("#quick").children.length) renderQuick();
   renderRecent();
+  renderSaveStrip();
   renderDevices();
+  renderSavings();
   renderActivity();
   renderJobs();
   renderChips();
@@ -1197,12 +1261,16 @@ function renderAll() {
 
 async function refresh() {
   try {
-    const [snap, state, trail] = await Promise.all([
+    const [snap, state, trail, week, today] = await Promise.all([
       api("/api/snapshot"),
       api("/api/proactive").catch(() => null),
       api("/api/audit?limit=60").catch(() => null),
+      api("/api/savings?period=week").catch(() => null),
+      api("/api/savings?period=today").catch(() => null),
     ]);
     snapshot = snap;
+    saveWeek = week;
+    saveToday = today;
     pro = state;
     auditRows = trail && trail.audit;
     renderAll();
@@ -1239,6 +1307,7 @@ document.addEventListener("click", (event) => {
   if (hit("[data-open-ask]")) { askDismissed = ""; return openSheet("askSheet"); }
   if ((el = hit("[data-room]"))) { activeRoom = el.dataset.room; return renderDevices(); }
   if ((el = hit("[data-act]"))) { actFilter = el.dataset.act; return renderActivity(); }
+  if ((el = hit("[data-save]"))) { savePeriod = el.dataset.save; return renderSavings(); }
   if ((el = hit("[data-power]"))) return control(el.dataset.power, [{ action: "power", value: el.dataset.on !== "1" }]);
   if ((el = hit("[data-step]")) && sheetId) {
     const current = (findDevice(sheetId).state || {}).target_temp;

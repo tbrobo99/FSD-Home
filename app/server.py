@@ -95,6 +95,11 @@ class Handler(BaseHTTPRequestHandler):
             except ValueError:
                 limit = 40
             return self._json({"audit": db.recent_audit(limit)})
+        if path == "/api/savings":
+            # FR-7: estimated energy / cost / CO2 savings from executed actions.
+            from . import savings
+            period = (parse_qs(url.query).get("period") or ["week"])[0]
+            return self._json(savings.report("today" if period == "today" else "week"))
         if path == "/api/approvals":
             # Phase 2: Tier-2 requests waiting on the user. Absent engine ->
             # empty list, never a 500.
