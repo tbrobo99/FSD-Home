@@ -39,6 +39,8 @@
   <symbol id="i-power" viewBox="0 0 24 24"><path d="M12 4.5v7"/><path d="M7.6 7.2a7 7 0 1 0 8.8 0"/></symbol>
   <symbol id="i-temp" viewBox="0 0 24 24"><path d="M12 13.6V5a2.1 2.1 0 1 1 4.2 0v8.6a4.2 4.2 0 1 1-4.2 0z"/></symbol>
   <symbol id="i-wind" viewBox="0 0 24 24"><path d="M3 9h11a3 3 0 1 0-3-3"/><path d="M3 15h15a3 3 0 1 1-3 3"/></symbol>
+  <symbol id="i-leaf" viewBox="0 0 24 24"><path d="M5 19c0-8 5-13 15-14-1 10-6 15-14 15M5 19l7-7"/></symbol>
+  <symbol id="i-chevron" viewBox="0 0 24 24"><path d="M9 6l6 6-6 6"/></symbol>
   <symbol id="i-bolt" viewBox="0 0 24 24"><path d="M13 3L5 13.5h6L10 21l8-10.5h-6z"/></symbol>
   <symbol id="i-flame" viewBox="0 0 24 24"><path d="M12 3c1 3.5 5 5.5 5 10a5 5 0 0 1-10 0c0-2.2 1-3.6 2.3-4.8.2 1.5.9 2.6 2.2 3.1C11 9.5 11 6 12 3z"/></symbol>
   <symbol id="i-drop" viewBox="0 0 24 24"><path d="M12 3.4c3.4 3.9 5.2 6.4 5.2 8.8a5.2 5.2 0 1 1-10.4 0c0-2.4 1.8-4.9 5.2-8.8z"/></symbol>
@@ -80,6 +82,9 @@
 
     <div class="quick" id="quick"></div>
 
+    <!-- FR-7: one line of what the house saved this week; tap -> Activity. -->
+    <button type="button" class="save-strip" id="saveStrip" data-tab="activity" hidden></button>
+
     <!-- Last thing the house did on its own, so a calm screen still explains
          a change the household can hear (a fan, a beep). -->
     <div class="recent" id="recent" hidden></div>
@@ -107,6 +112,8 @@
       </div>
       <span class="locked"><svg class="ic"><use href="#i-lock"/></svg><span data-i18n="act.locked">Can't be edited</span></span>
     </header>
+    <!-- FR-7: estimated savings from executed actions only. -->
+    <div class="card savings" id="savings" hidden></div>
     <div class="filters" id="actFilter" role="tablist" aria-label="Show">
       <button type="button" data-act="all" class="on" data-i18n="act.all">All</button>
       <button type="button" data-act="asked" data-i18n="act.asked">Asked you</button>
