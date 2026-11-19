@@ -92,12 +92,15 @@ const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecogni
 const VOICE_LANGS = ["en-US", "ko-KR"];
 const VOICE_PAUSE_MS = 2000;   // a pause this long means "I have finished"
 const VOICE_TAIL_QUIET_MS = 900;   // a "final" this long after any audio is a guess
-const VOICE_MAX_RESTARTS = 8;
+const VOICE_MAX_RESTARTS = 2;      // laptop only: cap the pause-to-pause restarts
+const VOICE_MAX_MS = 15000;        // hard cap: never leave the mic stuck red forever
+const IS_MOBILE = /Android|iPhone|iPad|iPod|Mobile/i.test(navigator.userAgent || "");
 let voiceLang = VOICE_LANGS[0];
 let recognition = null;
 let listening = false;
 let ttsOn = false;
 let voiceTimer = null;         // the pause that ends the turn
+let voiceWatchdog = null;      // the hard cap that always closes the turn
 let voiceRestarts = 0;
 let voiceBase = "";            // words finalised before the current session
 let voiceSaid = "";            // finalised words so far in this turn
@@ -145,19 +148,29 @@ function glue(a, b) {
   return `${a} ${b}`;
 }
 
+/* Clear every timer and force the button out of the red state. This runs on
+   EVERY exit path — pause, second tap, watchdog, error and the engine's own
+   `end` — so a mobile browser that never fires `onend` cannot trap the mic. */
+function stopMic() {
+  clearTimeout(voiceTimer);
+  voiceTimer = null;
+  clearTimeout(voiceWatchdog);
+  voiceWatchdog = null;
+  setListening(false);
+  try { if (recognition) recognition.stop(); } catch (_) { /* already stopped */ }
+}
+
 /* End the listening turn: stop the mic and leave the recognised words in the
    input box for the person to check and edit. Crucially this does NOT send —
    sending is only ever the Send button / Enter / a quick chip, so a misheard
-   word can be fixed first. Guarded by voiceDone so the pause timer, a second
-   tap and the engine giving up cannot all fight over the same text. */
+   word can be fixed first. Safe to call twice: only the first call touches
+   the text or shows a toast, but every call cleans up the UI. */
 function voiceFinish() {
-  if (voiceDone) return;
+  const first = !voiceDone;
   voiceDone = true;
-  clearTimeout(voiceTimer);
-  voiceTimer = null;
+  stopMic();
+  if (!first) return;
   const text = ($("#input").value || voiceSaid).replace(/\s+/g, " ").trim();
-  setListening(false);
-  try { if (recognition) recognition.stop(); } catch (_) { /* already stopped */ }
   if (text) {
     // Keep the transcript visible and editable; focus the box with the caret
     // at the end so a typo is one keystroke away, not a full re-say.
@@ -170,7 +183,8 @@ function voiceFinish() {
 }
 
 /* The pause, not the engine, decides when the sentence is over. Every result
-   pushes it back, so a breath in the middle of a sentence costs nothing. */
+   pushes it back, so a breath in the middle of a sentence costs nothing. The
+   watchdog is deliberately NOT pushed back: one tap gets at most 15 seconds. */
 function voiceArmPause() {
   clearTimeout(voiceTimer);
   voiceTimer = setTimeout(voiceFinish, VOICE_PAUSE_MS);
@@ -181,16 +195,19 @@ function startVoice() {
     toast("Voice needs Chrome or Safari — please type.");
     return;
   }
-  if (listening) { voiceFinish(); return; }   // a second tap just closes the mic; text stays for review
+  // `voiceWatchdog` is also checked: if a browser got stuck with red on and
+  // its state out of sync, the next tap must still close the mic and reset.
+  if (listening || voiceWatchdog) { voiceFinish(); return; }
   if (!recognition) {
     recognition = new SpeechRecognition();
     recognition.interimResults = true;
-    // continuous, because the default ends the session at the first short
-    // pause: "turn on the living room AC … and set it to 24" arrived as two
-    // half sentences, and the first half was already on its way to the model
-    // before the second half was spoken.
-    recognition.continuous = true;
+    // Laptop: keep the session alive across short pauses so "turn on the AC …
+    // and set it to 24" arrives as one sentence. Phone: one tap = one session.
+    // Mobile browsers fire `end` during the permission hand-off, and restarting
+    // from there is exactly what made the mic loop / stay red forever.
+    recognition.continuous = !IS_MOBILE;
     recognition.onresult = (event) => {
+      if (voiceDone) return;   // a late result after the turn closed is not a new turn
       // Recompute from index 0 rather than from resultIndex: with continuous
       // on, the results list is the whole turn, and rebuilding it is idempotent
       // where appending to it is not.
@@ -237,36 +254,35 @@ function startVoice() {
     };
     recognition.onerror = (event) => {
       if (voiceDone) return;
-      if (event.error === "not-allowed") {
+      if (event.error === "not-allowed" || event.error === "service-not-allowed") {
         toast("Microphone permission denied — please type.");
-        voiceDone = true;      // stop onend from restarting a denied mic
       } else if (event.error === "no-speech") {
         // Silence, not a pause: nothing at all was captured this turn. On a
-        // laptop this is almost always the wrong input device — Windows keeps
-        // the headset-jack microphone selected, which is a microphone that
-        // exists and hears nothing unless something is plugged into it. Saying
-        // so is the difference between "the app is broken" and "pick the other
-        // microphone".
+        // laptop this is usually the wrong input device; on a phone it usually
+        // means the browser handed the mic over and came back empty.
         if (!voiceWarned && !voiceSaid && !$("#input").value.trim()) {
           voiceWarned = true;
-          toast("I heard nothing — check which microphone Windows is using.");
+          toast(IS_MOBILE
+            ? "I heard nothing — tap the mic again and speak closer."
+            : "I heard nothing — check which microphone Windows is using.");
         }
-        return;                // onend decides; nothing was said yet
       } else if (event.error !== "aborted") {
         toast("Voice stopped — please type.");
       }
+      // Close the turn on EVERY error. Waiting for `onend` here is what left
+      // the button stuck red on phones whose recognition engine never sends it.
+      voiceFinish();
     };
     recognition.onend = () => {
-      if (voiceDone) { setListening(false); return; }
-      // Safari ends the session at every pause even with continuous = true.
-      // Start it again and keep what has been heard, so the pause timer — not
-      // the engine — is what ends the turn. Delayed slightly to avoid spinning.
-      if (listening && voiceRestarts < VOICE_MAX_RESTARTS) {
+      if (voiceDone) { stopMic(); return; }
+      // Laptop only: the engine ends the session at a pause even with
+      // continuous on. Restart a bounded number of times, banking what was
+      // heard; the watchdog is never extended. On a phone, never restart —
+      // a fresh tap starts the next turn, with one permission hand-off.
+      if (!IS_MOBILE && listening && voiceRestarts < VOICE_MAX_RESTARTS) {
         voiceRestarts++;
         setTimeout(() => {
           if (voiceDone || !listening) return;
-          // A new session starts with an empty results list, so bank what the
-          // last one heard before asking for more.
           voiceBase = voiceSaid;
           voiceFinals = 0;
           voiceInterim = "";
@@ -282,17 +298,29 @@ function startVoice() {
   voiceSaid = "";
   voiceWarned = false;
   voiceDone = false;
-  voiceRestarts = 0;
   voiceFinals = 0;
   voiceInterim = "";
   voiceLastHeard = Date.now();
+  voiceRestarts = 0;
   clearTimeout(voiceTimer);
+  clearTimeout(voiceWatchdog);
+  voiceTimer = null;
+  voiceWatchdog = null;
   $("#input").value = "";
   try {
     recognition.start();
     setListening(true);
+    // The hard cap is set ONCE per tap. Nothing — not results, not restarts —
+    // pushes it back, so no browser can keep the mic red indefinitely.
+    voiceWatchdog = setTimeout(() => {
+      if (voiceDone) return;
+      toast("Voice timed out — check the box, or tap the mic again.");
+      voiceFinish();
+    }, VOICE_MAX_MS);
   } catch (err) {
-    setListening(false);  // already running; the tap is a stop
+    // start() throws when a session is already running. Treat the tap as a
+    // stop rather than leaving red on with no way out.
+    voiceFinish();
   }
 }
 
