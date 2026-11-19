@@ -98,8 +98,14 @@ class Handler(BaseHTTPRequestHandler):
         if path == "/api/savings":
             # FR-7: estimated energy / cost / CO2 savings from executed actions.
             from . import savings
-            period = (parse_qs(url.query).get("period") or ["week"])[0]
-            return self._json(savings.report("today" if period == "today" else "week"))
+            q = parse_qs(url.query)
+            period = (q.get("period") or ["week"])[0]
+            region = (q.get("region") or [None])[0]
+            return self._json(savings.report("today" if period == "today" else "week", region=region))
+        if path == "/api/regions":
+            # Country presets: language, currency, prices, emission factor.
+            from . import regions
+            return self._json({"default": regions.DEFAULT, "regions": list(regions.REGIONS.values())})
         if path == "/api/approvals":
             # Phase 2: Tier-2 requests waiting on the user. Absent engine ->
             # empty list, never a 500.

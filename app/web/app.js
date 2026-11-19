@@ -177,11 +177,13 @@ const I18N = {
     "heat.title": "Heat load", "heat.aria": "Heat-producing load", "heat.running": "Running: {list}",
     "app.oven": "oven", "app.cooktop": "cooktop", "app.dryer": "dryer", "app.dishwasher": "dishwasher",
     "quick.off": "All off", "quick.cool": "Cool 24°", "quick.fresh": "Fresh air",
-    "save.strip": "Saved this week: {kwh} kWh · ₩{krw} · {co2} kg CO₂", "save.stripShift": "Saved this week: ₩{krw} · {kwh} kWh off peak",
+    "save.strip": "Saved this week: {kwh} kWh · {money} · {co2} kg CO₂", "save.stripShift": "Saved this week: {money} · {kwh} kWh off peak",
     "save.title": "Saved", "save.today": "Today", "save.week": "This week",
-    "save.kwh": "kWh saved", "save.krw": "won saved", "save.co2": "kg CO₂ avoided",
+    "save.kwh": "kWh saved", "save.money": "off the bill", "save.co2": "kg CO₂ avoided",
     "save.shifted": "{kwh} kWh moved off the peak", "save.mold": "Mold prevented {n}×",
-    "save.none": "Nothing saved yet in this period.", "save.note": "Estimate from executed actions · ₩{avg}/kWh · {f} kg CO₂/kWh",
+    "save.none": "Nothing saved yet in this period.", "save.note": "Estimate from executed actions · {price}/kWh ({src}) · {f} kg CO₂/kWh ({csrc})",
+    "set.country": "Country", "set.countrySub": "Sets language, prices, CO₂", "country.KR": "Korea", "country.US": "United States",
+    "toast.country": "Country: {c}",
     "save.k.eco_ac": "AC raised at peak", "save.k.cooktop_auto_off": "Cooktop auto-off", "save.k.ventilate_washer": "Washer aired (no tub clean)",
     "save.k.pause_washer": "Wash moved off peak", "save.k.stop_dryer": "Dryer paused while cooking",
     "recent.title": "Just now", "recent.cooled": "Kitchen cooled down — you can restart the dryer",
@@ -236,11 +238,13 @@ const I18N = {
     "heat.title": "열 부하", "heat.aria": "열을 내는 기기 전력", "heat.running": "작동 중: {list}",
     "app.oven": "오븐", "app.cooktop": "쿡탑", "app.dryer": "건조기", "app.dishwasher": "식기세척기",
     "quick.off": "모두 끄기", "quick.cool": "24° 냉방", "quick.fresh": "환기",
-    "save.strip": "이번 주 {kwh} kWh · ₩{krw} · CO₂ {co2}kg 절약", "save.stripShift": "이번 주 ₩{krw} 절약 · 피크 {kwh} kWh 이동",
+    "save.strip": "이번 주 {kwh} kWh · {money} · CO₂ {co2}kg 절약", "save.stripShift": "이번 주 {money} 절약 · 피크 {kwh} kWh 이동",
     "save.title": "집이 아낀 것", "save.today": "오늘", "save.week": "이번 주",
-    "save.kwh": "kWh 절약", "save.krw": "원 절약", "save.co2": "kg CO₂ 감축",
+    "save.kwh": "kWh 절약", "save.money": "요금 절약", "save.co2": "kg CO₂ 감축",
     "save.shifted": "피크 전력 {kwh} kWh 이동", "save.mold": "곰팡이 예방 {n}회",
-    "save.none": "이 기간에는 아직 아낀 게 없어요.", "save.note": "실행된 동작 기준 추정치 · ₩{avg}/kWh · {f} kg CO₂/kWh",
+    "save.none": "이 기간에는 아직 아낀 게 없어요.", "save.note": "실행된 동작 기준 추정치 · {price}/kWh ({src}) · {f} kg CO₂/kWh ({csrc})",
+    "set.country": "국가", "set.countrySub": "언어·요금·CO₂ 기준 변경", "country.KR": "대한민국", "country.US": "미국",
+    "toast.country": "국가: {c}",
     "save.k.eco_ac": "피크 때 에어컨 온도 올림", "save.k.cooktop_auto_off": "쿡탑 자동 꺼짐", "save.k.ventilate_washer": "세탁기 환기 (통세척 생략)",
     "save.k.pause_washer": "피크 피해 세탁 미룸", "save.k.stop_dryer": "요리 중 건조기 멈춤",
     "recent.title": "방금", "recent.cooled": "주방이 식었어요 — 건조기를 다시 켜도 돼요",
@@ -293,6 +297,18 @@ try { const saved = localStorage.getItem("fsd-lang"); if (saved === "en" || save
 // A link can choose the language: /?lang=en or /?lang=ko (demos, screenshots).
 try { const q = new URLSearchParams(location.search).get("lang"); if (q === "en" || q === "ko") lang = q; } catch (_) { /* ignore */ }
 
+// Country (Settings): sets the interface language and the prices and CO2
+// factor the savings report uses (app/regions.py). The language can still be
+// switched on its own afterwards. A link can choose it too: /?country=US.
+const COUNTRY_LANG = { KR: "ko", US: "en" };
+let country = "KR";
+try { const saved = localStorage.getItem("fsd-country"); if (COUNTRY_LANG[saved]) country = saved; } catch (_) { /* private mode */ }
+try {
+  const q = new URLSearchParams(location.search);
+  const c = (q.get("country") || "").toUpperCase();
+  if (COUNTRY_LANG[c]) { country = c; if (!q.get("lang")) lang = COUNTRY_LANG[c]; }
+} catch (_) { /* ignore */ }
+
 function t(key, vars) {
   let s = (I18N[lang] && I18N[lang][key]) || I18N.en[key] || key;
   if (vars) for (const [k, v] of Object.entries(vars)) s = s.split(`{${k}}`).join(String(v));
@@ -315,6 +331,23 @@ function applyStatic() {
   document.querySelectorAll("[data-i18n-aria]").forEach((el) => el.setAttribute("aria-label", t(el.dataset.i18nAria)));
   document.querySelectorAll("[data-i18n-ph]").forEach((el) => { el.placeholder = t(el.dataset.i18nPh); });
   document.querySelectorAll("[data-i18n-title]").forEach((el) => { el.title = t(el.dataset.i18nTitle); });
+}
+
+function setCountry(code) {
+  if (!COUNTRY_LANG[code]) return;
+  country = code;
+  try { localStorage.setItem("fsd-country", country); } catch (_) { /* ignore */ }
+  saveWeek = saveToday = null;
+  setLang(COUNTRY_LANG[code]);
+  refresh();
+}
+
+function renderCountry() {
+  document.querySelectorAll("[data-country]").forEach((b) => {
+    const on = b.dataset.country === country;
+    b.classList.toggle("on", on);
+    b.setAttribute("aria-pressed", String(on));
+  });
 }
 
 function setLang(next) {
@@ -700,19 +733,25 @@ function renderRecent() {
 
 /* ---------- savings (FR-7) ---------- */
 
-function num(v, d = 1) {
-  return Number(v || 0).toLocaleString(lang === "ko" ? "ko-KR" : "en-US", { maximumFractionDigits: d, minimumFractionDigits: 0 });
+function num(v, d = 1, min = 0) {
+  return Number(v || 0).toLocaleString(lang === "ko" ? "ko-KR" : "en-US", { maximumFractionDigits: d, minimumFractionDigits: min });
+}
+
+// Money in the country's currency: ₩555, $0.21.
+function money(v, s) {
+  const d = (s && s.decimals) || 0;
+  return `${(s && s.symbol) || ""}${num(v, d, d)}`;
 }
 
 function renderSaveStrip() {
   const box = $("#saveStrip");
   const s = saveWeek;
   // Home stays one phone screen: the strip gives way while "Just now" is up.
-  if (!s || (!s.kwh_saved && !s.kwh_shifted && !s.krw_saved) || !$("#recent").hidden) { box.hidden = true; return; }
+  if (!s || (!s.kwh_saved && !s.kwh_shifted && !s.money_saved) || !$("#recent").hidden) { box.hidden = true; return; }
   box.hidden = false;
   const text = s.kwh_saved
-    ? t("save.strip", { kwh: num(s.kwh_saved), krw: num(s.krw_saved, 0), co2: num(s.co2_kg) })
-    : t("save.stripShift", { kwh: num(s.kwh_shifted), krw: num(s.krw_saved, 0) });
+    ? t("save.strip", { kwh: num(s.kwh_saved), money: money(s.money_saved, s), co2: num(s.co2_kg) })
+    : t("save.stripShift", { kwh: num(s.kwh_shifted), money: money(s.money_saved, s) });
   box.innerHTML = `${icon("i-leaf")}<span>${esc(text)}</span>${icon("i-chevron")}`;
 }
 
@@ -731,7 +770,7 @@ function renderSavings() {
         `<button type="button" data-save="${p}" class="${p === savePeriod ? "on" : ""}" aria-pressed="${p === savePeriod}">${esc(t(`save.${p}`))}</button>`).join("")}</div></div>
     <div class="stats sv-stats">
       <div><strong>${esc(num(s.kwh_saved))}</strong><span>${esc(t("save.kwh"))}</span></div>
-      <div><strong>₩${esc(num(s.krw_saved, 0))}</strong><span>${esc(t("save.krw"))}</span></div>
+      <div><strong>${esc(money(s.money_saved, s))}</strong><span>${esc(t("save.money"))}</span></div>
       <div><strong>${esc(num(s.co2_kg, 2))}</strong><span>${esc(t("save.co2"))}</span></div>
     </div>
     ${s.actions.length ? `<ul class="sv-bars">${s.actions.map((x) => `<li>
@@ -740,7 +779,7 @@ function renderSavings() {
       <b>${esc(num(x.kwh_saved + x.kwh_shifted, 2))} kWh</b></li>`).join("")}</ul>`
       : `<p class="sv-none">${esc(t("save.none"))}</p>`}
     ${extra.length ? `<p class="sv-extra">${esc(extra.join(" · "))}</p>` : ""}
-    <p class="sv-note">${esc(t("save.note", { avg: a.price_krw, f: a.co2_kg_per_kwh }))}</p>`;
+    <p class="sv-note">${esc(t("save.note", { price: money(a.price, { symbol: s.symbol, decimals: s.decimals ? 3 : 1 }), src: a.tariff_source, f: a.co2_kg_per_kwh, csrc: a.co2_source }))}</p>`;
 }
 
 /* ---------- the ask sheet (FR-3 / FR-4) ---------- */
@@ -1256,6 +1295,7 @@ function renderAll() {
   renderJobs();
   renderChips();
   renderMode();
+  renderCountry();
   if (sheetId) renderSheet();
 }
 
@@ -1265,8 +1305,8 @@ async function refresh() {
       api("/api/snapshot"),
       api("/api/proactive").catch(() => null),
       api("/api/audit?limit=60").catch(() => null),
-      api("/api/savings?period=week").catch(() => null),
-      api("/api/savings?period=today").catch(() => null),
+      api(`/api/savings?period=week&region=${country}`).catch(() => null),
+      api(`/api/savings?period=today&region=${country}`).catch(() => null),
     ]);
     snapshot = snap;
     saveWeek = week;
@@ -1298,8 +1338,8 @@ function switchTab(name) {
 /* ---------- events ---------- */
 
 document.addEventListener("click", (event) => {
-  const t = event.target;
-  const hit = (sel) => t.closest(sel);
+  const target = event.target;   // not "t": that is the translate function
+  const hit = (sel) => target.closest(sel);
   let el;
 
   if ((el = hit("[data-scenario]"))) return loadScenario(el.dataset.scenario);
@@ -1320,6 +1360,10 @@ document.addEventListener("click", (event) => {
   if ((el = hit("[data-scene]"))) { const s = SCENES.find((x) => x.key === el.dataset.scene); return s && runScene(s); }
   if ((el = hit("[data-open]"))) return openDevice(el.dataset.open);
   if ((el = hit("[data-tab]"))) return switchTab(el.dataset.tab);
+  if ((el = hit("[data-country]"))) {
+    setCountry(el.dataset.country);
+    return toast(t("toast.country", { c: t(`country.${country}`) }));
+  }
   if ((el = hit("[data-lang]"))) {
     setLang(el.dataset.lang);
     return toast(t("toast.lang"));
@@ -1330,7 +1374,7 @@ document.addEventListener("click", (event) => {
       .catch(() => {});
   }
   if ((el = hit("[data-say]"))) return send(el.dataset.say);
-  if (hit("[data-close]") || t.id === "scrim") return closeSheets();
+  if (hit("[data-close]") || target.id === "scrim") return closeSheets();
 });
 
 document.addEventListener("keydown", (event) => {
