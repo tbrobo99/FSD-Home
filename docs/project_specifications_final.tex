@@ -71,7 +71,7 @@ Current commercial tools offer strong single-device features: LG AI DD\textsuper
     \item \textbf{FR-4 (Inclusive UI/UX \& Per-Action Consent Overlay):} Provide WCAG 2.2 compliant touch controls, separate approval prompts per Level 2 action, supplementary TTS voice prompts, manual quiet-period status review, and truthful adapter-grounded result messages.
     \item \textbf{FR-5 (Fail-Safe Default \& Pre-Execution Safety Policy):} Enforce a 300-second approval expiration defaulting to safe standby, pre-execution state/risk revalidation, cooktop presence and auto-off safeguards, and dryer restart reminders.
     \item \textbf{FR-6 (Structured Append-Only Audit Trail):} Maintain an immutable SQLite \texttt{audit\_log} linking risk triggers, per-action approvals (\texttt{approval\_id}), and actual device execution outcomes.
-    \item \textbf{FR-7 (Energy \& Environment Savings Report):} Estimate, from executed actions in the audit trail only, the energy saved (kWh), peak energy shifted (kWh), cost saved (KRW) and CO$_2$ avoided (kg) for today and this week, and show them as labelled estimates with their assumptions.
+    \item \textbf{FR-7 (Energy \& Environment Savings Report):} Estimate, from executed actions in the audit trail only, the energy saved (kWh), peak energy shifted (kWh), cost saved (KRW) and CO$_2$ avoided (kg) for today and this week, priced for the household's country, and show them as labelled estimates with their assumptions.
 \end{itemize}
 
 \subsection{Non-Functional Requirements (NFR)}
@@ -249,6 +249,25 @@ The household should be able to see what the agent's interventions were worth, n
 \end{itemize}
 Table~\ref{tab:savings} lists the assumptions and their sources; they are constants in one module so they can be replaced with a household's actual tariff and appliances. Prices are the KEPCO energy charge only \cite{kepco2023}: the marginal kWh of a typical household falls in the second progressive tier, and the peak/off-peak pair is the published residential time-of-use rate (Jeju), whose 16--22~h peak matches the simulated evening peak; mainland households do not yet have a time-of-use rate. Climate-environment and fuel-cost charges, VAT and the power-industry fund are left out, so the won figure is conservative. CO$_2$ uses the 2023 national grid emission factor \cite{mcee2025}. The interface states that the numbers are estimates and prints the price and emission factor used.
 
+\textbf{Country presets.} Prices and the grid emission factor depend on where the household lives, so they are not constants of the estimate but a per-country preset (\texttt{app/regions.py}, Table~\ref{tab:regions}). Choosing a country in \emph{Settings} switches the interface language, the currency, the prices and the emission factor together; the energy figures, which come from the appliances, do not change. For the United States the marginal price is the 2025 national average residential price \cite{eia2025}; there is no national time-of-use rate, so the peak/off-peak pair is PG\&E's E-TOU-C plan, whose 4--9~pm peak also matches the simulated evening peak \cite{pge2026}; and the emission factor is the eGRID2023 national output rate \cite{egrid2023}. Adding a country is one entry in the preset table and its language in the interface.
+
+\begin{table}[htbp]
+\caption{Country Presets for the Savings Estimate (energy charge only)}
+\label{tab:regions}
+\centering
+\footnotesize
+\begin{tabular}{p{2.3cm}p{2.4cm}p{2.4cm}}
+\toprule
+ & \textbf{Korea} & \textbf{United States} \\
+\midrule
+Language, currency & Korean, KRW & English, USD \\
+Price per kWh & 214.6 (tier 2) \cite{kepco2023} & 0.173 (2025 avg.) \cite{eia2025} \\
+Peak / off-peak & 220.5 / 138.7, peak 16--22~h (Jeju TOU) \cite{kepco2023} & 0.44 / 0.32, peak 16--21~h (PG\&E E-TOU-C, summer) \cite{pge2026} \\
+Grid factor (kg/kWh) & 0.4173 (2023) \cite{mcee2025} & 0.3497 (eGRID2023, CO$_2$e) \cite{egrid2023} \\
+\bottomrule
+\end{tabular}
+\end{table}
+
 \begin{table}[htbp]
 \caption{Assumptions of the Savings Estimate (FR-7)}
 \label{tab:savings}
@@ -258,9 +277,7 @@ Table~\ref{tab:savings} lists the assumptions and their sources; they are consta
 \toprule
 \textbf{Quantity} & \textbf{Value} & \textbf{Source} \\
 \midrule
-Price (2nd tier, marginal) & 214.6 KRW/kWh & \cite{kepco2023} \\
-Peak / off-peak (TOU) & 220.5 / 138.7 KRW/kWh & \cite{kepco2023} \\
-Grid emission factor & 0.4173 kg CO$_2$/kWh & \cite{mcee2025} \\
+Prices, emission factor & by country & Table~\ref{tab:regions} \\
 \texttt{eco\_ac} (+2~$^\circ$C) & 845 W $\times$ 4.7\%/$^\circ$C $\times$ 2 $\approx$ 79 W, $\leq$ 3 h & \cite{lgac2024,kea2017} \\
 Cooktop auto-off & 2.0 kW $\times$ 15 min = 0.5 kWh & \cite{lgcook2026} \\
 Tub-clean course avoided & 2.2 kW $\times$ 30 min = 1.1 kWh & \cite{lgwash2026} \\
@@ -342,7 +359,7 @@ Table~\ref{tab:dirs} lists the source tree. The core runtime uses only the Pytho
 \texttt{app/} & \texttt{policy.py} & Safety Policy & \texttt{Candidate}, \texttt{ACTION\_TIERS}, \texttt{candidates()}, \texttt{tier\_of()} \\
 \texttt{app/} & \texttt{proactive.py} & Proactive Engine & \texttt{ProactiveEngine}: loop, revalidation, cooktop interlock, dryer reminder \\
 \texttt{app/} & \texttt{approval.py} & Approval Queue & \texttt{Approval}, \texttt{ApprovalQueue}: per-action requests, 300~s expiry \\
-\texttt{app/} & \texttt{savings.py} & Savings Report & \texttt{summarize()}, \texttt{report()}: kWh, KRW and CO$_2$ estimated from executed actions (FR-7) \\
+\texttt{app/} & \texttt{savings.py}, \texttt{regions.py} & Savings Report & \texttt{summarize()}, \texttt{report()}: kWh, money and CO$_2$ estimated from executed actions (FR-7); per-country language, currency, prices and emission factor \\
 \texttt{app/} & \texttt{audit.py}, \texttt{db.py} & Audit Gate, Persistence & \texttt{execute()}, \texttt{record()}, \texttt{blocked()}; SQLite schema with append-only triggers \\
 \texttt{app/} & \texttt{llm.py} & LLM Client & OpenAI-compatible \texttt{chat()}; used for ranking and conversation \\
 \texttt{app/} & \texttt{server.py} & HTTP Server & \texttt{Handler}: REST API and static files \\
@@ -350,7 +367,7 @@ Table~\ref{tab:dirs} lists the source tree. The core runtime uses only the Pytho
 \texttt{app/} & \texttt{config.py}, \texttt{build.py} & Configuration & Defaults, \texttt{config.json}, build stamp \\
 \texttt{app/devices/} & \texttt{base.py}, \texttt{mock.py}, \texttt{thinq.py} & Device Adapters & \texttt{DeviceAdapter}, \texttt{MockAdapter} (11 simulated appliances), \texttt{ThinQAdapter} (dry-run by default) \\
 \texttt{app/web/} & \texttt{index.html}, \texttt{app.js}, \texttt{style.css}, \texttt{sw.js} & Web UI & Four phone-screen tabs, ask sheet, talk sheet; Korean / English; no build step \\
-\texttt{tests/} & \texttt{test\_phase2.py}, \texttt{test\_fr456.py}, \ldots & Unit tests & 301 tests (incl.\ \texttt{test\_heat\_energy.py}, \texttt{test\_savings.py}); run on Windows and Linux in GitHub Actions \\
+\texttt{tests/} & \texttt{test\_phase2.py}, \texttt{test\_fr456.py}, \ldots & Unit tests & 304 tests (incl.\ \texttt{test\_heat\_energy.py}, \texttt{test\_savings.py}); run on Windows and Linux in GitHub Actions \\
 \texttt{eval/} & \texttt{run.py}, \texttt{latency.py}, \texttt{dataset.jsonl} & Benchmarks & Intent-parser regression and latency measurement \\
 \texttt{docs/} & \texttt{*.tex}, \texttt{figures/} & Documentation & This paper, figures and screenshots \\
 \bottomrule
@@ -391,7 +408,7 @@ It also reports the whole-house load (\texttt{total\_load\_w}) and the time-of-u
 
 \subsection{HTTP Server and Web UI (\texttt{app/server.py}, \texttt{app/web/})}
 \textbf{Purpose.} Give the household one accessible screen (FR-4).
-\textbf{Functionality.} \texttt{Handler} serves the static interface and a small REST API: \texttt{GET /api/proactive}, \texttt{/api/approvals}, \texttt{/api/audit}, \texttt{/api/savings}, \texttt{/api/snapshot}; \texttt{POST /api/approvals/<id>/confirm} and \texttt{/decline} (the only route into Level~2 execution), \texttt{/api/control}, \texttt{/api/chat} and \texttt{/api/scenario} for demonstrations. The interface is vanilla HTML, CSS and JavaScript with no build step, designed first in Figma (Section~VI shows it). It has four tabs that each fit one phone screen: \emph{Home} (a one-sentence status from a small house mascot, four risk rings with the threshold at 50, quick actions and a one-line savings summary), \emph{Devices}, \emph{Activity} (the savings estimate and the audit trail in plain language) and \emph{Settings}; talking is the button in the middle of the tab bar. Level~2 questions open a bottom sheet by themselves: the reason once, then one card per action with its own Yes~/~No and a shared countdown. A \emph{Korean | English} toggle switches the whole interface, speech recognition and read-aloud; Korean is the default. Text and signal colours meet WCAG~2.2 AA contrast ($\geq 4.5{:}1$), controls show a visible keyboard focus, touch targets are 44--56~px, and the status line, banner and notifications are ARIA live regions \cite{wcag2023}.
+\textbf{Functionality.} \texttt{Handler} serves the static interface and a small REST API: \texttt{GET /api/proactive}, \texttt{/api/approvals}, \texttt{/api/audit}, \texttt{/api/savings}, \texttt{/api/regions}, \texttt{/api/snapshot}; \texttt{POST /api/approvals/<id>/confirm} and \texttt{/decline} (the only route into Level~2 execution), \texttt{/api/control}, \texttt{/api/chat} and \texttt{/api/scenario} for demonstrations. The interface is vanilla HTML, CSS and JavaScript with no build step, designed first in Figma (Section~VI shows it). It has four tabs that each fit one phone screen: \emph{Home} (a one-sentence status from a small house mascot, four risk rings with the threshold at 50, quick actions and a one-line savings summary), \emph{Devices}, \emph{Activity} (the savings estimate and the audit trail in plain language) and \emph{Settings}; talking is the button in the middle of the tab bar. Level~2 questions open a bottom sheet by themselves: the reason once, then one card per action with its own Yes~/~No and a shared countdown. A \emph{Korean | English} toggle switches the whole interface, speech recognition and read-aloud; Korean is the default. A \emph{Country} setting (Korea or United States) sets the language together with the currency, electricity prices and emission factor of the savings report. Text and signal colours meet WCAG~2.2 AA contrast ($\geq 4.5{:}1$), controls show a visible keyboard focus, touch targets are 44--56~px, and the status line, banner and notifications are ARIA live regions \cite{wcag2023}.
 
 \subsection{Conversational Agent (\texttt{app/agent.py} and related)}
 \textbf{Purpose.} Keep the Phase~1 voice and text assistant working on the same safety path.
@@ -523,6 +540,7 @@ These paths are exercised by unit tests in \texttt{tests/test\_fr456.py}.
 \begin{enumerate}
     \item Tap the language toggle at the top right of Home.
     \item Every label, the status sentence, risk tags, the ask sheet, device names and states, Activity and Settings switch language; speech recognition and read-aloud follow (Fig.~\ref{fig:uc9}). The choice is remembered on the device.
+    \item Choosing a country in \emph{Settings} does the same and also switches the savings report to that country's currency, prices and emission factor (Table~\ref{tab:regions}): the same executed actions show the same kWh, but the money and CO$_2$ follow the chosen country.
     \item Text generated by the server (chat replies, refusal reasons) remains in English in this version.
 \end{enumerate}
 
@@ -538,7 +556,7 @@ These paths are exercised by unit tests in \texttt{tests/test\_fr456.py}.
 \begin{enumerate}
     \item Start the system with the model pointed at an unreachable address: \texttt{LLM\_BASE\_URL=http://127.0.0.1:9 python run.py --scenario oven}.
     \item The engine logs \texttt{proactive.decide\_fallback} and the rules choose the Level~1 actions. Questions, revalidation, the interlock and the audit trail behave exactly as above.
-    \item \texttt{python -m unittest discover -s tests} (301 tests) and \texttt{python -m eval.run} verify the same behaviour with no network access.
+    \item \texttt{python -m unittest discover -s tests} (304 tests) and \texttt{python -m eval.run} verify the same behaviour with no network access.
 \end{enumerate}
 
 \subsection{Use Case 11: What the House Saved}
@@ -584,6 +602,9 @@ The hardest part of this phase was not a single algorithm but keeping four peopl
 \bibitem{lgcook2026} LG Electronics, ``LG DIOS induction range BEI3ASS4E: specifications (large zone 2,000 W, turbo 3,400 W),'' lge.co.kr, 2026.
 \bibitem{lgwash2026} LG Electronics, ``LG TROMM washer F24VDLPR: specifications (2,200 W; tub-sterilize course),'' lge.co.kr, 2026.
 \bibitem{lgdry2026} LG Electronics, ``LG TROMM heat-pump dryer RD25GS: specifications (1,400 W),'' lge.co.kr, 2026.
+\bibitem{eia2025} U.S. Energy Information Administration, ``Electricity explained: prices and factors affecting prices'' (2025 average residential price 17.30 cents/kWh), 2026.
+\bibitem{pge2026} Pacific Gas and Electric Company, ``Residential rate plan pricing,'' effective 1 Mar. 2026.
+\bibitem{egrid2023} U.S. Environmental Protection Agency, ``eGRID2023 summary data'' (U.S. total output rate 770.884 lb CO$_2$e/MWh), 2025.
 \bibitem{lgspec2026} LG Electronics, ``LG ThinQ Platform Specifications,'' Official Whitepaper, 2026.
 \bibitem{samsung2026b} Samsung India, ``2026 Range of Bespoke AI Appliances,'' Press Release, 2026.
 \bibitem{steadman1984} R. G. Steadman, ``A universal scale of apparent temperature,'' \emph{Journal of Climate and Applied Meteorology}, vol. 23, no. 12, pp. 1674--1687, 1984.
