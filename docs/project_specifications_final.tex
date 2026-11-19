@@ -243,30 +243,30 @@ To ensure end-to-end traceability across risk evaluation, user consent, and hard
 \subsection{FR-7: Energy and Environment Savings Report}
 The household should be able to see what the agent's interventions were worth, not only what they were (\texttt{app/savings.py}, \texttt{GET /api/savings?period=today|week}). Because what would have happened without an action is not observable, every figure is an \emph{estimate} derived only from \texttt{action.executed} rows of the audit trail: a declined question, an expired request or a failed command counts for nothing. Three quantities are kept apart:
 \begin{itemize}
-    \item \textbf{Energy saved} (kWh not consumed): \texttt{eco\_ac} raises a setpoint by 2~$^\circ$C, counted at 200~W until the same AC is changed again, the demo is reset or three hours pass; a cooktop auto-off avoids about 0.45~kWh (1.8~kW for 15~min); a mold episode handled by \texttt{ventilate\_washer} avoids one 1.0~kWh hot-water tub-clean cycle.
-    \item \textbf{Energy shifted} (same kWh, used later): \texttt{pause\_washer} moves about 0.5~kWh out of the peak band; \texttt{stop\_dryer} keeps about 0.9~kWh out of a kitchen overload.
-    \item \textbf{Cost and CO$_2$}: energy saved at the average price plus shifted peak energy at the peak/off-peak price difference; CO$_2$ is counted on energy saved only, since shifting changes cost and peak demand but not total consumption.
+    \item \textbf{Energy saved} (kWh not consumed): \texttt{eco\_ac} raises a setpoint by 2~$^\circ$C; at 4.7\% less power per degree \cite{kea2017} on an 845~W wall air conditioner \cite{lgac2024} this is about 79~W, counted until the same AC is changed again, the demo is reset or three hours pass. A cooktop auto-off avoids about 0.5~kWh (a 2.0~kW induction zone \cite{lgcook2026} for 15~min); a mold episode handled by \texttt{ventilate\_washer} avoids one hot-water tub-clean course, about 1.1~kWh (a 2.2~kW washer heater \cite{lgwash2026} for 30~min).
+    \item \textbf{Energy shifted} (same kWh, used later): \texttt{pause\_washer} moves about 0.5~kWh (an unheated wash, 500~W for an hour) out of the peak band; \texttt{stop\_dryer} keeps about 0.7~kWh (a 1.4~kW heat-pump dryer \cite{lgdry2026} for 30~min) out of a kitchen overload.
+    \item \textbf{Cost and CO$_2$}: energy saved at the household's marginal price plus shifted peak energy at the peak/off-peak price difference; CO$_2$ is counted on energy saved only, since shifting changes cost and peak demand but not total consumption.
 \end{itemize}
-Table~\ref{tab:savings} lists the assumptions; they are constants in one module so they can be replaced with a household's actual tariff. The interface states that the numbers are estimates and prints the price and emission factor used.
+Table~\ref{tab:savings} lists the assumptions and their sources; they are constants in one module so they can be replaced with a household's actual tariff and appliances. Prices are the KEPCO energy charge only \cite{kepco2023}: the marginal kWh of a typical household falls in the second progressive tier, and the peak/off-peak pair is the published residential time-of-use rate (Jeju), whose 16--22~h peak matches the simulated evening peak; mainland households do not yet have a time-of-use rate. Climate-environment and fuel-cost charges, VAT and the power-industry fund are left out, so the won figure is conservative. CO$_2$ uses the 2023 national grid emission factor \cite{mcee2025}. The interface states that the numbers are estimates and prints the price and emission factor used.
 
 \begin{table}[htbp]
 \caption{Assumptions of the Savings Estimate (FR-7)}
 \label{tab:savings}
 \centering
 \footnotesize
-\begin{tabular}{p{4.3cm}p{2.9cm}}
+\begin{tabular}{p{3.5cm}p{1.9cm}p{1.5cm}}
 \toprule
-\textbf{Quantity} & \textbf{Value} \\
+\textbf{Quantity} & \textbf{Value} & \textbf{Source} \\
 \midrule
-Average / peak / off-peak price & 150 / 250 / 110 KRW/kWh$^{\dagger}$ \\
-Grid emission factor & 0.4594 kg CO$_2$/kWh$^{\dagger}$ \\
-\texttt{eco\_ac} (+2~$^\circ$C) & 200 W, at most 3 h \\
-Cooktop auto-off & 0.45 kWh saved \\
-Tub-clean cycle avoided & 1.0 kWh saved \\
-Wash paused at peak & 0.5 kWh shifted \\
-Dryer stopped during cooking & 0.9 kWh shifted \\
+Price (2nd tier, marginal) & 214.6 KRW/kWh & \cite{kepco2023} \\
+Peak / off-peak (TOU) & 220.5 / 138.7 KRW/kWh & \cite{kepco2023} \\
+Grid emission factor & 0.4173 kg CO$_2$/kWh & \cite{mcee2025} \\
+\texttt{eco\_ac} (+2~$^\circ$C) & 845 W $\times$ 4.7\%/$^\circ$C $\times$ 2 $\approx$ 79 W, $\leq$ 3 h & \cite{lgac2024,kea2017} \\
+Cooktop auto-off & 2.0 kW $\times$ 15 min = 0.5 kWh & \cite{lgcook2026} \\
+Tub-clean course avoided & 2.2 kW $\times$ 30 min = 1.1 kWh & \cite{lgwash2026} \\
+Wash paused at peak & 0.5 kW $\times$ 1 h = 0.5 kWh shifted & simulator \\
+Dryer stopped during cooking & 1.4 kW $\times$ 30 min = 0.7 kWh shifted & \cite{lgdry2026} \\
 \bottomrule
-\multicolumn{2}{p{7.2cm}}{\scriptsize $^{\dagger}$Demonstration values; to be replaced with the current KEPCO residential tariff and the officially published national grid emission factor.}
 \end{tabular}
 \end{table}
 
@@ -577,6 +577,13 @@ The hardest part of this phase was not a single algorithm but keeping four peopl
 \bibitem{seoulfire2020} Seoul Metropolitan Fire Headquarters, ``2019 Residential Fire Statistics Analysis,'' 2020.
 \bibitem{nfa2025} National Fire Agency, ``Chuseok Holiday Fire Safety Bulletin,'' Seoul Shinmun, 2025.
 \bibitem{who2009} World Health Organization (WHO), ``WHO Guidelines for Indoor Air Quality: Dampness and Mould,'' 2009.
+\bibitem{kepco2023} Korea Electric Power Corporation (KEPCO), ``Electricity Tariff Table (comprehensive), effective 16 May 2023,'' 2023. [Online]. Available: https://cyber.kepco.co.kr
+\bibitem{mcee2025} Ministry of Climate, Energy and Environment, ``National electricity emission factor for 2023: 0.4173 tCO$_2$eq/MWh,'' announcement, 18 Dec. 2025.
+\bibitem{kea2017} Korea Energy Agency, measurement of air-conditioner power at set-points 22--26~$^\circ$C ($-4.7$\% per $+1$~$^\circ$C), reported by YTN, 24 Jul. 2017.
+\bibitem{lgac2024} LG Electronics, ``LG Whisen wall-mounted air conditioner SQ09MDKWMS: specifications (rated cooling power 845 W),'' lge.co.kr, 2024.
+\bibitem{lgcook2026} LG Electronics, ``LG DIOS induction range BEI3ASS4E: specifications (large zone 2,000 W, turbo 3,400 W),'' lge.co.kr, 2026.
+\bibitem{lgwash2026} LG Electronics, ``LG TROMM washer F24VDLPR: specifications (2,200 W; tub-sterilize course),'' lge.co.kr, 2026.
+\bibitem{lgdry2026} LG Electronics, ``LG TROMM heat-pump dryer RD25GS: specifications (1,400 W),'' lge.co.kr, 2026.
 \bibitem{lgspec2026} LG Electronics, ``LG ThinQ Platform Specifications,'' Official Whitepaper, 2026.
 \bibitem{samsung2026b} Samsung India, ``2026 Range of Bespoke AI Appliances,'' Press Release, 2026.
 \bibitem{steadman1984} R. G. Steadman, ``A universal scale of apparent temperature,'' \emph{Journal of Climate and Applied Meteorology}, vol. 23, no. 12, pp. 1674--1687, 1984.
