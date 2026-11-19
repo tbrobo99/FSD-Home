@@ -71,7 +71,7 @@ Current commercial tools offer strong single-device features: LG AI DD\textsuper
     \item \textbf{FR-4 (Inclusive UI/UX \& Per-Action Consent Overlay):} Provide WCAG 2.2 compliant touch controls, separate approval prompts per Level 2 action, supplementary TTS voice prompts, manual quiet-period status review, and truthful adapter-grounded result messages.
     \item \textbf{FR-5 (Fail-Safe Default \& Pre-Execution Safety Policy):} Enforce a 300-second approval expiration defaulting to safe standby, pre-execution state/risk revalidation, cooktop presence and auto-off safeguards, and dryer restart reminders.
     \item \textbf{FR-6 (Structured Append-Only Audit Trail):} Maintain an immutable SQLite \texttt{audit\_log} linking risk triggers, per-action approvals (\texttt{approval\_id}), and actual device execution outcomes.
-    \item \textbf{FR-7 (Energy \& Environment Savings Report):} Estimate, from executed actions in the audit trail only, the energy saved (kWh), peak energy shifted (kWh), cost saved (KRW) and CO$_2$ avoided (kg) for today and this week, priced for the household's country, and show them as labelled estimates with their assumptions.
+    \item \textbf{FR-7 (Energy \& Environment Savings Report):} Estimate, from executed actions in the audit trail only, the energy saved (kWh), peak energy shifted (kWh), cost saved (local currency) and CO$_2$ avoided (kg) for today and this week, priced for the household's country or state, and show them as labelled estimates with their assumptions.
 \end{itemize}
 
 \subsection{Non-Functional Requirements (NFR)}
@@ -249,24 +249,33 @@ The household should be able to see what the agent's interventions were worth, n
 \end{itemize}
 Table~\ref{tab:savings} lists the assumptions and their sources; they are constants in one module so they can be replaced with a household's actual tariff and appliances. Prices are the KEPCO energy charge only \cite{kepco2023}: the marginal kWh of a typical household falls in the second progressive tier, and the peak/off-peak pair is the published residential time-of-use rate (Jeju), whose 16--22~h peak matches the simulated evening peak; mainland households do not yet have a time-of-use rate. Climate-environment and fuel-cost charges, VAT and the power-industry fund are left out, so the won figure is conservative. CO$_2$ uses the 2023 national grid emission factor \cite{mcee2025}. The interface states that the numbers are estimates and prints the price and emission factor used.
 
-\textbf{Country presets.} Prices and the grid emission factor depend on where the household lives, so they are not constants of the estimate but a per-country preset (\texttt{app/regions.py}, Table~\ref{tab:regions}). Choosing a country in \emph{Settings} switches the interface language, the currency, the prices and the emission factor together; the energy figures, which come from the appliances, do not change. For the United States the marginal price is the 2025 national average residential price \cite{eia2025}; there is no national time-of-use rate, so the peak/off-peak pair is PG\&E's E-TOU-C plan, whose 4--9~pm peak also matches the simulated evening peak \cite{pge2026}; and the emission factor is the eGRID2023 national output rate \cite{egrid2023}. Adding a country is one entry in the preset table and its language in the interface.
+\textbf{Regional presets.} Prices and the grid emission factor depend on where the household lives, so they are not constants of the estimate but a per-region preset (\texttt{app/regions.py}, Table~\ref{tab:regions}). They vary widely even inside one country: a residential kWh costs about twice as much in California as in Washington, and Washington's grid emits a third of Florida's CO$_2$ per kWh \cite{eia2026,egrid2023}. The United States is therefore offered on average and for six states, next to Korea and five European countries. Choosing a region in \emph{Settings} switches the interface language, the currency, the prices and the emission factor together; the energy figures, which come from the appliances, do not change. The peak/off-peak pair is a common residential time-of-use plan of that region, and only its difference is used, as the value of moving a load out of the peak. Where no such plan is in common use (the U.S.\ average, Texas, Washington, the United Kingdom, Germany and Italy) a moved load is still counted in kWh but earns no money, and the interface says so. Each value is the most recent official figure we could verify; prices are per kWh only, without fixed or standing charges, and are taxed (Europe) or untaxed (Korea, U.S.) as published. Adding a region is one entry in the preset table and its name in the interface.
 
-\begin{table}[htbp]
-\caption{Country Presets for the Savings Estimate (energy charge only)}
+\begin{table*}[htbp]
+\caption{Regional Presets for the Savings Estimate (price per kWh only)}
 \label{tab:regions}
 \centering
 \footnotesize
-\begin{tabular}{p{2.3cm}p{2.4cm}p{2.4cm}}
+\begin{tabular}{p{2.4cm}p{1.3cm}p{1.9cm}p{5.2cm}p{1.5cm}p{3.0cm}}
 \toprule
- & \textbf{Korea} & \textbf{United States} \\
+\textbf{Region} & \textbf{Language} & \textbf{Price / kWh} & \textbf{Peak / off-peak (plan, peak hours)} & \textbf{kg CO$_2$/kWh} & \textbf{Sources} \\
 \midrule
-Language, currency & Korean, KRW & English, USD \\
-Price per kWh & 214.6 (tier 2) \cite{kepco2023} & 0.173 (2025 avg.) \cite{eia2025} \\
-Peak / off-peak & 220.5 / 138.7, peak 16--22~h (Jeju TOU) \cite{kepco2023} & 0.44 / 0.32, peak 16--21~h (PG\&E E-TOU-C, summer) \cite{pge2026} \\
-Grid factor (kg/kWh) & 0.4173 (2023) \cite{mcee2025} & 0.3497 (eGRID2023, CO$_2$e) \cite{egrid2023} \\
+Korea & Korean & KRW 214.6 & 220.5 / 138.7 (KEPCO Jeju TOU, 16--22~h) & 0.4173 & \cite{kepco2023,mcee2025} \\
+United States (avg.) & English & \$0.1816 & none (no national plan) & 0.3497 & \cite{eia2026,egrid2023} \\
+\quad Arizona & English & \$0.1505 & 0.1423 / 0.0594 (APS TOU, 16--19~h) & 0.3126 & \cite{eia2026,aps2026,egrid2023} \\
+\quad California & English & \$0.2975 & 0.44 / 0.32 (PG\&E E-TOU-C, 16--21~h) & 0.1791 & \cite{eia2026,pge2026,egrid2023} \\
+\quad Florida & English & \$0.1499 & 0.2689 / 0.0600 (FPL RTR-1, 12--21~h) & 0.3579 & \cite{eia2026,fpl2026,egrid2023} \\
+\quad New York & English & \$0.2865 & 0.2786 / 0.0522 (Con Edison TOU delivery, 8--24~h) & 0.2116 & \cite{eia2026,coned2026,egrid2023} \\
+\quad Texas & English & \$0.1591 & none (retail choice) & 0.3498 & \cite{eia2026,egrid2023} \\
+\quad Washington & English & \$0.1463 & none & 0.1209 & \cite{eia2026,egrid2023} \\
+United Kingdom & English & \pounds0.2632 & none (supplier ToU tariffs vary) & 0.131 & \cite{ofgem2026,desnz2026} \\
+Germany & German & \texteuro{}0.373 & none (depends on grid operator) & 0.344 & \cite{bdew2026,uba2026} \\
+France & French & \texteuro{}0.2001 & 0.2142 / 0.1589 (Tarif Bleu HP/HC, HC about 22--6~h) & 0.0196 & \cite{cre2026,rte2026} \\
+Spain & Spanish & \texteuro{}0.185 & 0.2555 / 0.1497 (PVPC 2.0TD punta/valle, 10--14 and 18--22~h) & 0.107 & \cite{facua2025,cnmc2025} \\
+Italy & Italian & \texteuro{}0.3163 & none modelled & 0.2563 & \cite{arera2026,ispra2025} \\
 \bottomrule
 \end{tabular}
-\end{table}
+\end{table*}
 
 \begin{table}[htbp]
 \caption{Assumptions of the Savings Estimate (FR-7)}
@@ -277,7 +286,7 @@ Grid factor (kg/kWh) & 0.4173 (2023) \cite{mcee2025} & 0.3497 (eGRID2023, CO$_2$
 \toprule
 \textbf{Quantity} & \textbf{Value} & \textbf{Source} \\
 \midrule
-Prices, emission factor & by country & Table~\ref{tab:regions} \\
+Prices, emission factor & by region & Table~\ref{tab:regions} \\
 \texttt{eco\_ac} (+2~$^\circ$C) & 845 W $\times$ 4.7\%/$^\circ$C $\times$ 2 $\approx$ 79 W, $\leq$ 3 h & \cite{lgac2024,kea2017} \\
 Cooktop auto-off & 2.0 kW $\times$ 15 min = 0.5 kWh & \cite{lgcook2026} \\
 Tub-clean course avoided & 2.2 kW $\times$ 30 min = 1.1 kWh & \cite{lgwash2026} \\
@@ -359,7 +368,7 @@ Table~\ref{tab:dirs} lists the source tree. The core runtime uses only the Pytho
 \texttt{app/} & \texttt{policy.py} & Safety Policy & \texttt{Candidate}, \texttt{ACTION\_TIERS}, \texttt{candidates()}, \texttt{tier\_of()} \\
 \texttt{app/} & \texttt{proactive.py} & Proactive Engine & \texttt{ProactiveEngine}: loop, revalidation, cooktop interlock, dryer reminder \\
 \texttt{app/} & \texttt{approval.py} & Approval Queue & \texttt{Approval}, \texttt{ApprovalQueue}: per-action requests, 300~s expiry \\
-\texttt{app/} & \texttt{savings.py}, \texttt{regions.py} & Savings Report & \texttt{summarize()}, \texttt{report()}: kWh, money and CO$_2$ estimated from executed actions (FR-7); per-country language, currency, prices and emission factor \\
+\texttt{app/} & \texttt{savings.py}, \texttt{regions.py} & Savings Report & \texttt{summarize()}, \texttt{report()}: kWh, money and CO$_2$ estimated from executed actions (FR-7); per-region (13 presets) language, currency, prices and emission factor \\
 \texttt{app/} & \texttt{audit.py}, \texttt{db.py} & Audit Gate, Persistence & \texttt{execute()}, \texttt{record()}, \texttt{blocked()}; SQLite schema with append-only triggers \\
 \texttt{app/} & \texttt{llm.py} & LLM Client & OpenAI-compatible \texttt{chat()}; used for ranking and conversation \\
 \texttt{app/} & \texttt{server.py} & HTTP Server & \texttt{Handler}: REST API and static files \\
@@ -367,7 +376,7 @@ Table~\ref{tab:dirs} lists the source tree. The core runtime uses only the Pytho
 \texttt{app/} & \texttt{config.py}, \texttt{build.py} & Configuration & Defaults, \texttt{config.json}, build stamp \\
 \texttt{app/devices/} & \texttt{base.py}, \texttt{mock.py}, \texttt{thinq.py} & Device Adapters & \texttt{DeviceAdapter}, \texttt{MockAdapter} (11 simulated appliances), \texttt{ThinQAdapter} (dry-run by default) \\
 \texttt{app/web/} & \texttt{index.html}, \texttt{app.js}, \texttt{style.css}, \texttt{sw.js} & Web UI & Four phone-screen tabs, ask sheet, talk sheet; Korean / English; no build step \\
-\texttt{tests/} & \texttt{test\_phase2.py}, \texttt{test\_fr456.py}, \ldots & Unit tests & 304 tests (incl.\ \texttt{test\_heat\_energy.py}, \texttt{test\_savings.py}); run on Windows and Linux in GitHub Actions \\
+\texttt{tests/} & \texttt{test\_phase2.py}, \texttt{test\_fr456.py}, \ldots & Unit tests & 308 tests (incl.\ \texttt{test\_heat\_energy.py}, \texttt{test\_savings.py}); run on Windows and Linux in GitHub Actions \\
 \texttt{eval/} & \texttt{run.py}, \texttt{latency.py}, \texttt{dataset.jsonl} & Benchmarks & Intent-parser regression and latency measurement \\
 \texttt{docs/} & \texttt{*.tex}, \texttt{figures/} & Documentation & This paper, figures and screenshots \\
 \bottomrule
@@ -408,7 +417,7 @@ It also reports the whole-house load (\texttt{total\_load\_w}) and the time-of-u
 
 \subsection{HTTP Server and Web UI (\texttt{app/server.py}, \texttt{app/web/})}
 \textbf{Purpose.} Give the household one accessible screen (FR-4).
-\textbf{Functionality.} \texttt{Handler} serves the static interface and a small REST API: \texttt{GET /api/proactive}, \texttt{/api/approvals}, \texttt{/api/audit}, \texttt{/api/savings}, \texttt{/api/regions}, \texttt{/api/snapshot}; \texttt{POST /api/approvals/<id>/confirm} and \texttt{/decline} (the only route into Level~2 execution), \texttt{/api/control}, \texttt{/api/chat} and \texttt{/api/scenario} for demonstrations. The interface is vanilla HTML, CSS and JavaScript with no build step, designed first in Figma (Section~VI shows it). It has four tabs that each fit one phone screen: \emph{Home} (a one-sentence status from a small house mascot, four risk rings with the threshold at 50, quick actions and a one-line savings summary), \emph{Devices}, \emph{Activity} (the savings estimate and the audit trail in plain language) and \emph{Settings}; talking is the button in the middle of the tab bar. Level~2 questions open a bottom sheet by themselves: the reason once, then one card per action with its own Yes~/~No and a shared countdown. A \emph{Korean | English} toggle switches the whole interface, speech recognition and read-aloud; Korean is the default. A \emph{Country} setting (Korea or United States) sets the language together with the currency, electricity prices and emission factor of the savings report. Text and signal colours meet WCAG~2.2 AA contrast ($\geq 4.5{:}1$), controls show a visible keyboard focus, touch targets are 44--56~px, and the status line, banner and notifications are ARIA live regions \cite{wcag2023}.
+\textbf{Functionality.} \texttt{Handler} serves the static interface and a small REST API: \texttt{GET /api/proactive}, \texttt{/api/approvals}, \texttt{/api/audit}, \texttt{/api/savings}, \texttt{/api/regions}, \texttt{/api/snapshot}; \texttt{POST /api/approvals/<id>/confirm} and \texttt{/decline} (the only route into Level~2 execution), \texttt{/api/control}, \texttt{/api/chat} and \texttt{/api/scenario} for demonstrations. The interface is vanilla HTML, CSS and JavaScript with no build step, designed first in Figma (Section~VI shows it). It has four tabs that each fit one phone screen: \emph{Home} (a one-sentence status from a small house mascot, four risk rings with the threshold at 50, quick actions and a one-line savings summary), \emph{Devices}, \emph{Activity} (the savings estimate and the audit trail in plain language) and \emph{Settings}; talking is the button in the middle of the tab bar. Level~2 questions open a bottom sheet by themselves: the reason once, then one card per action with its own Yes~/~No and a shared countdown. A language picker on Home (Korean, English, German, French, Spanish, Italian) switches the whole interface, speech recognition and read-aloud; Korean is the default. A \emph{Country / region} setting (Korea; the United States on average or one of six states; the United Kingdom, Germany, France, Spain, Italy) sets the language together with the currency, electricity prices and emission factor of the savings report. Both are native selects, so a phone shows its own large picker. Text and signal colours meet WCAG~2.2 AA contrast ($\geq 4.5{:}1$), controls show a visible keyboard focus, touch targets are 44--56~px, and the status line, banner and notifications are ARIA live regions \cite{wcag2023}.
 
 \subsection{Conversational Agent (\texttt{app/agent.py} and related)}
 \textbf{Purpose.} Keep the Phase~1 voice and text assistant working on the same safety path.
@@ -535,12 +544,12 @@ These paths are exercised by unit tests in \texttt{tests/test\_fr456.py}.
 \label{fig:uc8}
 \end{figure}
 
-\subsection{Use Case 9: Korean Interface}
+\subsection{Use Case 9: Language and Region}
 \textbf{Satisfies:} FR-4 (inclusive interface).
 \begin{enumerate}
-    \item Tap the language toggle at the top right of Home.
+    \item Pick a language at the top right of Home (Korean, English, German, French, Spanish or Italian).
     \item Every label, the status sentence, risk tags, the ask sheet, device names and states, Activity and Settings switch language; speech recognition and read-aloud follow (Fig.~\ref{fig:uc9}). The choice is remembered on the device.
-    \item Choosing a country in \emph{Settings} does the same and also switches the savings report to that country's currency, prices and emission factor (Table~\ref{tab:regions}): the same executed actions show the same kWh, but the money and CO$_2$ follow the chosen country.
+    \item Choosing a region in \emph{Settings} (e.g.\ Deutschland) switches to its language and also switches the savings report to its currency, prices and emission factor (Table~\ref{tab:regions}). The same executed actions show the same kWh, but the money and CO$_2$ follow the region: for one test week KRW~651 in Korea, \$0.91 in California, 0.92~\texteuro{} in Germany. Where the region has no common time-of-use plan, the card notes that moving a load saved no money.
     \item Text generated by the server (chat replies, refusal reasons) remains in English in this version.
 \end{enumerate}
 
@@ -556,7 +565,7 @@ These paths are exercised by unit tests in \texttt{tests/test\_fr456.py}.
 \begin{enumerate}
     \item Start the system with the model pointed at an unreachable address: \texttt{LLM\_BASE\_URL=http://127.0.0.1:9 python run.py --scenario oven}.
     \item The engine logs \texttt{proactive.decide\_fallback} and the rules choose the Level~1 actions. Questions, revalidation, the interlock and the audit trail behave exactly as above.
-    \item \texttt{python -m unittest discover -s tests} (304 tests) and \texttt{python -m eval.run} verify the same behaviour with no network access.
+    \item \texttt{python -m unittest discover -s tests} (308 tests) and \texttt{python -m eval.run} verify the same behaviour with no network access.
 \end{enumerate}
 
 \subsection{Use Case 11: What the House Saved}
@@ -602,9 +611,22 @@ The hardest part of this phase was not a single algorithm but keeping four peopl
 \bibitem{lgcook2026} LG Electronics, ``LG DIOS induction range BEI3ASS4E: specifications (large zone 2,000 W, turbo 3,400 W),'' lge.co.kr, 2026.
 \bibitem{lgwash2026} LG Electronics, ``LG TROMM washer F24VDLPR: specifications (2,200 W; tub-sterilize course),'' lge.co.kr, 2026.
 \bibitem{lgdry2026} LG Electronics, ``LG TROMM heat-pump dryer RD25GS: specifications (1,400 W),'' lge.co.kr, 2026.
-\bibitem{eia2025} U.S. Energy Information Administration, ``Electricity explained: prices and factors affecting prices'' (2025 average residential price 17.30 cents/kWh), 2026.
+\bibitem{eia2026} U.S. Energy Information Administration, \emph{Electric Power Monthly}, Table 5.6.A, ``Average price of electricity to ultimate customers by end-use sector, by state, August 2026,'' 2026.
 \bibitem{pge2026} Pacific Gas and Electric Company, ``Residential rate plan pricing,'' effective 1 Mar. 2026.
-\bibitem{egrid2023} U.S. Environmental Protection Agency, ``eGRID2023 summary data'' (U.S. total output rate 770.884 lb CO$_2$e/MWh), 2025.
+\bibitem{egrid2023} U.S. Environmental Protection Agency, ``eGRID2023 summary tables,'' Table 3: State output emission rates (CO$_2$e, lb/MWh), 2025.
+\bibitem{coned2026} Consolidated Edison, ``Time-of-use rates,'' residential delivery, June--September, 2026.
+\bibitem{fpl2026} Florida Power \& Light, ``Residential rates and clauses,'' RS-1 and RTR-1, effective Oct. 2026.
+\bibitem{aps2026} Arizona Public Service, ``Time of Use 4pm--7pm Weekdays with Demand Charge,'' summer rates, 2026.
+\bibitem{ofgem2026} Ofgem, ``Changes to energy price cap between 1 October and 31 December 2026,'' Aug. 2026.
+\bibitem{desnz2026} Department for Energy Security and Net Zero, ``2026 Government greenhouse gas conversion factors for company reporting: major changes'' (UK electricity $-26$\,\% vs.\ 2025), 2026.
+\bibitem{bdew2026} BDEW, ``BDEW-Strompreisanalyse,'' Oct. 2026 (household average 37.3 ct/kWh).
+\bibitem{uba2026} Umweltbundesamt, ``CO$_2$-Emissionen pro Kilowattstunde Strom 2025'' (344 g/kWh, estimate), 2026.
+\bibitem{cre2026} Commission de r\'egulation de l'\'energie, D\'elib\'eration 2026-147, Annexe B, tarifs Bleus r\'esidentiels au 1\textsuperscript{er} ao\^ut 2026.
+\bibitem{rte2026} RTE, \emph{Bilan \'electrique 2025}, Mar. 2026 (19.6 gCO$_2$eq/kWh).
+\bibitem{facua2025} FACUA--Consumidores en Acci\'on, monthly PVPC bill analyses, June, August, November and December 2025.
+\bibitem{cnmc2025} Comisi\'on Nacional de los Mercados y la Competencia, electricity labelling, national mix 2025 (107 g CO$_2$/kWh), as published by Barcelona Energia, 2026.
+\bibitem{arera2026} ARERA, ``Elettricit\`a: Maggior Tutela +4,6\,\% nel III trimestre 2026 per i clienti vulnerabili,'' 25 June 2026.
+\bibitem{ispra2025} ISPRA, \emph{Le emissioni di CO$_2$ nel settore elettrico nazionale e regionale}, Rapporto 413/2025 (2023 production factor 256.3 g CO$_2$/kWh).
 \bibitem{lgspec2026} LG Electronics, ``LG ThinQ Platform Specifications,'' Official Whitepaper, 2026.
 \bibitem{samsung2026b} Samsung India, ``2026 Range of Bespoke AI Appliances,'' Press Release, 2026.
 \bibitem{steadman1984} R. G. Steadman, ``A universal scale of apparent temperature,'' \emph{Journal of Climate and Applied Meteorology}, vol. 23, no. 12, pp. 1674--1687, 1984.
