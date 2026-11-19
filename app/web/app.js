@@ -740,7 +740,7 @@ function renderSavings() {
       <b>${esc(num(x.kwh_saved + x.kwh_shifted, 2))} kWh</b></li>`).join("")}</ul>`
       : `<p class="sv-none">${esc(t("save.none"))}</p>`}
     ${extra.length ? `<p class="sv-extra">${esc(extra.join(" · "))}</p>` : ""}
-    <p class="sv-note">${esc(t("save.note", { avg: a.price_avg_krw, f: a.co2_kg_per_kwh }))}</p>`;
+    <p class="sv-note">${esc(t("save.note", { avg: a.price_krw, f: a.co2_kg_per_kwh }))}</p>`;
 }
 
 /* ---------- the ask sheet (FR-3 / FR-4) ---------- */
