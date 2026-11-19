@@ -92,13 +92,11 @@ const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecogni
 const VOICE_LANGS = ["en-US", "ko-KR"];
 const VOICE_PAUSE_MS = 2000;   // a pause this long means "I have finished"
 const VOICE_TAIL_QUIET_MS = 900;   // a "final" this long after any audio is a guess
-const VOICE_MAX_RESTARTS = 8;
 let voiceLang = VOICE_LANGS[0];
 let recognition = null;
 let listening = false;
 let ttsOn = false;
 let voiceTimer = null;         // the pause that ends the turn
-let voiceRestarts = 0;
 let voiceBase = "";            // words finalised before the current session
 let voiceSaid = "";            // finalised words so far in this turn
 let voiceWarned = false;       // the "I heard nothing" hint, once per turn
@@ -185,11 +183,10 @@ function startVoice() {
   if (!recognition) {
     recognition = new SpeechRecognition();
     recognition.interimResults = true;
-    // continuous, because the default ends the session at the first short
-    // pause: "turn on the living room AC … and set it to 24" arrived as two
-    // half sentences, and the first half was already on its way to the model
-    // before the second half was spoken.
-    recognition.continuous = true;
+    // One tap owns exactly one recognition session. Some mobile browsers
+    // report the microphone-permission hand-off as an `end` event; restarting
+    // from `onend` turns that into a repeated permission prompt.
+    recognition.continuous = false;
     recognition.onresult = (event) => {
       // Recompute from index 0 rather than from resultIndex: with continuous
       // on, the results list is the whole turn, and rebuilding it is idempotent
@@ -258,22 +255,8 @@ function startVoice() {
     };
     recognition.onend = () => {
       if (voiceDone) { setListening(false); return; }
-      // Safari ends the session at every pause even with continuous = true.
-      // Start it again and keep what has been heard, so the pause timer — not
-      // the engine — is what ends the turn. Delayed slightly to avoid spinning.
-      if (listening && voiceRestarts < VOICE_MAX_RESTARTS) {
-        voiceRestarts++;
-        setTimeout(() => {
-          if (voiceDone || !listening) return;
-          // A new session starts with an empty results list, so bank what the
-          // last one heard before asking for more.
-          voiceBase = voiceSaid;
-          voiceFinals = 0;
-          voiceInterim = "";
-          try { recognition.start(); } catch (_) { voiceFinish(); }
-        }, 250);
-        return;
-      }
+      // Do not restart automatically. A fresh tap starts another turn after
+      // this one has finished, which prevents permission and mic loops.
       voiceFinish();
     };
   }
@@ -282,7 +265,6 @@ function startVoice() {
   voiceSaid = "";
   voiceWarned = false;
   voiceDone = false;
-  voiceRestarts = 0;
   voiceFinals = 0;
   voiceInterim = "";
   voiceLastHeard = Date.now();
@@ -1080,3 +1062,4 @@ if ("serviceWorker" in navigator) {
     navigator.serviceWorker.register("/sw.js").catch(() => {});
   });
 }
+
