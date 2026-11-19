@@ -24,27 +24,15 @@ from __future__ import annotations
 
 from datetime import datetime, timedelta
 
+from . import regions
+
 # ---- assumptions (change here; the paper's Table "Assumptions of the
 # Savings Estimate" lists the same values and their sources) ----------------
 #
-# Prices: KEPCO tariff table (effective 2023-05-16, still current in 2026).
-#   PRICE_KRW      residential low-voltage, 2nd progressive tier (201-400 kWh,
-#                  301-450 kWh in July-August), where a typical household's
-#                  last kWh falls -- a kWh not used is billed at this rate.
-#   PEAK/OFFPEAK   residential time-of-use tariff (Jeju), summer/winter:
-#                  max load 16-22 h 220.5, light load 22-08 h 138.7. Mainland
-#                  households have no time-of-use rate yet; this is the only
-#                  published residential one and its 16-22 h peak matches the
-#                  simulator's evening peak band.
-#   Energy charge only: excludes the climate-environment and fuel-cost
-#   adjustment charges, VAT and the power-industry fund, so the won figure
-#   is conservative.
-# Emission factor: national grid factor for 2023, 0.4173 tCO2eq/MWh
-#   (Ministry of Climate, Energy and Environment, announced 2025-12-18).
-PRICE_KRW = 214.6
-PRICE_PEAK_KRW = 220.5
-PRICE_OFFPEAK_KRW = 138.7
-CO2_KG_PER_KWH = 0.4173
+# Prices and the grid emission factor depend on the household's country and
+# live in regions.py (Korea: KEPCO tariff, 2023 national grid factor; United
+# States: EIA average price, PG&E time-of-use, EPA eGRID2023). The energy
+# figures below do not depend on the country.
 
 # Appliance energy, from LG Electronics Korea product specifications:
 AC_RATED_W = 845.0           # LG Whisen wall AC SQ09MDKWMS, rated cooling draw
@@ -71,10 +59,13 @@ def period_start(period: str, now: datetime | None = None) -> datetime:
     return day - timedelta(days=day.weekday()) if period == "week" else day
 
 
-def summarize(rows: list[dict], now: datetime | None = None) -> dict:
-    """Turn audit rows (oldest first) into a savings summary."""
+def summarize(rows: list[dict], now: datetime | None = None, region: str | None = None) -> dict:
+    """Turn audit rows (oldest first) into a savings summary, priced for a
+    country (regions.py)."""
     now = now or datetime.now()
-    by: dict[str, dict] = {k: {"kind": k, "count": 0, "kwh_saved": 0.0, "kwh_shifted": 0.0, "krw": 0.0} for k in KINDS}
+    R = regions.get(region)
+    price, peak, offpeak = R["price"], R["peak"], R["offpeak"]
+    by: dict[str, dict] = {k: {"kind": k, "count": 0, "kwh_saved": 0.0, "kwh_shifted": 0.0, "money": 0.0} for k in KINDS}
     mold_episodes = 0
     executed = [r for r in rows if r.get("event_type") == "action.executed"]
     for i, r in enumerate(executed):
@@ -97,48 +88,51 @@ def summarize(rows: list[dict], now: datetime | None = None) -> dict:
             hours = max(0.0, min(ECO_CAP_H, (end - start).total_seconds() / 3600.0))
             kwh = ECO_SAVED_W / 1000.0 * hours
             b["kwh_saved"] += kwh
-            b["krw"] += kwh * PRICE_KRW
+            b["money"] += kwh * price
         elif kind == "cooktop_auto_off":
             b["kwh_saved"] += COOKTOP_AVOIDED_KWH
-            b["krw"] += COOKTOP_AVOIDED_KWH * PRICE_KRW
+            b["money"] += COOKTOP_AVOIDED_KWH * price
         elif kind == "ventilate_washer":
             # One avoided tub-clean per wet episode, however many airing passes.
             mold_episodes += 1
             b["kwh_saved"] += TUB_CLEAN_KWH
-            b["krw"] += TUB_CLEAN_KWH * PRICE_KRW
+            b["money"] += TUB_CLEAN_KWH * price
         elif kind == "pause_washer":
             b["kwh_shifted"] += WASH_SHIFT_KWH
-            b["krw"] += WASH_SHIFT_KWH * (PRICE_PEAK_KRW - PRICE_OFFPEAK_KRW)
+            b["money"] += WASH_SHIFT_KWH * (peak - offpeak)
         elif kind == "stop_dryer":
             b["kwh_shifted"] += DRYER_SHIFT_KWH
     kwh_saved = sum(b["kwh_saved"] for b in by.values())
     kwh_shifted = sum(b["kwh_shifted"] for b in by.values())
-    krw = sum(b["krw"] for b in by.values())
-    actions = [dict(b, kwh_saved=round(b["kwh_saved"], 3), kwh_shifted=round(b["kwh_shifted"], 3), krw=round(b["krw"]))
+    money = sum(b["money"] for b in by.values())
+    actions = [dict(b, kwh_saved=round(b["kwh_saved"], 3), kwh_shifted=round(b["kwh_shifted"], 3), money=round(b["money"], R["decimals"]))
                for b in by.values() if b["count"]]
     actions.sort(key=lambda b: (b["kwh_saved"] + b["kwh_shifted"]), reverse=True)
     return {
         "kwh_saved": round(kwh_saved, 2),
         "kwh_shifted": round(kwh_shifted, 2),
-        "krw_saved": int(round(krw)),
-        "co2_kg": round(kwh_saved * CO2_KG_PER_KWH, 2),
+        "money_saved": round(money, R["decimals"]),
+        "currency": R["currency"], "symbol": R["symbol"], "decimals": R["decimals"],
+        "region": R["code"],
+        "co2_kg": round(kwh_saved * R["co2_kg_per_kwh"], 2),
         "mold_prevented": mold_episodes,
         "actions": actions,
         "assumptions": {
-            "price_krw": PRICE_KRW, "price_peak_krw": PRICE_PEAK_KRW,
-            "price_offpeak_krw": PRICE_OFFPEAK_KRW, "co2_kg_per_kwh": CO2_KG_PER_KWH,
+            "price": price, "price_peak": peak, "price_offpeak": offpeak,
+            "peak_hours": R["peak_hours"], "co2_kg_per_kwh": R["co2_kg_per_kwh"],
+            "tariff_source": R["tariff_source"], "co2_source": R["co2_source"],
         },
         "estimate": True,
     }
 
 
-def report(period: str = "week", now: datetime | None = None) -> dict:
+def report(period: str = "week", now: datetime | None = None, region: str | None = None) -> dict:
     from . import db
     now = now or datetime.now()
     start = period_start(period, now)
     # audit timestamps are timezone-aware ISO strings; compare in local time
     since = start.astimezone().isoformat(timespec="milliseconds")
-    out = summarize(db.audit_since(since), now)
+    out = summarize(db.audit_since(since), now, region)
     out["period"] = period
     out["since"] = start.isoformat(timespec="minutes")
     return out

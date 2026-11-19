@@ -40,6 +40,7 @@
   <symbol id="i-temp" viewBox="0 0 24 24"><path d="M12 13.6V5a2.1 2.1 0 1 1 4.2 0v8.6a4.2 4.2 0 1 1-4.2 0z"/></symbol>
   <symbol id="i-wind" viewBox="0 0 24 24"><path d="M3 9h11a3 3 0 1 0-3-3"/><path d="M3 15h15a3 3 0 1 1-3 3"/></symbol>
   <symbol id="i-leaf" viewBox="0 0 24 24"><path d="M5 19c0-8 5-13 15-14-1 10-6 15-14 15M5 19l7-7"/></symbol>
+  <symbol id="i-globe" viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"/><path d="M3 12h18M12 3c2.5 2.6 3.8 5.6 3.8 9s-1.3 6.4-3.8 9c-2.5-2.6-3.8-5.6-3.8-9S9.5 5.6 12 3z"/></symbol>
   <symbol id="i-chevron" viewBox="0 0 24 24"><path d="M9 6l6 6-6 6"/></symbol>
   <symbol id="i-bolt" viewBox="0 0 24 24"><path d="M13 3L5 13.5h6L10 21l8-10.5h-6z"/></symbol>
   <symbol id="i-flame" viewBox="0 0 24 24"><path d="M12 3c1 3.5 5 5.5 5 10a5 5 0 0 1-10 0c0-2.2 1-3.6 2.3-4.8.2 1.5.9 2.6 2.2 3.1C11 9.5 11 6 12 3z"/></symbol>
@@ -137,6 +138,14 @@
         <svg class="ic"><use href="#i-speaker"/></svg>
         <div class="li-text"><strong data-i18n="set.tts">Read replies aloud</strong><span data-i18n="set.ttsSub">Questions are always read</span></div>
         <button type="button" id="tts" class="switch" role="switch" aria-checked="false" aria-label="Read replies aloud" data-i18n-aria="set.tts"></button>
+      </div>
+      <div class="li">
+        <svg class="ic"><use href="#i-globe"/></svg>
+        <div class="li-text"><strong data-i18n="set.country">Country</strong><span data-i18n="set.countrySub">Sets language, prices, CO₂</span></div>
+        <div class="seg small" id="countrySwitch" role="group" aria-label="Country / 국가">
+          <button type="button" data-country="KR" lang="ko">한국 ₩</button>
+          <button type="button" data-country="US" lang="en">US $</button>
+        </div>
       </div>
       <div class="li">
         <svg class="ic"><use href="#i-sparkle"/></svg>
