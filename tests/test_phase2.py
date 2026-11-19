@@ -120,7 +120,7 @@ class RiskTest(Base):
         self.assertIsNotNone(r)
         self.assertGreaterEqual(r.score, r.threshold)
         self.assertEqual(r.kind, "thermal")
-        self.assertEqual(r.drivers["heat_load_w"], 1800)
+        self.assertEqual(r.drivers["heat_load_w"], 1400)   # LG TROMM heat-pump dryer
         self.assertIsNotNone(r.drivers["cooking_scheduled_in_min"])
 
     def test_thermal_risk_silent_when_no_heat(self):
