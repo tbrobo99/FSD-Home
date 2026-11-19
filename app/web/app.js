@@ -182,8 +182,11 @@ const I18N = {
     "save.kwh": "kWh saved", "save.money": "off the bill", "save.co2": "kg CO₂ avoided",
     "save.shifted": "{kwh} kWh moved off the peak", "save.mold": "Mold prevented {n}×",
     "save.none": "Nothing saved yet in this period.", "save.note": "Estimate from executed actions · {price}/kWh ({src}) · {f} kg CO₂/kWh ({csrc})",
-    "set.country": "Country", "set.countrySub": "Sets language, prices, CO₂", "country.KR": "Korea", "country.US": "United States",
-    "toast.country": "Country: {c}",
+    "save.stripMoved": "This week: {kwh} kWh moved off peak",
+    "save.noTou": "No common time-of-use rate here, so moving a load saves no money.",
+    "set.country": "Country / region", "set.countrySub": "Sets language, prices, CO₂",
+    "grp.asia": "Asia", "grp.us": "United States", "grp.europe": "Europe",
+    "toast.country": "Region: {c}", "unit.min": " min", "unit.h": " h", "backend.mock": "Simulator",
     "save.k.eco_ac": "AC raised at peak", "save.k.cooktop_auto_off": "Cooktop auto-off", "save.k.ventilate_washer": "Washer aired (no tub clean)",
     "save.k.pause_washer": "Wash moved off peak", "save.k.stop_dryer": "Dryer paused while cooking",
     "recent.title": "Just now", "recent.cooled": "Kitchen cooled down — you can restart the dryer",
@@ -243,8 +246,11 @@ const I18N = {
     "save.kwh": "kWh 절약", "save.money": "요금 절약", "save.co2": "kg CO₂ 감축",
     "save.shifted": "피크 전력 {kwh} kWh 이동", "save.mold": "곰팡이 예방 {n}회",
     "save.none": "이 기간에는 아직 아낀 게 없어요.", "save.note": "실행된 동작 기준 추정치 · {price}/kWh ({src}) · {f} kg CO₂/kWh ({csrc})",
-    "set.country": "국가", "set.countrySub": "언어·요금·CO₂ 기준 변경", "country.KR": "대한민국", "country.US": "미국",
-    "toast.country": "국가: {c}",
+    "save.stripMoved": "이번 주 피크 전력 {kwh} kWh 이동",
+    "save.noTou": "이 지역엔 흔한 시간대별 요금이 없어, 사용 시간을 옮겨도 요금은 같아요.",
+    "set.country": "국가·지역", "set.countrySub": "언어·요금·CO₂ 기준 변경",
+    "grp.asia": "아시아", "grp.us": "미국", "grp.europe": "유럽",
+    "toast.country": "지역: {c}", "unit.min": "분", "unit.h": "시간", "backend.mock": "시뮬레이터",
     "save.k.eco_ac": "피크 때 에어컨 온도 올림", "save.k.cooktop_auto_off": "쿡탑 자동 꺼짐", "save.k.ventilate_washer": "세탁기 환기 (통세척 생략)",
     "save.k.pause_washer": "피크 피해 세탁 미룸", "save.k.stop_dryer": "요리 중 건조기 멈춤",
     "recent.title": "방금", "recent.cooled": "주방이 식었어요 — 건조기를 다시 켜도 돼요",
@@ -291,22 +297,54 @@ const ROOM_EN_SHORT = { "Living Room": "Living", Kitchen: "Kitchen", Bedroom: "B
 const TYPE_KO = { air_conditioner: "에어컨", air_purifier: "공기청정기", washer: "세탁기", dryer: "건조기", dish_washer: "식기세척기",
   refrigerator: "냉장고", water_heater: "온수기", dehumidifier: "제습기", range_hood: "레인지 후드", oven: "오븐", cooktop: "쿡탑" };
 
+// German, French, Spanish and Italian live in i18n-eu.js (loaded first).
+Object.assign(I18N, window.I18N_EU || {});
+Object.assign(ACTIONS, window.ACTIONS_EU || {});
+const ROOMS = { ko: ROOM_KO, en: ROOM_EN_SHORT, ...(window.ROOMS_EU || {}) };
+const TYPES = { ko: TYPE_KO, ...(window.TYPES_EU || {}) };
+
+/* Interface languages: name in its own language, speech and number locale. */
+const LANG_INFO = {
+  ko: { name: "한국어", voice: "ko-KR" }, en: { name: "English", voice: "en-US" },
+  de: { name: "Deutsch", voice: "de-DE" }, fr: { name: "Français", voice: "fr-FR" },
+  es: { name: "Español", voice: "es-ES" }, it: { name: "Italiano", voice: "it-IT" },
+};
+const LANGS = Object.keys(LANG_INFO).filter((l) => I18N[l]);
+
+/* Regions (app/regions.py has the prices): each sets a default language.
+   Names are written the way people there write them. */
+const REGIONS = [
+  { code: "KR", group: "asia", lang: "ko", name: "대한민국", sym: "₩" },
+  { code: "US", group: "us", lang: "en", name: "United States (average)", sym: "$" },
+  { code: "US-AZ", group: "us", lang: "en", name: "Arizona", sym: "$" },
+  { code: "US-CA", group: "us", lang: "en", name: "California", sym: "$" },
+  { code: "US-FL", group: "us", lang: "en", name: "Florida", sym: "$" },
+  { code: "US-NY", group: "us", lang: "en", name: "New York", sym: "$" },
+  { code: "US-TX", group: "us", lang: "en", name: "Texas", sym: "$" },
+  { code: "US-WA", group: "us", lang: "en", name: "Washington", sym: "$" },
+  { code: "GB", group: "europe", lang: "en", name: "United Kingdom", sym: "£" },
+  { code: "DE", group: "europe", lang: "de", name: "Deutschland", sym: "€" },
+  { code: "FR", group: "europe", lang: "fr", name: "France", sym: "€" },
+  { code: "ES", group: "europe", lang: "es", name: "España", sym: "€" },
+  { code: "IT", group: "europe", lang: "it", name: "Italia", sym: "€" },
+];
+const REGION = Object.fromEntries(REGIONS.map((r) => [r.code, r]));
+
 // Korean first: the household is Korean. The choice is remembered per browser.
 let lang = "ko";
-try { const saved = localStorage.getItem("fsd-lang"); if (saved === "en" || saved === "ko") lang = saved; } catch (_) { /* private mode */ }
+try { const saved = localStorage.getItem("fsd-lang"); if (LANGS.includes(saved)) lang = saved; } catch (_) { /* private mode */ }
 // A link can choose the language: /?lang=en or /?lang=ko (demos, screenshots).
-try { const q = new URLSearchParams(location.search).get("lang"); if (q === "en" || q === "ko") lang = q; } catch (_) { /* ignore */ }
+try { const q = new URLSearchParams(location.search).get("lang"); if (LANGS.includes(q)) lang = q; } catch (_) { /* ignore */ }
 
 // Country (Settings): sets the interface language and the prices and CO2
 // factor the savings report uses (app/regions.py). The language can still be
-// switched on its own afterwards. A link can choose it too: /?country=US.
-const COUNTRY_LANG = { KR: "ko", US: "en" };
+// switched on its own afterwards. A link can choose it too: /?country=US-CA.
 let country = "KR";
-try { const saved = localStorage.getItem("fsd-country"); if (COUNTRY_LANG[saved]) country = saved; } catch (_) { /* private mode */ }
+try { const saved = localStorage.getItem("fsd-country"); if (REGION[saved]) country = saved; } catch (_) { /* private mode */ }
 try {
   const q = new URLSearchParams(location.search);
   const c = (q.get("country") || "").toUpperCase();
-  if (COUNTRY_LANG[c]) { country = c; if (!q.get("lang")) lang = COUNTRY_LANG[c]; }
+  if (REGION[c]) { country = c; if (!q.get("lang")) lang = REGION[c].lang; }
 } catch (_) { /* ignore */ }
 
 function t(key, vars) {
@@ -316,10 +354,14 @@ function t(key, vars) {
 }
 const actionName = (k) => (ACTIONS[lang][k] || ACTIONS.en[k] || [k || ""])[0];
 const actionDone = (k) => (ACTIONS[lang][k] || ACTIONS.en[k] || [])[1];
-const roomName = (r) => lang === "ko" ? (ROOM_KO[r] || r) : (ROOM_EN_SHORT[r] || r);
+const roomName = (r) => ((ROOMS[lang] || ROOM_EN_SHORT)[r] || r);
+const locale = () => lang === "en" ? (country === "GB" ? "en-GB" : "en-US") : (LANG_INFO[lang] || LANG_INFO.en).voice;
 
 function deviceName(d, short) {
+  const types = TYPES[lang];
   if (lang === "ko") return short ? (TYPE_KO[d.type] || d.name) : `${ROOM_KO[d.room] || ""} ${TYPE_KO[d.type] || d.name}`.trim();
+  // European languages put the room after the thing: "Klimaanlage (Wohnzimmer)".
+  if (types) return short || !d.room ? (types[d.type] || d.name) : `${types[d.type] || d.name} · ${roomName(d.room)}`;
   const n = String(d.name || "");
   return short && n.startsWith((d.room || "") + " ") ? n.slice(d.room.length + 1) : n;
 }
@@ -334,26 +376,30 @@ function applyStatic() {
 }
 
 function setCountry(code) {
-  if (!COUNTRY_LANG[code]) return;
+  if (!REGION[code]) return;
   country = code;
   try { localStorage.setItem("fsd-country", country); } catch (_) { /* ignore */ }
   saveWeek = saveToday = null;
-  setLang(COUNTRY_LANG[code]);
+  setLang(REGION[code].lang);
   refresh();
 }
 
+/* One native <select>: the phone shows its own large, scrollable picker,
+   which suits thirteen regions better than a row of buttons. */
 function renderCountry() {
-  document.querySelectorAll("[data-country]").forEach((b) => {
-    const on = b.dataset.country === country;
-    b.classList.toggle("on", on);
-    b.setAttribute("aria-pressed", String(on));
-  });
+  const sel = $("#countryPick");
+  if (!sel) return;
+  const groups = ["asia", "us", "europe"];
+  const html = groups.map((g) => `<optgroup label="${esc(t(`grp.${g}`))}">${REGIONS.filter((r) => r.group === g).map((r) =>
+    `<option value="${r.code}" lang="${r.lang}">${esc(r.name)} · ${r.sym}</option>`).join("")}</optgroup>`).join("");
+  if (sel.dataset.lang !== lang) { sel.innerHTML = html; sel.dataset.lang = lang; }
+  sel.value = country;
 }
 
 function setLang(next) {
-  lang = next === "en" ? "en" : "ko";
+  lang = LANGS.includes(next) ? next : "en";
   try { localStorage.setItem("fsd-lang", lang); } catch (_) { /* ignore */ }
-  voiceLang = lang === "ko" ? "ko-KR" : "en-US";
+  voiceLang = LANG_INFO[lang].voice;
   if (recognition) recognition.lang = voiceLang;
   // Re-render the open question in the new language without reading it again.
   const shown = askSig; askSig = ""; spokenAsks = shown; chipsSig = "";
@@ -566,11 +612,11 @@ function startVoice() {
 }
 
 function renderLangButton() {
-  document.querySelectorAll("#lang [data-lang]").forEach((b) => {
-    const on = b.dataset.lang === lang;
-    b.classList.toggle("on", on);
-    b.setAttribute("aria-pressed", String(on));
-  });
+  const sel = $("#langPick");
+  if (!sel) return;
+  if (!sel.options.length) sel.innerHTML = LANGS.map((l) => `<option value="${l}" lang="${l}">${esc(LANG_INFO[l].name)}</option>`).join("");
+  sel.value = lang;
+  sel.closest(".pick").dataset.lang = lang;
 }
 
 /* ---------- home: hero ---------- */
@@ -581,7 +627,7 @@ function riskFacts(r) {
   if (r.kind === "mold") {
     const out = [];
     if (d.drum_humidity != null) out.push(["sky", t("fact.drum", { h: Math.round(d.drum_humidity) })]);
-    if (d.sealed_hours) out.push(["butter", t("fact.shut", { t: d.sealed_hours < 1 ? `${Math.round(d.sealed_hours * 60)}${lang === "ko" ? "분" : " min"}` : `${d.sealed_hours.toFixed(1)}${lang === "ko" ? "시간" : " h"}` })]);
+    if (d.sealed_hours) out.push(["butter", t("fact.shut", { t: d.sealed_hours < 1 ? `${Math.round(d.sealed_hours * 60)}${t("unit.min")}` : `${d.sealed_hours.toFixed(1)}${t("unit.h")}` })]);
     return out;
   }
   if (r.kind === "energy") {
@@ -734,13 +780,17 @@ function renderRecent() {
 /* ---------- savings (FR-7) ---------- */
 
 function num(v, d = 1, min = 0) {
-  return Number(v || 0).toLocaleString(lang === "ko" ? "ko-KR" : "en-US", { maximumFractionDigits: d, minimumFractionDigits: min });
+  return Number(v || 0).toLocaleString(locale(), { maximumFractionDigits: d, minimumFractionDigits: min });
 }
 
-// Money in the country's currency: ₩555, $0.21.
-function money(v, s) {
-  const d = (s && s.decimals) || 0;
-  return `${(s && s.symbol) || ""}${num(v, d, d)}`;
+// Money in the region's currency, written the local way: ₩555, $0.21, 0,21 €.
+function money(v, s, d) {
+  const digits = d != null ? d : ((s && s.decimals) || 0);
+  try {
+    return Number(v || 0).toLocaleString(locale(), { style: "currency", currency: s.currency, currencyDisplay: "narrowSymbol", minimumFractionDigits: digits, maximumFractionDigits: digits });
+  } catch (_) {
+    return `${(s && s.symbol) || ""}${num(v, digits, digits)}`;
+  }
 }
 
 function renderSaveStrip() {
@@ -751,7 +801,8 @@ function renderSaveStrip() {
   box.hidden = false;
   const text = s.kwh_saved
     ? t("save.strip", { kwh: num(s.kwh_saved), money: money(s.money_saved, s), co2: num(s.co2_kg) })
-    : t("save.stripShift", { kwh: num(s.kwh_shifted), money: money(s.money_saved, s) });
+    : s.money_saved ? t("save.stripShift", { kwh: num(s.kwh_shifted), money: money(s.money_saved, s) })
+      : t("save.stripMoved", { kwh: num(s.kwh_shifted) });
   box.innerHTML = `${icon("i-leaf")}<span>${esc(text)}</span>${icon("i-chevron")}`;
 }
 
@@ -779,7 +830,8 @@ function renderSavings() {
       <b>${esc(num(x.kwh_saved + x.kwh_shifted, 2))} kWh</b></li>`).join("")}</ul>`
       : `<p class="sv-none">${esc(t("save.none"))}</p>`}
     ${extra.length ? `<p class="sv-extra">${esc(extra.join(" · "))}</p>` : ""}
-    <p class="sv-note">${esc(t("save.note", { price: money(a.price, { symbol: s.symbol, decimals: s.decimals ? 3 : 1 }), src: a.tariff_source, f: a.co2_kg_per_kwh, csrc: a.co2_source }))}</p>`;
+    ${!s.tou && s.kwh_shifted ? `<p class="sv-note">${esc(t("save.noTou"))}</p>` : ""}
+    <p class="sv-note">${esc(t("save.note", { price: money(a.price, s, s.decimals ? 3 : 1), src: a.tariff_source, f: num(a.co2_kg_per_kwh, 4), csrc: a.co2_source }))}</p>`;
 }
 
 /* ---------- the ask sheet (FR-3 / FR-4) ---------- */
@@ -822,8 +874,8 @@ function renderAsk() {
             <div><strong>${esc(q.q)}</strong>${q.c ? `<span>${esc(q.c)}</span>` : ""}
               <span class="q-own" data-clock="${esc(ap.id)}"></span></div></div>
           <div class="answers">
-            <button type="button" class="answer yes" data-answer="yes" data-id="${esc(ap.id)}">${icon("i-check")}${esc(t("ask.yes"))}${lang === "en" ? "<small>네</small>" : ""}</button>
-            <button type="button" class="answer no" data-answer="no" data-id="${esc(ap.id)}">${icon("i-x")}${esc(t("ask.no"))}${lang === "en" ? "<small>아니요</small>" : ""}</button>
+            <button type="button" class="answer yes" data-answer="yes" data-id="${esc(ap.id)}">${icon("i-check")}${esc(t("ask.yes"))}${lang === "en" && country === "KR" ? "<small>네</small>" : ""}</button>
+            <button type="button" class="answer no" data-answer="no" data-id="${esc(ap.id)}">${icon("i-x")}${esc(t("ask.no"))}${lang === "en" && country === "KR" ? "<small>아니요</small>" : ""}</button>
           </div></div>`;
       }).join("")}
       <p class="rule">${esc(t("ask.rule"))}</p>`;
@@ -870,6 +922,14 @@ async function answer(yes, id) {
 
 /* ---------- devices ---------- */
 
+const FAN = {
+  ko: { high: "강", mid: "중", medium: "중", low: "약", auto: "자동" },
+  de: { high: "hoch", mid: "mittel", medium: "mittel", low: "niedrig", auto: "Auto" },
+  fr: { high: "fort", mid: "moyen", medium: "moyen", low: "faible", auto: "auto" },
+  es: { high: "alto", mid: "medio", medium: "medio", low: "bajo", auto: "auto" },
+  it: { high: "alta", mid: "media", medium: "media", low: "bassa", auto: "auto" },
+};
+
 function devState(d) {
   const st = d.state || {};
   const on = !!st.power;
@@ -879,7 +939,7 @@ function devState(d) {
     case "air_purifier": return on ? `PM2.5 ${st.pm25 == null ? "—" : st.pm25}` : t("state.off");
     case "washer": return on ? t("state.washing", { m: st.remaining_min == null ? "?" : st.remaining_min }) : (st.state === "done" ? t("state.finished") : t("state.standby"));
     case "refrigerator": return `${st.fridge_temp == null ? "—" : st.fridge_temp}°C · ${st.duty_cycle == null ? "—" : Math.round(st.duty_cycle * 100) + "%"}`;
-    case "range_hood": return on ? t("state.fan", { f: lang === "ko" ? ({ high: "강", mid: "중", medium: "중", low: "약", auto: "자동" }[st.fan || "auto"] || st.fan) : (st.fan || "auto") }) : t("state.off");
+    case "range_hood": return on ? t("state.fan", { f: ((FAN[lang] || {})[st.fan || "auto"]) || st.fan || "auto" }) : t("state.off");
     case "oven": return on ? t("state.heating", { t: st.target_temp == null ? "—" : st.target_temp + "°C" }) : t("state.off");
     default: return on ? t("state.on") : t("state.off");
   }
@@ -1280,8 +1340,8 @@ async function loadScenario(name) {
 
 function renderAll() {
   if (!snapshot) return;
-  $("#stamp").textContent = `${(lang === "ko" ? { mock: "시뮬레이터", thinq: "LG ThinQ" } : BACKEND_LABEL)[snapshot.backend] || snapshot.backend || ""} · ${snapshot.build || ""}`;
-  $("#today").textContent = new Date().toLocaleDateString(lang === "ko" ? "ko-KR" : "en-US", { weekday: "short", month: "short", day: "numeric" });
+  $("#stamp").textContent = `${snapshot.backend === "mock" ? t("backend.mock") : (BACKEND_LABEL[snapshot.backend] || snapshot.backend || "")} · ${snapshot.build || ""}`;
+  $("#today").textContent = new Date().toLocaleDateString(locale(), { weekday: "short", month: "short", day: "numeric" });
   renderAsk();
   renderHero();
   renderRisks();
@@ -1360,14 +1420,7 @@ document.addEventListener("click", (event) => {
   if ((el = hit("[data-scene]"))) { const s = SCENES.find((x) => x.key === el.dataset.scene); return s && runScene(s); }
   if ((el = hit("[data-open]"))) return openDevice(el.dataset.open);
   if ((el = hit("[data-tab]"))) return switchTab(el.dataset.tab);
-  if ((el = hit("[data-country]"))) {
-    setCountry(el.dataset.country);
-    return toast(t("toast.country", { c: t(`country.${country}`) }));
-  }
-  if ((el = hit("[data-lang]"))) {
-    setLang(el.dataset.lang);
-    return toast(t("toast.lang"));
-  }
+
   if ((el = hit("[data-del]"))) {
     return api(`/api/jobs/${el.dataset.del}`, { method: "DELETE" })
       .then((data) => { if (data.snapshot) { snapshot = data.snapshot; renderAll(); } })
@@ -1375,6 +1428,11 @@ document.addEventListener("click", (event) => {
   }
   if ((el = hit("[data-say]"))) return send(el.dataset.say);
   if (hit("[data-close]") || target.id === "scrim") return closeSheets();
+});
+
+document.addEventListener("change", (event) => {
+  if (event.target.id === "langPick") { setLang(event.target.value); toast(t("toast.lang")); }
+  if (event.target.id === "countryPick") { setCountry(event.target.value); toast(t("toast.country", { c: REGION[country].name })); }
 });
 
 document.addEventListener("keydown", (event) => {
@@ -1398,7 +1456,7 @@ $("#tts").addEventListener("click", () => {
 
 /* ---------- boot ---------- */
 
-voiceLang = lang === "ko" ? "ko-KR" : "en-US";
+voiceLang = LANG_INFO[lang].voice;
 applyStatic();
 renderLangButton();
 refresh();

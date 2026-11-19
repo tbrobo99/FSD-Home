@@ -30,9 +30,9 @@ from . import regions
 # Savings Estimate" lists the same values and their sources) ----------------
 #
 # Prices and the grid emission factor depend on the household's country and
-# live in regions.py (Korea: KEPCO tariff, 2023 national grid factor; United
-# States: EIA average price, PG&E time-of-use, EPA eGRID2023). The energy
-# figures below do not depend on the country.
+# live in regions.py (Korea, the United States on average and by state, and
+# five European countries). The energy figures below do not depend on the
+# country.
 
 # Appliance energy, from LG Electronics Korea product specifications:
 AC_RATED_W = 845.0           # LG Whisen wall AC SQ09MDKWMS, rated cooling draw
@@ -65,6 +65,8 @@ def summarize(rows: list[dict], now: datetime | None = None, region: str | None 
     now = now or datetime.now()
     R = regions.get(region)
     price, peak, offpeak = R["price"], R["peak"], R["offpeak"]
+    # No time-of-use plan in this region: moving a load later costs the same.
+    spread = (peak - offpeak) if regions.has_tou(R) else 0.0
     by: dict[str, dict] = {k: {"kind": k, "count": 0, "kwh_saved": 0.0, "kwh_shifted": 0.0, "money": 0.0} for k in KINDS}
     mold_episodes = 0
     executed = [r for r in rows if r.get("event_type") == "action.executed"]
@@ -99,7 +101,7 @@ def summarize(rows: list[dict], now: datetime | None = None, region: str | None 
             b["money"] += TUB_CLEAN_KWH * price
         elif kind == "pause_washer":
             b["kwh_shifted"] += WASH_SHIFT_KWH
-            b["money"] += WASH_SHIFT_KWH * (peak - offpeak)
+            b["money"] += WASH_SHIFT_KWH * spread
         elif kind == "stop_dryer":
             b["kwh_shifted"] += DRYER_SHIFT_KWH
     kwh_saved = sum(b["kwh_saved"] for b in by.values())
@@ -113,7 +115,7 @@ def summarize(rows: list[dict], now: datetime | None = None, region: str | None 
         "kwh_shifted": round(kwh_shifted, 2),
         "money_saved": round(money, R["decimals"]),
         "currency": R["currency"], "symbol": R["symbol"], "decimals": R["decimals"],
-        "region": R["code"],
+        "region": R["code"], "locale": R["locale"], "tou": regions.has_tou(R),
         "co2_kg": round(kwh_saved * R["co2_kg_per_kwh"], 2),
         "mold_prevented": mold_episodes,
         "actions": actions,

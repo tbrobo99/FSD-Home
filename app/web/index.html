@@ -66,11 +66,11 @@
         <h1 data-i18n="home.title">My Home</h1>
       </div>
       <!-- Language: switches the interface text, speech recognition and
-           read-aloud together (Figma rows EN / KO). -->
-      <div class="seg" id="lang" role="group" aria-label="Language / 언어">
-        <button type="button" data-lang="ko">한국어</button>
-        <button type="button" data-lang="en">EN</button>
-      </div>
+           read-aloud together. A native select: six languages, one tap. -->
+      <label class="pick" id="lang">
+        <svg class="ic" aria-hidden="true"><use href="#i-globe"/></svg>
+        <select id="langPick" aria-label="Language / 언어 / Sprache / Langue / Idioma / Lingua"></select>
+      </label>
     </header>
 
     <div class="hero" id="hero" role="status" aria-live="polite"></div>
@@ -139,13 +139,10 @@
         <div class="li-text"><strong data-i18n="set.tts">Read replies aloud</strong><span data-i18n="set.ttsSub">Questions are always read</span></div>
         <button type="button" id="tts" class="switch" role="switch" aria-checked="false" aria-label="Read replies aloud" data-i18n-aria="set.tts"></button>
       </div>
-      <div class="li">
+      <div class="li stack">
         <svg class="ic"><use href="#i-globe"/></svg>
         <div class="li-text"><strong data-i18n="set.country">Country</strong><span data-i18n="set.countrySub">Sets language, prices, CO₂</span></div>
-        <div class="seg small" id="countrySwitch" role="group" aria-label="Country / 국가">
-          <button type="button" data-country="KR" lang="ko">한국 ₩</button>
-          <button type="button" data-country="US" lang="en">US $</button>
-        </div>
+        <label class="pick small"><select id="countryPick" aria-label="Country / 국가" data-i18n-aria="set.country"></select></label>
       </div>
       <div class="li">
         <svg class="ic"><use href="#i-sparkle"/></svg>
@@ -221,6 +218,7 @@
   <div id="sheetBody"></div>
 </section>
 
+<script src="/i18n-eu.js"></script>
 <script src="/app.js"></script>
 </body>
 </html>

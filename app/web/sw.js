@@ -4,10 +4,11 @@
    screen during development. API calls are never cached: stale device state is
    exactly what this project promises not to show. */
 
-const CACHE = "fsd-home-v15";
+const CACHE = "fsd-home-v16";
 const SHELL = [
   "/",
   "/style.css",
+  "/i18n-eu.js",
   "/app.js",
   "/manifest.webmanifest",
   "/icon-192.png",
