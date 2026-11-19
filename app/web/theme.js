@@ -166,9 +166,12 @@
       grid += `<line class="grid-line" x1="${40 + 280 * t}" y1="${190 + 130 * t}"
         x2="${320 + 280 * t}" y2="${60 + 130 * t}"/>`;
     }
+    // Each node carries a ping ring. CSS only animates the ring for nodes the
+    // API reports as on (or as a risk); nothing is invented here.
     const dots = Object.entries(DEV_POINT).map(([id, p]) =>
-      `<g class="dev-dot" data-dev="${id}" transform="translate(${p[0]},${p[1]})">
-         <circle class="halo" r="12"/><circle class="core" r="4.2"/>
+      `<g class="dev-dot" data-dev="${id}" transform="translate(${p[0]},${p[1]})"
+          role="button" tabindex="0" aria-label="device ${id}, show live reading">
+         <circle class="ping" r="4.2"/><circle class="halo" r="12"/><circle class="core" r="4.2"/>
        </g>`).join("");
     const lamps = [232, 266, 300].map((x) => `
       <line class="lamp" x1="${x}" y1="24" x2="${x}" y2="92"/>
@@ -186,6 +189,16 @@
         <span class="stage-state" id="stageState" data-tone="clear">SCANNING…</span>
       </div>
       <svg class="iso" viewBox="0 0 640 360" role="img" aria-label="Isometric view of the home">
+        <defs>
+          <linearGradient id="sweepGrad" x1="0" y1="0" x2="1" y2="0">
+            <stop offset="0" stop-color="#3ad4f2" stop-opacity="0"/>
+            <stop offset=".5" stop-color="#7ce7ff" stop-opacity=".34"/>
+            <stop offset="1" stop-color="#3ad4f2" stop-opacity="0"/>
+          </linearGradient>
+          <clipPath id="floorClip">
+            <polygon points="320,60 600,190 320,320 40,190"/>
+          </clipPath>
+        </defs>
         <polygon class="wall" points="40,190 320,60 320,10 40,140"/>
         <polygon class="wall" points="320,60 600,190 600,140 320,10"/>
         <polygon class="floor" points="320,60 600,190 320,320 40,190"/>
@@ -208,18 +221,24 @@
         <text class="zone" x="264" y="52">BEDROOM</text>
         <text class="zone" x="500" y="300">BALCONY</text>
         ${dots}
+        <g clip-path="url(#floorClip)">
+          <rect class="sweep" x="-160" y="40" width="150" height="300" fill="url(#sweepGrad)"/>
+        </g>
         <path class="scan" d="M40,190 L320,60 L600,190 L320,320 Z"/>
       </svg>
       <div class="stage-foot">
-        <span>DEVICE NODES · LIVE</span>
+        <span>DEVICE NODES · <b class="pulse-dot"></b> LIVE</span>
         <span id="stageNodes">0 / 0 ON</span>
       </div>`;
     return sec;
   }
 
+  let stageSnap = null;   // last good snapshot, for the read-only node popup
+
   function paintStage(snap, pro) {
     const stage = $("#missionStage");
     if (!stage) return;
+    stageSnap = snap;
     const devices = (snap && snap.devices) || [];
     const active = (pro && pro.active) || {};
     const risks = Object.keys(active);
@@ -242,6 +261,37 @@
     });
     const nodes = $("#stageNodes");
     if (nodes) nodes.textContent = `${onCount} / ${devices.length} ON`;
+  }
+
+  /* Clicking a node opens a small READ-ONLY card with that device's live
+   * reading. It has no controls and writes nothing; it simply makes the
+   * picture explorable during a demo without pretending to control anything. */
+  function showNodeCard(id) {
+    let card = $("#nodeCard");
+    if (!card) {
+      card = document.createElement("div");
+      card.id = "nodeCard";
+      card.className = "node-card";
+      card.setAttribute("role", "dialog");
+      card.setAttribute("aria-label", "Device live reading, read only");
+      $("#missionStage").appendChild(card);
+    }
+    const dev = ((stageSnap && stageSnap.devices) || []).find((d) => d.id === id);
+    if (!dev) return;
+    const st = dev.state || {};
+    const rows = [
+      ["POWER", st.power ? "ON" : "OFF"],
+      ["TEMP", st.current_temp != null ? `${st.current_temp}°C` : "—"],
+      ["MODE", st.mode || "—"],
+      ["ID", dev.id],
+    ].map(([k, v]) => `<div><span>${k}</span><b>${escapeHtml(String(v))}</b></div>`).join("");
+    card.innerHTML = `
+      <div class="node-card-top"><span>${escapeHtml(dev.name || dev.id)}</span>
+        <button class="node-card-x" aria-label="Close">×</button></div>
+      <div class="node-card-rows">${rows}</div>
+      <p class="node-card-foot">LIVE READING · READ ONLY</p>`;
+    card.hidden = false;
+    card.querySelector(".node-card-x").addEventListener("click", () => { card.hidden = true; });
   }
 
   function paint(snap, pro, trail) {
@@ -336,6 +386,14 @@
       const first = home && home.querySelector("#askQueue");
       if (home && first && !$("#missionStage")) {
         home.insertBefore(missionScene(), first);
+        const stage = $("#missionStage");
+        stage.querySelectorAll("[data-dev]").forEach((node) => {
+          const open = () => showNodeCard(node.dataset.dev);
+          node.addEventListener("click", open);
+          node.addEventListener("keydown", (e) => {
+            if (e.key === "Enter" || e.key === " ") { e.preventDefault(); open(); }
+          });
+        });
       }
     }
     const box = $("#uiSwitch");
