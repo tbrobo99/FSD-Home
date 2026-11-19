@@ -172,15 +172,30 @@ body {
   font: 700 10px var(--mono);
   letter-spacing: 1.4px;
 }
-.iso .dev-dot { transition: fill .35s, opacity .35s; }
-.iso .dev-dot .core { fill: #37506b; stroke: #5c7b9d; stroke-width: 1; }
+.iso .dev-dot { cursor: pointer; }
+.iso .dev-dot .core { fill: #37506b; stroke: #5c7b9d; stroke-width: 1; transition: fill .35s, stroke .35s; }
 .iso .dev-dot .halo { fill: transparent; }
+.iso .dev-dot .ping { fill: none; stroke: var(--accent); stroke-width: 1.6; opacity: 0; }
 .iso .dev-dot.on .core { fill: var(--accent); stroke: var(--accent-ink); }
 .iso .dev-dot.on .halo { fill: rgba(58, 212, 242, .16); }
+.iso .dev-dot.on .ping { animation: dev-ping 2.4s ease-out infinite; }
 .iso .dev-dot.risk .core { fill: var(--amber); stroke: #ffd79b; }
 .iso .dev-dot.risk .halo { fill: rgba(255, 180, 84, .22); }
+.iso .dev-dot.risk .ping { stroke: var(--amber); animation: dev-ping 1.5s ease-out infinite; }
 .iso .dev-dot.heat .core { fill: var(--red); stroke: #ffc0c6; }
 .iso .dev-dot.heat .halo { fill: rgba(255, 107, 120, .2); }
+.iso .dev-dot.heat .ping { stroke: var(--red); animation: dev-ping 1.2s ease-out infinite; }
+@keyframes dev-ping {
+  0%   { r: 5;  opacity: .9; }
+  70%  { r: 20; opacity: 0; }
+  100% { r: 20; opacity: 0; }
+}
+/* A wide gradient bar sweeping across the floor -- obvious on a projector. */
+.iso .sweep { animation: mission-sweep 5.5s linear infinite; }
+@keyframes mission-sweep {
+  0%   { transform: translateX(0); }
+  100% { transform: translateX(960px); }
+}
 .iso .scan {
   fill: none;
   stroke: rgba(58, 212, 242, .35);
@@ -189,6 +204,61 @@ body {
   animation: mission-scan 7s linear infinite;
 }
 @keyframes mission-scan { from { stroke-dashoffset: 0; } to { stroke-dashoffset: -104; } }
+.pulse-dot {
+  display: inline-block;
+  width: 7px; height: 7px;
+  margin-right: 3px;
+  border-radius: 50%;
+  background: var(--accent);
+  box-shadow: 0 0 0 0 rgba(58, 212, 242, .6);
+  animation: live-pulse 1.8s ease-out infinite;
+  vertical-align: middle;
+}
+@keyframes live-pulse {
+  0%   { box-shadow: 0 0 0 0 rgba(58, 212, 242, .55); }
+  70%  { box-shadow: 0 0 0 8px rgba(58, 212, 242, 0); }
+  100% { box-shadow: 0 0 0 0 rgba(58, 212, 242, 0); }
+}
+
+/* Read-only node card, toggled by clicking a device light. */
+.node-card {
+  position: absolute;
+  z-index: 5;
+  right: 12px;
+  bottom: 40px;
+  width: 196px;
+  padding: 12px 13px 10px;
+  border: 1px solid var(--accent);
+  border-radius: 12px;
+  background: rgba(9, 20, 33, .97);
+  box-shadow: 0 12px 34px rgba(0, 0, 0, .5), 0 0 0 1px rgba(58, 212, 242, .12);
+}
+.node-card[hidden] { display: none; }
+.node-card-top {
+  display: flex; align-items: center; justify-content: space-between;
+  gap: 8px; margin-bottom: 10px;
+  color: var(--accent-ink);
+  font: 700 .82rem/1.3 var(--mono);
+}
+.node-card-x {
+  border: 0; background: transparent;
+  color: var(--ink-3); font-size: 1.2rem; line-height: 1;
+  cursor: pointer; padding: 0 2px;
+}
+.node-card-x:hover { color: var(--ink); }
+.node-card-rows > div {
+  display: flex; align-items: baseline; justify-content: space-between;
+  gap: 8px; padding: 4px 0;
+  border-top: 1px solid var(--line);
+  font: 600 .72rem/1.3 var(--mono);
+}
+.node-card-rows > div:first-child { border-top: 0; }
+.node-card-rows span { color: var(--ink-4); letter-spacing: .08em; }
+.node-card-rows b { color: var(--ink); }
+.node-card-foot {
+  margin: 9px 0 0; color: var(--accent);
+  font: 700 .62rem/1 var(--mono); letter-spacing: .1em;
+}
 
 /* ---------- the one line the house says ---------- */
 
