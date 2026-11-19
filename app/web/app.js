@@ -92,7 +92,7 @@ const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecogni
 const VOICE_LANGS = ["en-US", "ko-KR"];
 const VOICE_PAUSE_MS = 2000;   // a pause this long means "I have finished"
 const VOICE_TAIL_QUIET_MS = 900;   // a "final" this long after any audio is a guess
-const VOICE_MAX_RESTARTS = 2;      // laptop only: cap the pause-to-pause restarts
+const VOICE_MAX_RESTARTS = 5;      // cap the pause-to-pause restarts per turn
 const VOICE_MAX_MS = 15000;        // hard cap: never leave the mic stuck red forever
 const IS_MOBILE = /Android|iPhone|iPad|iPod|Mobile/i.test(navigator.userAgent || "");
 let voiceLang = VOICE_LANGS[0];
@@ -215,11 +215,12 @@ function startVoice() {
   if (!recognition) {
     recognition = new SpeechRecognition();
     recognition.interimResults = true;
-    // Laptop: keep the session alive across short pauses so "turn on the AC …
-    // and set it to 24" arrives as one sentence. Phone: one tap = one session.
-    // Mobile browsers fire `end` during the permission hand-off, and restarting
-    // from there is exactly what made the mic loop / stay red forever.
-    recognition.continuous = !IS_MOBILE;
+    // Keep the session alive across short pauses so "turn on the living room
+    // AC … and set it to 24" arrives as one sentence, on iPhone Safari too.
+    // A mid-sentence pause must not end the dictation. The loop is bounded
+    // (VOICE_MAX_RESTARTS) and the watchdog caps the whole turn, so this can
+    // never become the infinite permission loop it was before.
+    recognition.continuous = true;
     recognition.onresult = (event) => {
       if (voiceDone) return;   // a late result after the turn closed is not a new turn
       // Recompute from index 0 rather than from resultIndex: with continuous
@@ -289,11 +290,12 @@ function startVoice() {
     };
     recognition.onend = () => {
       if (voiceDone) { stopMic(); return; }
-      // Laptop only: the engine ends the session at a pause even with
-      // continuous on. Restart a bounded number of times, banking what was
-      // heard; the watchdog is never extended. On a phone, never restart —
-      // a fresh tap starts the next turn, with one permission hand-off.
-      if (!IS_MOBILE && listening && voiceRestarts < VOICE_MAX_RESTARTS) {
+      // The engine ends the session at a pause even with continuous on — this
+      // happens on laptop Safari/Chrome and on iPhone Safari. Restart a bounded
+      // number of times, banking what was heard, so a mid-sentence pause does
+      // not cut the sentence in half. The watchdog is never extended; after
+      // VOICE_MAX_RESTARTS (or 15 s) the turn closes for good.
+      if (listening && voiceRestarts < VOICE_MAX_RESTARTS) {
         voiceRestarts++;
         setTimeout(() => {
           if (voiceDone || !listening) return;
