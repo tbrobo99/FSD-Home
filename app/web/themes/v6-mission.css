@@ -432,8 +432,15 @@ body {
   font-weight: 700;
 }
 .composer { background: #0c1624; border: 1px solid var(--line-strong); border-radius: 10px; }
-.composer input { background: transparent; color: var(--ink); }
+.composer input { background: #0c1624; color: var(--ink); }
 .composer input::placeholder { color: var(--ink-4); }
+/* style.css has `.composer input:focus { background:#fff }` (equal specificity,
+   defined earlier) and v4-dual forces `#fff` on the input and the lang button.
+   Without these :focus-qualified rules the white wins whenever the box is
+   focused — which the voice flow does on every turn — and the EN chip stays
+   white all the time. Keep the console dark in both states. */
+.composer input:focus { background: #0c1624; border-color: var(--accent); }
+.composer .lang { background: #0c1624; color: var(--accent); border: 1px solid var(--line-strong); }
 .lang { color: var(--accent); background: var(--accent-weak); border-radius: 6px; font-family: var(--mono); }
 .send { color: #06202c; background: var(--accent); border-radius: 8px; }
 
