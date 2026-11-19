@@ -190,9 +190,23 @@ function voiceArmPause() {
   voiceTimer = setTimeout(voiceFinish, VOICE_PAUSE_MS);
 }
 
+/* A voice failure must never be silent. On Samsung Internet / some Android
+   browsers the SpeechRecognition object is missing, or start() throws before
+   the red state is ever set — the old path just returned, so the tap looked
+   dead. Put the reason in the permanent reply panel AND the toast. */
+function voiceNotice(text) {
+  toast(text);
+  const reply = $("#replyText");
+  if (reply) {
+    reply.textContent = text;
+    const box = $("#reply");
+    if (box) { box.hidden = false; box.classList.remove("pending"); }
+  }
+}
+
 function startVoice() {
   if (!SpeechRecognition) {
-    toast("Voice needs Chrome or Safari — please type.");
+    voiceNotice("Voice is not available in this browser. Open this link in Chrome, or type your command below.");
     return;
   }
   // `voiceWatchdog` is also checked: if a browser got stuck with red on and
@@ -255,7 +269,7 @@ function startVoice() {
     recognition.onerror = (event) => {
       if (voiceDone) return;
       if (event.error === "not-allowed" || event.error === "service-not-allowed") {
-        toast("Microphone permission denied — please type.");
+        voiceNotice("Microphone access is blocked. Allow it for this site in Chrome's settings, or type your command below.");
       } else if (event.error === "no-speech") {
         // Silence, not a pause: nothing at all was captured this turn. On a
         // laptop this is usually the wrong input device; on a phone it usually
@@ -324,9 +338,12 @@ function startVoice() {
       voiceFinish();
     }, VOICE_MAX_MS);
   } catch (err) {
-    // start() throws when a session is already running. Treat the tap as a
-    // stop rather than leaving red on with no way out.
+    // A fresh turn whose start() throws was blocked by the browser (Samsung
+    // Internet and some Android WebViews do exactly this). Do not fail
+    // silently — say so on screen. A second tap never reaches here: that is
+    // handled by the `listening || voiceWatchdog` branch above.
     voiceFinish();
+    voiceNotice("Voice could not start in this browser. Open this link in Chrome, or type your command below.");
   }
 }
 
