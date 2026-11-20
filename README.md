@@ -9,9 +9,9 @@ waits for an explicit answer, with a deadline.
 
 ![tests](https://github.com/tbrobo99/proactive-senior-care-comfort-agent/actions/workflows/tests.yml/badge.svg)
 
-Built for CSE406 Term Project III, Phase 2 (Specification). Sensor readings and
-appliances are **simulated**: the prototype runs locally without physical LG
-hardware and without an API key.
+## Live demo
+
+Open the current simulator-based cloud demo: https://fsd-home-demo.duckdns.org/?ui=v6
 
 <img src="docs/screenshot-ask.png" width="460" alt="Two independent Level 2 approval cards, each with its own approval id and Yes / No answer">
 
@@ -78,6 +78,8 @@ Safety log show the same rows, linked by `approval_id`.
 
 ## Architecture
 
+![System architecture: browser clients connect over HTTPS to an AWS Lightsail Python service with a web shell, REST API, agent core, simulated sensor loop, SQLite audit store, and mock device adapter. ThinQ and ESP32 are optional future integrations.](docs/architecture.png)
+
 ```text
 Simulated sensors (1 Hz)
         |
@@ -116,6 +118,11 @@ SQLite messages / logs + web status
 
 ## Quick start
 
+For the current hosted simulator demo, open
+<https://fsd-home-demo.duckdns.org/?ui=v6>.
+
+To run a local development copy:
+
 Python 3.10 or later. The core has **no third-party runtime dependencies**.
 
 ```bash
@@ -124,8 +131,7 @@ cd proactive-senior-care-comfort-agent
 python run.py
 ```
 
-Open <http://127.0.0.1:8848>. On Windows, `start.bat` also works. To open the
-same page from a phone on the local network, use `python run.py --lan`.
+On Windows, `start.bat` also runs the local development server.
 
 ---
 
@@ -185,10 +191,10 @@ Declining, ignoring, or answering after the deadline never executes them.
 Useful endpoints:
 
 ```bash
-curl http://127.0.0.1:8848/api/proactive
-curl http://127.0.0.1:8848/api/approvals
-curl http://127.0.0.1:8848/api/audit
-curl http://127.0.0.1:8848/api/logs
+curl https://fsd-home-demo.duckdns.org/api/proactive
+curl https://fsd-home-demo.duckdns.org/api/approvals
+curl https://fsd-home-demo.duckdns.org/api/audit
+curl https://fsd-home-demo.duckdns.org/api/logs
 ```
 
 ### Fully offline run (recommended for a recorded walkthrough)
@@ -245,6 +251,17 @@ unit tests and `eval.run` on Windows and Linux with Python 3.10, 3.12 and 3.13.
 - **Scope:** simulated sensors and appliances for the course demonstration;
   local, single-user environment; voice input needs browser speech support,
   typing remains available.
+
+---
+
+## Team
+
+| Name | Organization | Email |
+| --- | --- | --- |
+| Ha Yun Kim | Department of Information Systems, Hanyang University | hykim1215@hanyang.ac.kr |
+| SooYoung Song | Department of Information Systems, Hanyang University | sys1109@hanyang.ac.kr |
+| Ruitan Sun | Department of Information Systems, Hanyang University | sunruitan2024@126.com |
+| Tang Bin | Department of Information Systems, Hanyang University | tbrobo99@outlook.com |
 
 ---
 
