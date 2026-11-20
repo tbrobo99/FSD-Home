@@ -1,0 +1,29 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1280 420" width="1280" height="420" font-family="Segoe UI, Malgun Gothic, Apple SD Gothic Neo, sans-serif">
+<rect x="0" y="0" width="1280" height="420" fill="#ffffff"/>
+<text x="55" y="60" font-size="32" font-weight="600" fill="#1a1a1a">Team</text>
+
+<rect x="55" y="92" width="1170" height="52" rx="8" fill="#eef2f7"/>
+<text x="80" y="118" dominant-baseline="central" font-size="16" font-weight="600" fill="#1a1a1a">Name</text>
+<text x="420" y="118" dominant-baseline="central" font-size="16" font-weight="600" fill="#1a1a1a">Organization</text>
+<text x="870" y="118" dominant-baseline="central" font-size="16" font-weight="600" fill="#1a1a1a">Email</text>
+
+<rect x="55" y="144" width="1170" height="60" rx="8" fill="#ffffff" stroke="#d8dee7" stroke-width="1"/>
+<text x="80" y="174" dominant-baseline="central" font-size="16" fill="#222222">Ha Yun Kim</text>
+<text x="420" y="174" dominant-baseline="central" font-size="15" fill="#333333">Department of Information Systems, Hanyang University</text>
+<text x="870" y="174" dominant-baseline="central" font-size="15" fill="#333333">hykim1215@hanyang.ac.kr</text>
+
+<rect x="55" y="204" width="1170" height="60" rx="8" fill="#f7f9fc" stroke="#d8dee7" stroke-width="1"/>
+<text x="80" y="234" dominant-baseline="central" font-size="16" fill="#222222">SooYoung Song</text>
+<text x="420" y="234" dominant-baseline="central" font-size="15" fill="#333333">Department of Information Systems, Hanyang University</text>
+<text x="870" y="234" dominant-baseline="central" font-size="15" fill="#333333">sys1109@hanyang.ac.kr</text>
+
+<rect x="55" y="264" width="1170" height="60" rx="8" fill="#ffffff" stroke="#d8dee7" stroke-width="1"/>
+<text x="80" y="294" dominant-baseline="central" font-size="16" fill="#222222">Ruitan Sun</text>
+<text x="420" y="294" dominant-baseline="central" font-size="15" fill="#333333">Department of Information Systems, Hanyang University</text>
+<text x="870" y="294" dominant-baseline="central" font-size="15" fill="#333333">sunruitan2024@126.com</text>
+
+<rect x="55" y="324" width="1170" height="60" rx="8" fill="#f7f9fc" stroke="#d8dee7" stroke-width="1"/>
+<text x="80" y="354" dominant-baseline="central" font-size="16" fill="#222222">Tang Bin</text>
+<text x="420" y="354" dominant-baseline="central" font-size="15" fill="#333333">Department of Information Systems, Hanyang University</text>
+<text x="870" y="354" dominant-baseline="central" font-size="15" fill="#333333">tbrobo99@outlook.com</text>
+</svg>
