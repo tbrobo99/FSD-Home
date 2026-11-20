@@ -3,7 +3,7 @@
 **Risk-graded autonomous home orchestration for safer, more comfortable living.**
 
 A house that watches itself: a once-a-second loop over simulated sensors scores
-two risk indices, then acts under a two-level safety policy. Low-stakes,
+four risk indices, then acts under a two-level safety policy. Low-stakes,
 reversible actions run on their own. Anything that changes what the user planned
 waits for an explicit answer, with a deadline.
 
@@ -12,6 +12,22 @@ waits for an explicit answer, with a deadline.
 ## Live demo
 
 Open the current simulator-based cloud demo: https://fsd-home-demo.duckdns.org/?ui=v6
+
+- `/?ui=v6` (default) is the Mission Console live view; `?ui=v0`–`v5` switch the other overlays.
+- `/soft/` is the interface built from the Figma design: four risk rings, the ask sheet, the
+  savings card, and a language (6) and region (13) picker.
+- The Phase 2 specification is in [`docs/project_specifications_final.pdf`](docs/project_specifications_final.pdf).
+
+### Added after the Phase 2 specification
+
+- **Two more risk indices:** HSI (heat stress, how hot the room feels to the person) and PLI
+  (household power load at the peak rate). Like MRI and TOI they score 0–100 and act at 50.
+- **Savings report (FR-7):** `GET /api/savings` estimates kWh saved, kWh moved off the peak,
+  money and CO₂, only from actions the audit trail records as executed (`app/savings.py`).
+- **Regions and languages:** `GET /api/regions` — Korea, the US average and six states, the UK,
+  Germany, France, Spain and Italy, each with its tariff, time-of-use pair and grid emission factor
+  and a source (`app/regions.py`); the `/soft/` interface speaks Korean, English, German, French,
+  Spanish and Italian.
 
 <img src="docs/screenshot-ask-v6.png" width="460" alt="Live v6 dark Mission Console: isometric house with 11 device lights, two independent Level 2 approval cards, and status log">
 
@@ -57,9 +73,11 @@ period for that risk.
 Before a confirmed action reaches a device, the engine re-checks the approval,
 the live risk, the device state and the safety interlocks against a fresh
 sensor snapshot. If they no longer hold, the action is refused with a visible
-reason and an `action.blocked` row. Preheating the cooktop additionally needs
-`user_home` and switches itself off if no cooking starts or its maximum run
-time is reached. Stopping the dryer leaves it off: once the risk clears, the
+reason and an `action.blocked` row. Preheating the cooktop is checked against
+the meal rather than the risk score (stopping the dryer usually clears the
+thermal index on its own): it needs `user_home` and a cooking session still
+scheduled within 30 minutes, and it switches itself off if no cooking starts
+after the scheduled time or its maximum run time is reached. Stopping the dryer leaves it off: once the risk clears, the
 house sends one reminder and the user restarts it by hand — it is never
 restarted automatically.
 

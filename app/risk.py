@@ -35,6 +35,15 @@ from datetime import datetime, timedelta
 
 MOLD_THRESHOLD = 50.0
 THERMAL_THRESHOLD = 50.0
+HEAT_HEALTH_THRESHOLD = 50.0
+ENERGY_THRESHOLD = 50.0
+
+# Rooms where a person sits or sleeps. The kitchen is TOI's room and the
+# balcony is a utility space, so neither counts toward heat illness.
+LIVING_ROOMS = ("Living Room", "Bedroom")
+# Load budget per time-of-use band, watts. The energy index reaches the
+# threshold at 5/6 of the band's budget.
+LOAD_BUDGET_W = {"peak": 2500.0, "offpeak": 7000.0}
 PREDICT_MINUTES = 30
 
 # A cooking session this close counts as present load: cooling or ventilating
@@ -58,6 +67,12 @@ class Risk:
             return (f"Mold risk {self.score:.0f}/100 on the washer drum "
                     f"({self.current:.0f}% humidity, predicted {self.predicted:.0f}% "
                     f"in {PREDICT_MINUTES} min)")
+        if self.kind == "heat_health":
+            return (f"Heat stress {self.score:.0f}/100 in the {self.drivers.get('room', 'room').lower()} "
+                    f"(feels like {self.current:.1f}\u00b0C)")
+        if self.kind == "energy":
+            return (f"Power load {self.score:.0f}/100 "
+                    f"({self.current / 1000:.1f} kW, {self.drivers.get('tariff', '')} rate)")
         return (f"Thermal overload {self.score:.0f}/100 in the kitchen "
                 f"({self.current:.1f}\u00b0C, predicted {self.predicted:.1f}\u00b0C "
                 f"in {PREDICT_MINUTES} min)")
@@ -181,11 +196,93 @@ def thermal_risk(snapshot: dict, history, now: datetime | None = None) -> Risk |
     )
 
 
+def apparent_temp(temp_c: float, rh: float) -> float:
+    """Steadman apparent temperature (shade, no wind), as used by the
+    Australian Bureau of Meteorology: AT = T + 0.33 e - 4.0, where e is the
+    water-vapour pressure in hPa."""
+    e = (rh / 100.0) * 6.105 * math.exp(17.27 * temp_c / (237.7 + temp_c))
+    return temp_c + 0.33 * e - 4.0
+
+
+def heat_health_risk(snapshot: dict, history, now: datetime | None = None) -> Risk | None:
+    """Heat stress where people live (HSI). Older adults lose heat less well
+    and feel thirst later, so the score starts low: 6 points per degree of
+    apparent temperature above 29 °C, reaching the threshold near 37 °C.
+    None when nobody is home."""
+    if not snapshot["occupancy"].get("user_home", True):
+        return None
+    rooms = snapshot.get("rooms") or {}
+    worst = None
+    for name in LIVING_ROOMS:
+        r = rooms.get(name)
+        if not r or r.get("temp") is None:
+            continue
+        at = apparent_temp(float(r["temp"]), float(r.get("humidity") or 50.0))
+        if worst is None or at > worst[1]:
+            worst = (name, at, float(r["temp"]), float(r.get("humidity") or 50.0))
+    if worst is None:
+        return None
+    name, at, temp_c, rh = worst
+    score = _clamp((at - 29.0) * 6.0)
+    series = history.get(f"{name}.temp") if history else None
+    slope = slope_per_second(series) if series else 0.0
+    ac = (snapshot.get("ac_targets") or {}).get(name, {})
+    return Risk(
+        kind="heat_health",
+        score=score,
+        metric="apparent_temp",
+        current=round(at, 1),
+        predicted=round(apparent_temp(temp_c + slope * PREDICT_MINUTES * 60, rh), 1),
+        threshold=HEAT_HEALTH_THRESHOLD,
+        drivers={
+            "room": name,
+            "room_temp": round(temp_c, 1),
+            "humidity": round(rh, 1),
+            "apparent_temp": round(at, 1),
+            "ac_on": bool(ac.get("power")),
+            "temp_trend_per_min": round(slope * 60, 3),
+            "user_home": True,
+        },
+    )
+
+
+def energy_risk(snapshot: dict, history, now: datetime | None = None) -> Risk | None:
+    """Whole-house power against the time-of-use budget (PLI).
+    score = 60 x load / budget, budget 2.5 kW in the peak band and 7 kW
+    otherwise, so the house acts above ~2.1 kW at peak and ~5.8 kW off-peak."""
+    load = float(snapshot.get("total_load_w") or 0.0)
+    if load <= 0:
+        return None
+    tariff = snapshot.get("tariff") or "offpeak"
+    budget = LOAD_BUDGET_W.get(tariff, LOAD_BUDGET_W["offpeak"])
+    score = _clamp(60.0 * load / budget)
+    acs = [(room, ac) for room, ac in (snapshot.get("ac_targets") or {}).items()
+           if ac.get("power") and ac.get("mode", "cool") == "cool"]
+    series = history.get("home.load_w") if history else None
+    slope = slope_per_second(series) if series else 0.0
+    return Risk(
+        kind="energy",
+        score=score,
+        metric="total_load_w",
+        current=round(load),
+        predicted=round(max(0.0, load + slope * PREDICT_MINUTES * 60)),
+        threshold=ENERGY_THRESHOLD,
+        drivers={
+            "total_load_w": int(load),
+            "tariff": tariff,
+            "budget_w": int(budget),
+            "cooling_acs": len(acs),
+            "coldest_setpoint": min((ac.get("target_temp", 26) for _, ac in acs), default=None),
+            "washer_running": bool(snapshot["appliances"].get("washer", {}).get("cycle") == "washing"),
+        },
+    )
+
+
 def evaluate(snapshot: dict, history, now: datetime | None = None) -> list[Risk]:
     """Every risk that currently applies, highest score first."""
     now = now or datetime.now()
     out = []
-    for fn in (mold_risk, thermal_risk):
+    for fn in (mold_risk, thermal_risk, heat_health_risk, energy_risk):
         try:
             r = fn(snapshot, history, now)
         except Exception:

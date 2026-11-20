@@ -53,10 +53,31 @@ CALENDAR_FILE = DATA_DIR / "calendar.json"
 
 ROOMS = ("Living Room", "Kitchen", "Bedroom", "Balcony")
 
-# Nameplate draw of the heat-generating appliances, watts. The thermal risk
+# Nameplate draw of the heat-generating appliances, watts, from LG
+# Electronics Korea product specifications (lge.co.kr). The thermal risk
 # index is a load ratio, so these numbers are the units it is measured in.
-HEAT_LOAD_W = {"oven": 2200, "dryer": 1800, "dish_washer": 1200, "washer": 500,
-               "cooktop": 1800}
+#   oven         DIOS light-wave oven ML32UW1, oven element      2,200 W
+#   dryer        TROMM heat-pump dryer RD25GS                    1,400 W
+#   dish_washer  DIOS dishwasher DUBJ1E                          1,600 W
+#   cooktop      DIOS induction BEI3ASS4E, large zone (no turbo) 2,000 W
+#   washer       washing without heating (motor and pump); the TROMM's 2,200 W
+#                rating includes its water heater, which a wash at the
+#                simulator's temperature does not run                500 W
+HEAT_LOAD_W = {"oven": 2200, "dryer": 1400, "dish_washer": 1600, "washer": 500,
+               "cooktop": 2000}
+
+# Whole-house draw for the energy index, watts. Heat appliances use their
+# nameplate figure above; the rest are typical running loads. An air
+# conditioner draws less the higher its setpoint: LG Whisen wall AC
+# SQ09MDKWMS is rated 845 W cooling (127 W minimum), and the Korea Energy
+# Agency measured 4.7 % less power per degree raised (22-26 °C), i.e. about
+# 40 W per degree. That is what makes "raise the setpoint" an energy action
+# and not only a comfort one.
+BASE_LOAD_W = {"dehumidifier": 300, "purifier": 40, "range_hood": 150}
+FRIDGE_W = (60, 150)          # idle draw + extra at 100 % compressor duty
+AC_W_AT_22 = 845
+AC_W_PER_DEGREE = 40
+AC_W_MIN = 127
 
 ROOM_BASE = {
     "Living Room": {"temp": 29.0, "humidity": 52.0},
@@ -113,6 +134,9 @@ class SensorSimulator:
         }
         self.ac_targets: dict[str, dict] = {}  # room -> {"target_temp", "mode", "power"}
         self.occupancy = {"user_home": True}
+        # Time-of-use price band. Set by the scenario, not by the wall clock,
+        # so a demo or a test behaves the same at any hour.
+        self.tariff = "offpeak"
         self.calendar: list[dict] = self._load_calendar()
 
         # (timestamp, value) per signal, for the trend extrapolation in risk.py
@@ -122,6 +146,7 @@ class SensorSimulator:
         self.history.update({f"{r}.humidity": deque(maxlen=history_len) for r in ROOMS})
         self.history["washer.drum_humidity"] = deque(maxlen=history_len)
         self.history["home.heat_w"] = deque(maxlen=history_len)
+        self.history["home.load_w"] = deque(maxlen=history_len)
 
         self._scenario = "idle"
         self._scenario_since = time.monotonic()
@@ -271,6 +296,11 @@ class SensorSimulator:
                         w["remaining_sec"] = CYCLE_SECONDS
                         w["door_closed"] = True
                         w["drum_humidity"] = 60.0
+                    elif name == "power" and not value and w.get("cycle") == "washing":
+                        # Paused mid-cycle: the drum stays wet but the cycle has
+                        # not finished, so the mold index does not start.
+                        w["cycle"] = "paused"
+                        w["power"] = False
                     elif name == "ventilate":
                         w["ventilating"] = bool(value)
                 elif device_id in self.appliances and name in ("power", "fan"):
@@ -320,6 +350,8 @@ class SensorSimulator:
         with self._lock:
             self._scenario = name
             self._scenario_since = time.monotonic()
+            for series in self.history.values():   # trends do not carry across scenarios
+                series.clear()
             # reset
             for room, base in ROOM_BASE.items():
                 self.rooms[room] = {"temp": base["temp"], "humidity": base["humidity"]}
@@ -340,6 +372,7 @@ class SensorSimulator:
             # fixture is still a fixture, but the baseline is the file.
             self.calendar = self._load_calendar()
             self.occupancy = {"user_home": True}
+            self.tariff = "offpeak"
 
             if name == "mold":
                 # Cycle finished two hours ago, door never opened, nobody home
@@ -366,6 +399,24 @@ class SensorSimulator:
                 self.appliances["fridge"]["duty_cycle"] = 0.8
                 if name == "oven_running":
                     self.appliances["oven"]["power"] = True
+            elif name == "heatwave":
+                # A hot, humid night. The resident is in the bedroom, the AC is
+                # off: the case where heat illness in older adults happens.
+                self.rooms["Bedroom"] = {"temp": 31.5, "humidity": 70.0}
+                self.rooms["Living Room"] = {"temp": 30.0, "humidity": 62.0}
+            elif name == "peak":
+                # Evening peak price band. Two air conditioners set cold and a
+                # wash running: the house is paying the top rate for comfort
+                # it could get more cheaply.
+                self.tariff = "peak"
+                self.ac_targets["Living Room"] = {"power": True, "mode": "cool", "target_temp": 22}
+                self.ac_targets["Bedroom"] = {"power": True, "mode": "cool", "target_temp": 22}
+                w = self.appliances["washer"]
+                w["power"] = True
+                w["cycle"] = "washing"
+                w["remaining_sec"] = 3600
+                w["door_closed"] = True
+                w["drum_humidity"] = 60.0
 
     # ---------------------------------------------------------------- output
 
@@ -380,12 +431,33 @@ class SensorSimulator:
                 "occupancy": dict(self.occupancy),
                 "calendar": list(self.calendar),
                 "heat_load_w": self._heat_load(),
+                "total_load_w": self._total_load(),
+                "tariff": self.tariff,
                 "sealed_hours": self.sealed_hours(),
             }
 
     def _heat_load(self) -> int:
         return sum(HEAT_LOAD_W[k] for k, v in self.appliances.items()
                    if v.get("power") and k in HEAT_LOAD_W)
+
+    @staticmethod
+    def ac_draw_w(target_temp) -> int:
+        """Running draw of one cooling AC at a given setpoint."""
+        t = 22 if target_temp is None else float(target_temp)
+        return int(max(AC_W_MIN, AC_W_AT_22 - AC_W_PER_DEGREE * max(0.0, t - 22)))
+
+    def _total_load(self) -> int:
+        """Whole-house draw in watts: heat appliances, small loads, the
+        fridge compressor and every running air conditioner."""
+        w = self._heat_load()
+        w += sum(BASE_LOAD_W[k] for k, v in self.appliances.items() if v.get("power") and k in BASE_LOAD_W)
+        fridge = self.appliances.get("fridge", {})
+        if fridge.get("power", True):
+            w += FRIDGE_W[0] + FRIDGE_W[1] * float(fridge.get("duty_cycle") or 0.0)
+        for ac in self.ac_targets.values():
+            if ac.get("power"):
+                w += self.ac_draw_w(ac.get("target_temp"))
+        return int(round(w))
 
     def sealed_hours(self, now: datetime | None = None) -> float:
         """How long the washer drum has been shut and wet. 0.0 if it is not."""
@@ -401,8 +473,34 @@ class SensorSimulator:
                 return 0.0
         return max(0.0, (now - since).total_seconds() / 3600.0)
 
+    def push_history(self, snap: dict, now: datetime | None = None) -> None:
+        """Append one sample per signal for the 30-minute trend in risk.py.
+
+        Both the sensor thread and the engine record each tick; a sample
+        closer than half a tick to the previous one is the same tick and is
+        dropped, so the slope is not skewed by duplicates.
+        """
+        now = now or datetime.now()
+        with self._lock:
+            last = self.history["home.load_w"]
+            if last and (now - last[-1][0]).total_seconds() < self.tick_seconds / 2:
+                return
+            for room, vals in (snap.get("rooms") or {}).items():
+                if f"{room}.temp" in self.history:
+                    self.history[f"{room}.temp"].append((now, vals.get("temp")))
+                    self.history[f"{room}.humidity"].append((now, vals.get("humidity")))
+            w = (snap.get("appliances") or {}).get("washer", {})
+            if w.get("cycle") == "done" and w.get("door_closed"):
+                self.history["washer.drum_humidity"].append((now, w.get("drum_humidity")))
+            else:
+                self.history["washer.drum_humidity"].clear()   # a new wet period starts fresh
+            self.history["home.heat_w"].append((now, snap.get("heat_load_w")))
+            self.history["home.load_w"].append((now, snap.get("total_load_w")))
+
     def record(self, snap: dict) -> None:
-        """Append to readings.jsonl and rewrite latest.csv (NFR: local JSON/CSV)."""
+        """Keep the trend history, then append to readings.jsonl and rewrite
+        latest.csv (NFR: local JSON/CSV)."""
+        self.push_history(snap)
         if not self.write_files:
             return
         try:

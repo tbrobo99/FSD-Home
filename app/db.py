@@ -271,3 +271,10 @@ def recent_audit(limit: int = 100, event_type: str | None = None) -> list[dict]:
     with _lock, conn() as c:
         rows = c.execute(sql, args).fetchall()
     return [dict(r) for r in rows]
+
+
+def audit_since(since_iso: str) -> list[dict]:
+    """Audit rows at or after a timestamp, oldest first (for the savings report)."""
+    with _lock, conn() as c:
+        rows = c.execute("SELECT * FROM audit_log WHERE ts >= ? ORDER BY id ASC", (since_iso,)).fetchall()
+    return [dict(r) for r in rows]

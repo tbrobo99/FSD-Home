@@ -1,0 +1,135 @@
+<!doctype html>
+<!-- Source for docs/figures/architecture.png (Fig. in Section V-A).
+     Render: Chrome --headless --window-size=1500,1010 --screenshot -->
+<html>
+<head>
+<meta charset="utf-8">
+<title>FSD-Home architecture</title>
+<style>
+  :root { --ink:#191f28; --ink2:#4e5968; --line:#3a4350; --blue:#1b64da; --amber:#8a5200; --green:#08795a; }
+  html, body { margin:0; background:#fff; }
+  body { width:1500px; height:1010px; position:relative; font-family: "Helvetica Neue", Arial, sans-serif; color:var(--ink); }
+  .box { position:absolute; box-sizing:border-box; border:2px solid var(--line); border-radius:12px; background:#fff; padding:10px 14px; }
+  .box h3 { margin:0; font-size:22px; line-height:1.15; }
+  .box .f { font:600 16px/1.3 Menlo, monospace; color:var(--blue); margin-top:2px; }
+  .box p { margin:5px 0 0; font-size:16.5px; line-height:1.3; color:var(--ink2); }
+  .box .c { margin-top:5px; font:15px/1.3 Menlo, monospace; color:var(--ink); }
+  .box.core { border-width:3px; background:#f5f8ff; }
+  .box.safety { background:#fff8ea; border-color:var(--amber); }
+  .box.store { background:#f2f4f6; }
+  .lane { position:absolute; font:700 15px Arial; letter-spacing:.06em; color:#646e7a; text-transform:uppercase; }
+  svg { position:absolute; inset:0; overflow:visible; }
+  .edge { fill:none; stroke:var(--line); stroke-width:2.2; }
+  .edge.safe { stroke:var(--amber); stroke-width:2.6; }
+  .lbl { font:600 15px Arial; fill:var(--ink); paint-order:stroke; stroke:#fff; stroke-width:6px; stroke-linejoin:round; }
+</style>
+</head>
+<body>
+<div class="lane" style="left:40px;top:6px">Presentation</div>
+<div class="lane" style="left:40px;top:226px">Perception &amp; decision</div>
+<div class="lane" style="left:40px;top:616px">Safety &amp; execution</div>
+
+<div id="ui" class="box" style="left:40px;top:30px;width:330px;height:165px">
+  <h3>Web UI</h3><div class="f">app/web/</div>
+  <p>Home (4 risk rings), ask sheet, Devices, Activity log, Settings; Korean / English</p>
+  <div class="c">index.html · app.js · style.css</div>
+</div>
+<div id="srv" class="box" style="left:480px;top:30px;width:330px;height:165px">
+  <h3>HTTP Server</h3><div class="f">app/server.py</div>
+  <p>REST API; the only door into Level 2 execution</p>
+  <div class="c">Handler · serve()</div>
+</div>
+<div id="agent" class="box" style="left:920px;top:30px;width:540px;height:165px">
+  <h3>Conversational Agent</h3><div class="f">agent.py · chat.py · nlu.py · tools.py · scheduler.py</div>
+  <p>Voice/text commands and scheduled jobs (Phase 1); plain conversation cannot reach a device</p>
+  <div class="c">Agent · ToolBox · Scheduler</div>
+</div>
+
+<div id="sens" class="box" style="left:40px;top:250px;width:330px;height:150px">
+  <h3>Sensor Simulator</h3><div class="f">app/sensors.py</div>
+  <p>1 Hz telemetry, load and tariff, calendar, scenarios</p>
+  <div class="c">SensorSimulator</div>
+</div>
+<div id="risk" class="box" style="left:40px;top:430px;width:330px;height:150px">
+  <h3>Risk Engine</h3><div class="f">app/risk.py</div>
+  <p>MRI, TOI, HSI, PLI (0–100), 30-min trend</p>
+  <div class="c">Risk · evaluate()</div>
+</div>
+<div id="pol" class="box safety" style="left:40px;top:640px;width:330px;height:150px">
+  <h3>Safety Policy</h3><div class="f">app/policy.py</div>
+  <p>10-action whitelist, Level 1 / Level 2 tiers</p>
+  <div class="c">Candidate · ACTION_TIERS · candidates()</div>
+</div>
+
+<div id="eng" class="box core" style="left:480px;top:250px;width:330px;height:300px">
+  <h3>Proactive Engine</h3><div class="f">app/proactive.py</div>
+  <p>1 Hz observe–decide–act loop. Runs Level 1, proposes Level 2, revalidates before every action, cooktop interlock, dryer reminder, quiet periods</p>
+  <div class="c">ProactiveEngine<br>tick() · confirm()<br>decline() · state()</div>
+</div>
+
+<div id="llm" class="box" style="left:920px;top:250px;width:250px;height:150px">
+  <h3>LLM Client</h3><div class="f">app/llm.py</div>
+  <p>Ranks Level 1 only; rules decide on any failure</p>
+</div>
+<div id="appr" class="box safety" style="left:920px;top:430px;width:250px;height:150px">
+  <h3>Approval Queue</h3><div class="f">app/approval.py</div>
+  <p>One request per action, 300&nbsp;s expiry</p>
+  <div class="c">Approval · ApprovalQueue</div>
+</div>
+
+<div id="aud" class="box safety" style="left:480px;top:645px;width:330px;height:150px">
+  <h3>Audit Gate</h3><div class="f">app/audit.py</div>
+  <p>Write intent → call adapter → write outcome; aborts if intent is not stored</p>
+  <div class="c">execute() · record() · blocked()</div>
+</div>
+<div id="dev" class="box" style="left:1210px;top:645px;width:250px;height:180px">
+  <h3>Device Adapters</h3><div class="f">app/devices/</div>
+  <p>Simulated or LG ThinQ appliances</p>
+  <div class="c">DeviceAdapter · MockAdapter · ThinQAdapter</div>
+</div>
+<div id="db" class="box store" style="left:480px;top:850px;width:330px;height:140px">
+  <h3>Persistence (SQLite)</h3><div class="f">app/db.py</div>
+  <p>audit_log (append-only triggers), messages, logs, jobs</p>
+</div>
+
+<svg width="1500" height="1010">
+  <defs>
+    <marker id="a" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="8" markerHeight="8" orient="auto-start-reverse">
+      <path d="M0,0 L10,5 L0,10 z" fill="#3a4350"/></marker>
+    <marker id="s" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="8" markerHeight="8" orient="auto-start-reverse">
+      <path d="M0,0 L10,5 L0,10 z" fill="#8a5200"/></marker>
+  </defs>
+  <!-- presentation -->
+  <path class="edge" d="M370,112 L478,112" marker-end="url(#a)"/>
+  <text class="lbl" x="380" y="100">REST</text>
+  <path class="edge" d="M810,112 L918,112" marker-end="url(#a)"/>
+  <text class="lbl" x="820" y="100">/api/chat</text>
+  <path class="edge" d="M645,195 L645,248" marker-end="url(#a)"/>
+  <text class="lbl" x="655" y="228">confirm · decline · state</text>
+  <!-- perception & decision -->
+  <path class="edge" d="M370,325 L478,325" marker-end="url(#a)"/>
+  <text class="lbl" x="376" y="313">snapshot()</text>
+  <path class="edge" d="M478,505 L372,505" marker-end="url(#a)"/>
+  <text class="lbl" x="384" y="493">evaluate()</text>
+  <path class="edge safe" d="M478,530 L425,530 L425,715 L372,715" marker-end="url(#s)"/>
+  <text class="lbl" x="376" y="740">candidates()</text>
+  <path class="edge" d="M810,325 L918,325" marker-end="url(#a)"/>
+  <text class="lbl" x="818" y="313">rank L1</text>
+  <path class="edge safe" d="M810,505 L918,505" marker-end="url(#s)"/>
+  <text class="lbl" x="818" y="493">propose</text>
+  <path class="edge" d="M1100,195 L1100,248" marker-end="url(#a)"/>
+  <text class="lbl" x="1110" y="228">chat()</text>
+  <!-- execution & record -->
+  <path class="edge safe" d="M700,550 L700,643" marker-end="url(#s)"/>
+  <text class="lbl" x="710" y="582">execute()</text>
+  <path class="edge safe" d="M1045,580 L1045,690 L812,690" marker-end="url(#s)"/>
+  <text class="lbl" x="855" y="678">record()</text>
+  <path class="edge" d="M810,755 L1208,755" marker-end="url(#a)"/>
+  <text class="lbl" x="960" y="743">apply()</text>
+  <path class="edge safe" d="M645,795 L645,848" marker-end="url(#s)"/>
+  <text class="lbl" x="655" y="828">audit_log</text>
+  <path class="edge" d="M1400,195 L1400,600 L760,600 L760,643" marker-end="url(#a)"/>
+  <text class="lbl" x="1185" y="624">execute() — commands &amp; jobs</text>
+</svg>
+</body>
+</html>
