@@ -175,7 +175,7 @@ body {
 .iso .dev-dot { cursor: pointer; }
 .iso .dev-dot .core { fill: #37506b; stroke: #5c7b9d; stroke-width: 1; transition: fill .35s, stroke .35s; }
 .iso .dev-dot .halo { fill: transparent; }
-.iso .dev-dot .ping { fill: none; stroke: var(--accent); stroke-width: 1.6; opacity: 0; }
+.iso .dev-dot .ping { fill: none; stroke: var(--accent); stroke-width: 1.6; opacity: 0; pointer-events: none; }
 .iso .dev-dot.on .core { fill: var(--accent); stroke: var(--accent-ink); }
 .iso .dev-dot.on .halo { fill: rgba(58, 212, 242, .16); }
 .iso .dev-dot.on .ping { animation: dev-ping 2.4s ease-out infinite; }

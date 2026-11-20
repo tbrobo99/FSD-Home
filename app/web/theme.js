@@ -141,8 +141,8 @@
   const DEV_POINT = {
     ac_living: [414, 176], purifier: [456, 199], ac_bedroom: [252, 112],
     range_hood: [232, 138], oven: [272, 156], ac_kitchen: [204, 150],
-    cooktop: [257, 172], fridge: [150, 122], washer: [501, 244],
-    dryer: [526, 224], dehumidifier: [476, 266],
+    cooktop: [257, 172], fridge: [150, 122], washer: [497, 250],
+    dryer: [532, 214], dehumidifier: [470, 282],
   };
 
   function isoBox(cx, cy, w, d, h, cls) {
