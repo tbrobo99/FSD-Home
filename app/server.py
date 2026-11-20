@@ -79,6 +79,10 @@ class Handler(BaseHTTPRequestHandler):
         path = url.path
         if path in ("/", "/index.html"):
             return self._static("index.html")
+        if path in ("/soft", "/soft/", "/soft/index.html"):
+            # The v3 "soft modern" interface from the Figma design (savings
+            # card, region and language pickers). "/" keeps the v1-v6 switcher.
+            return self._static("soft/index.html")
         if path == "/api/snapshot":
             return self._json(self.agent_ref.snapshot())
         if path == "/api/mode":
@@ -95,6 +99,17 @@ class Handler(BaseHTTPRequestHandler):
             except ValueError:
                 limit = 40
             return self._json({"audit": db.recent_audit(limit)})
+        if path == "/api/savings":
+            # FR-7: estimated energy / cost / CO2 savings from executed actions.
+            from . import savings
+            q = parse_qs(url.query)
+            period = (q.get("period") or ["week"])[0]
+            region = (q.get("region") or [None])[0]
+            return self._json(savings.report("today" if period == "today" else "week", region=region))
+        if path == "/api/regions":
+            # Country presets: language, currency, prices, emission factor.
+            from . import regions
+            return self._json({"default": regions.DEFAULT, "regions": list(regions.REGIONS.values())})
         if path == "/api/approvals":
             # Phase 2: Tier-2 requests waiting on the user. Absent engine ->
             # empty list, never a 500.
@@ -147,6 +162,18 @@ class Handler(BaseHTTPRequestHandler):
         if path == "/api/messages/clear":
             db.clear_messages()
             return self._json({"ok": True})
+
+        if path == "/api/scenario":
+            # Demo control: load a deterministic starting state without a
+            # restart. Only the scenarios run.py also accepts.
+            engine = getattr(self.agent_ref, "proactive", None)
+            name = str(body.get("name") or "")
+            if engine is None:
+                return self._json({"error": "proactive engine not running"}, 400)
+            if name not in ("idle", "mold", "oven", "oven_running", "heatwave", "peak"):
+                return self._json({"error": "unknown scenario"}, 400)
+            engine.reset_scenario(name)
+            return self._json({"ok": True, "scenario": name})
 
         m = re.fullmatch(r"/api/approvals/([A-Za-z0-9_]+)/(confirm|decline)", path)
         if m:

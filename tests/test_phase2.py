@@ -120,7 +120,7 @@ class RiskTest(Base):
         self.assertIsNotNone(r)
         self.assertGreaterEqual(r.score, r.threshold)
         self.assertEqual(r.kind, "thermal")
-        self.assertEqual(r.drivers["heat_load_w"], 1800)
+        self.assertEqual(r.drivers["heat_load_w"], 1400)   # LG TROMM heat-pump dryer
         self.assertIsNotNone(r.drivers["cooking_scheduled_in_min"])
 
     def test_thermal_risk_silent_when_no_heat(self):
@@ -207,7 +207,7 @@ class PolicyTest(Base):
         """A whitelist entry no rule can produce is a capability the code claims
         and does not have. This keeps the table and `candidates()` in step."""
         produced = set()
-        for scenario in ("mold", "oven", "oven_running"):
+        for scenario in ("mold", "oven", "oven_running", "heatwave", "peak"):
             e = self._engine()
             e.sensors.apply_scenario(scenario)
             snap = e.sensors.snapshot()
