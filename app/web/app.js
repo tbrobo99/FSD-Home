@@ -32,9 +32,11 @@ let activeRoom = "All";
 let currentTab = "home";
 let sheetId = null;
 let chipsSig = "";
-let askSig = "";          // signature of the pending approval queue
+let askSig = null;         // signature of the pending approval queue
 let askBusy = false;
 let spokenAsks = new Set();
+let knownAskIds = new Set(); // approvals already present when this page opened
+let askInitialised = false;
 let auditRows = null;     // /api/audit, FR-6 trail
 
 /* ---------- helpers ---------- */
@@ -391,6 +393,7 @@ function renderAsk() {
   const box = $("#askQueue");
   const sig = list.map((a) => a.id).join("|");
   if (sig !== askSig) {
+    const newAsk = list.find((ap) => !knownAskIds.has(ap.id));
     askSig = sig;
     box.innerHTML = list.map((ap, i) => {
       const kind = ap.action_kind || (ap.actions && ap.actions[0] && ap.actions[0].kind) || "action";
@@ -412,12 +415,16 @@ function renderAsk() {
           <p class="ask-clock" data-clock="${esc(ap.id)}"></p>
         </div>`;
     }).join("");
-    // Spoken prompts are supplementary (FR-4). Two text-to-speech questions
-    // in a row cut each other off, so announce the first new card per batch.
-    if (list.length && !spokenAsks.has(list[0].id)) {
-      spokenAsks.add(list[0].id);
-      speak(list[0].question || list[0].summary, true);
+    // A page reload must not start talking at the resident. Existing cards are
+    // visible immediately; speak only an approval that arrives after the page
+    // has already seen its initial state. Two questions in a row still cut
+    // each other off, so announce at most the first newly-arrived card.
+    if (newAsk && askInitialised && !spokenAsks.has(newAsk.id)) {
+      spokenAsks.add(newAsk.id);
+      speak(newAsk.question || newAsk.summary, true);
     }
+    list.forEach((ap) => knownAskIds.add(ap.id));
+    askInitialised = true;
   }
   for (const ap of list) {
     const el = box.querySelector(`[data-clock="${ap.id}"]`);
