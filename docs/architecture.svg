@@ -15,7 +15,7 @@
 <line x1="1010" y1="35" x2="1060" y2="35" stroke="#3a3a3a" stroke-width="2"/>
 <text x="1070" y="40" font-size="13" fill="#444444">running in the demo</text>
 <line x1="1010" y1="60" x2="1060" y2="60" stroke="#999999" stroke-width="2" stroke-dasharray="6 5"/>
-<text x="1070" y="65" font-size="13" fill="#444444">code-ready, not enabled</text>
+<text x="1070" y="65" font-size="13" fill="#444444">code-ready / possible extension</text>
 <line x1="1010" y1="85" x2="1060" y2="85" stroke="#2563a6" stroke-width="3"/>
 <text x="1070" y="90" font-size="13" fill="#444444">main API / data flow</text>
 
@@ -35,7 +35,7 @@
 <rect x="115" y="335" width="245" height="86" rx="10" fill="#eef4fb" stroke="#3b76bd" stroke-width="1.8"/>
 <text x="237" y="360" text-anchor="middle" font-size="15" font-weight="600" fill="#123a63">Web shell</text>
 <text x="237" y="382" text-anchor="middle" font-size="12" fill="#2c5c8f">app/web: index.html, app.js,</text>
-<text x="237" y="399" text-anchor="middle" font-size="12" fill="#2c5c8f">themes, sw.js · served by run.py</text>
+<text x="237" y="399" text-anchor="middle" font-size="12" fill="#2c5c8f">themes · Caddy (HTTPS) → run.py (:80)</text>
 
 <rect x="380" y="335" width="245" height="86" rx="10" fill="#eef4fb" stroke="#3b76bd" stroke-width="1.8"/>
 <text x="502" y="360" text-anchor="middle" font-size="15" font-weight="600" fill="#123a63">REST API</text>
@@ -84,9 +84,10 @@
 
 <line x1="360" y1="378" x2="380" y2="378" stroke="#888888" stroke-width="1.6" marker-end="url(#arr)"/>
 <line x1="625" y1="378" x2="645" y2="378" stroke="#888888" stroke-width="1.6" marker-end="url(#arr)"/>
-<line x1="890" y1="378" x2="910" y2="378" stroke="#888888" stroke-width="1.6" marker-end="url(#arr)"/>
+<line x1="910" y1="378" x2="890" y2="378" stroke="#2563a6" stroke-width="2" marker-end="url(#arrb)"/>
+<path d="M 700 421 L 700 437 L 300 437 L 300 450" fill="none" stroke="#2563a6" stroke-width="2" marker-end="url(#arrb)"/>
 <line x1="767" y1="421" x2="767" y2="450" stroke="#888888" stroke-width="1.6" marker-end="url(#arr)"/>
-<line x1="300" y1="536" x2="300" y2="565" stroke="#888888" stroke-width="1.6" marker-end="url(#arr)"/>
+<line x1="300" y1="536" x2="300" y2="565" stroke="#2563a6" stroke-width="2" marker-end="url(#arrb)"/>
 <line x1="485" y1="493" x2="510" y2="493" stroke="#888888" stroke-width="1.6" marker-end="url(#arr)"/>
 <line x1="365" y1="621" x2="640" y2="621" stroke="#999999" stroke-width="1.6" stroke-dasharray="6 5" marker-end="url(#arr)"/>
 
@@ -99,13 +100,11 @@
 <text x="630" y="824" text-anchor="middle" font-size="15" font-weight="600" fill="#444444">Real LG appliances</text>
 <text x="630" y="846" text-anchor="middle" font-size="12" fill="#666666">fridge · washer — same adapter, PAT required</text>
 <rect x="840" y="800" width="330" height="66" rx="10" fill="#f7f7f7" stroke="#999999" stroke-width="1.8" stroke-dasharray="7 5"/>
-<text x="1005" y="824" text-anchor="middle" font-size="15" font-weight="600" fill="#444444">ESP32 sensor — planned</text>
+<text x="1005" y="824" text-anchor="middle" font-size="15" font-weight="600" fill="#444444">ESP32 sensor — possible extension</text>
 <text x="1005" y="846" text-anchor="middle" font-size="12" fill="#666666">temperature / humidity over Wi-Fi</text>
 
 <line x1="365" y1="647" x2="270" y2="798" stroke="#2a8f5b" stroke-width="2" marker-end="url(#arr)"/>
 <line x1="902" y1="647" x2="640" y2="798" stroke="#999999" stroke-width="1.8" stroke-dasharray="6 5" marker-end="url(#arr)"/>
 
-<text x="55" y="940" font-size="14" fill="#444444">Server: Ubuntu 24.04, Sydney · static IP 3.24.185.72 · systemd fsd-home runs run.py (:80), one Python process, no extra runtime deps.</text>
-<text x="55" y="965" font-size="14" fill="#444444">Two paths for a message: home command → NLU / approval / audit → device; conversation → text-only reply, no device access.</text>
-<text x="55" y="990" font-size="14" fill="#444444">Chosen on purpose: a single server with a local SQLite file keeps the prototype light — no k8s, no RDS, no S3 sync.</text>
+<text x="55" y="950" font-size="15" fill="#333333">Two paths for a message: home command → NLU / approval / audit → device; conversation → text-only reply, no device access.</text>
 </svg>
