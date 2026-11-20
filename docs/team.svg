@@ -1,0 +1,56 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1280 560" width="1280" height="560" font-family="Segoe UI, Malgun Gothic, Apple SD Gothic Neo, sans-serif">
+<defs>
+</defs>
+<rect x="0" y="0" width="1280" height="560" fill="#ffffff"/>
+<text x="55" y="62" font-size="34" font-weight="600" fill="#1a1a1a">Team</text>
+<text x="55" y="94" font-size="17" fill="#555555">Proactive Senior Care &amp; Comfort Agent — four roles, one system</text>
+
+<rect x="55" y="130" width="277" height="330" rx="14" fill="#f6f9fd" stroke="#3b76bd" stroke-width="1.6"/>
+<rect x="55" y="130" width="277" height="52" rx="14" fill="#e4eefb"/>
+<rect x="55" y="158" width="277" height="24" fill="#e4eefb"/>
+<text x="193" y="162" text-anchor="middle" dominant-baseline="central" font-size="15" font-weight="600" fill="#123a63">Development Manager</text>
+<text x="193" y="225" text-anchor="middle" font-size="22" font-weight="600" fill="#1a1a1a">Ha Yun Kim</text>
+<text x="193" y="252" text-anchor="middle" font-size="14" fill="#666666">김하윤</text>
+<line x1="85" y1="278" x2="302" y2="278" stroke="#c8d6e8" stroke-width="1"/>
+<text x="193" y="308" text-anchor="middle" font-size="14" fill="#333333">System architecture</text>
+<text x="193" y="334" text-anchor="middle" font-size="14" fill="#333333">UI design</text>
+<text x="193" y="360" text-anchor="middle" font-size="14" fill="#333333">Documentation</text>
+<text x="193" y="386" text-anchor="middle" font-size="14" fill="#333333">Git &amp; milestones</text>
+
+<rect x="351" y="130" width="277" height="330" rx="14" fill="#fdf8ee" stroke="#b98b2f" stroke-width="1.6"/>
+<rect x="351" y="130" width="277" height="52" rx="14" fill="#faefd7"/>
+<rect x="351" y="158" width="277" height="24" fill="#faefd7"/>
+<text x="489" y="162" text-anchor="middle" dominant-baseline="central" font-size="15" font-weight="600" fill="#6b4c12">Customer</text>
+<text x="489" y="225" text-anchor="middle" font-size="22" font-weight="600" fill="#1a1a1a">SooYoung Song</text>
+<text x="489" y="252" text-anchor="middle" font-size="14" fill="#666666">송수영</text>
+<line x1="381" y1="278" x2="598" y2="278" stroke="#e5d6b4" stroke-width="1"/>
+<text x="489" y="308" text-anchor="middle" font-size="14" fill="#333333">Customer &amp; household needs</text>
+<text x="489" y="334" text-anchor="middle" font-size="14" fill="#333333">Safety boundaries</text>
+<text x="489" y="360" text-anchor="middle" font-size="14" fill="#333333">Level 2 confirmation policy</text>
+
+<rect x="647" y="130" width="277" height="330" rx="14" fill="#f0f8f3" stroke="#2a8f5b" stroke-width="1.6"/>
+<rect x="647" y="130" width="277" height="52" rx="14" fill="#dcf0e4"/>
+<rect x="647" y="158" width="277" height="24" fill="#dcf0e4"/>
+<text x="785" y="162" text-anchor="middle" dominant-baseline="central" font-size="15" font-weight="600" fill="#124a2c">User</text>
+<text x="785" y="225" text-anchor="middle" font-size="22" font-weight="600" fill="#1a1a1a">Ruitan Sun</text>
+<text x="785" y="252" text-anchor="middle" font-size="14" fill="#666666">user perspective</text>
+<line x1="677" y1="278" x2="894" y2="278" stroke="#bcdcc8" stroke-width="1"/>
+<text x="785" y="308" text-anchor="middle" font-size="14" fill="#333333">Identify user needs</text>
+<text x="785" y="334" text-anchor="middle" font-size="14" fill="#333333">Feedback</text>
+<text x="785" y="360" text-anchor="middle" font-size="14" fill="#333333">Service fits expectations</text>
+
+<rect x="943" y="130" width="282" height="330" rx="14" fill="#f5f2fb" stroke="#7a5bb5" stroke-width="1.6"/>
+<rect x="943" y="130" width="282" height="52" rx="14" fill="#eae3f7"/>
+<rect x="943" y="158" width="282" height="24" fill="#eae3f7"/>
+<text x="1084" y="162" text-anchor="middle" dominant-baseline="central" font-size="15" font-weight="600" fill="#3b2a63">Software Developer</text>
+<text x="1084" y="225" text-anchor="middle" font-size="22" font-weight="600" fill="#1a1a1a">Tang Bin</text>
+<text x="1084" y="252" text-anchor="middle" font-size="14" fill="#666666">唐斌</text>
+<line x1="973" y1="278" x2="1195" y2="278" stroke="#d3c8e9" stroke-width="1"/>
+<text x="1084" y="308" text-anchor="middle" font-size="14" fill="#333333">Core AI decision engine</text>
+<text x="1084" y="334" text-anchor="middle" font-size="14" fill="#333333">Integration tools</text>
+<text x="1084" y="360" text-anchor="middle" font-size="14" fill="#333333">Simulated IoT sensors</text>
+<text x="1084" y="386" text-anchor="middle" font-size="14" fill="#333333">Cloud deployment</text>
+
+<text x="55" y="505" font-size="14" fill="#444444">Suggested slide order: Title → Problem / MVP → Status → Live demo → Architecture → Team (this slide, last).</text>
+<text x="55" y="532" font-size="14" fill="#444444">The architecture diagram goes right after the demo; this Team page closes the deck.</text>
+</svg>
