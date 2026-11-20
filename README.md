@@ -13,7 +13,7 @@ waits for an explicit answer, with a deadline.
 
 Open the current simulator-based cloud demo: https://fsd-home-demo.duckdns.org/?ui=v6
 
-<img src="docs/screenshot-ask.png" width="460" alt="Two independent Level 2 approval cards, each with its own approval id and Yes / No answer">
+<img src="docs/screenshot-ask-v6.png" width="460" alt="Live v6 dark Mission Console: isometric house with 11 device lights, two independent Level 2 approval cards, and status log">
 
 ---
 
