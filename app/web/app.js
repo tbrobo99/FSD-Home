@@ -52,6 +52,11 @@ async function api(path, opts) {
     headers: { "Content-Type": "application/json" },
     ...(opts || {}),
   });
+  if (res.status === 401) {
+    // Demo password gate: session expired or not signed in.
+    location.href = "/login";
+    throw new Error("login required");
+  }
   if (!res.ok) throw new Error(`HTTP ${res.status}`);
   return res.json();
 }
@@ -1125,7 +1130,78 @@ $("#tts").addEventListener("click", () => {
   toast(ttsOn ? "Reading replies aloud" : "Reading aloud off");
 });
 
+/* ---------- live notifications ---------- */
+
+function notificationSupported() {
+  return "Notification" in window && "EventSource" in window;
+}
+
+function updateNotifyButton() {
+  const btn = $("#notifyToggle");
+  if (!btn || !notificationSupported()) return;
+  const state = Notification.permission;
+  btn.hidden = false;
+  btn.textContent = state === "granted" ? "Alerts on"
+                  : state === "denied" ? "Alerts blocked"
+                  : "Enable alerts";
+  btn.setAttribute("aria-pressed", String(state === "granted"));
+}
+
+// The stream carries live events from the proactive loop. Show a system
+// notification for each; in-page activity already appears in the log, so a
+// notification is a nudge, never the only copy of the information.
+function startEventStream() {
+  if (!notificationSupported() || Notification.permission !== "granted") return;
+  try {
+    const es = new EventSource("/api/events");
+    es.onmessage = (e) => {
+      let ev;
+      try { ev = JSON.parse(e.data); } catch (_) { return; }
+      if (!ev || !ev.title) return;
+      try {
+        new Notification(ev.title, {
+          body: ev.body || "",
+          tag: ev.kind || "home-agent",
+        });
+      } catch (_) { /* some browsers require a service worker registration */ }
+    };
+  } catch (_) { /* EventSource unavailable: in-page log still works */ }
+}
+
 /* ---------- boot ---------- */
+
+if (notificationSupported()) {
+  const btn = $("#notifyToggle");
+  updateNotifyButton();
+  if (btn) btn.addEventListener("click", async () => {
+    const perm = await Notification.requestPermission();
+    updateNotifyButton();
+    if (perm === "granted") {
+      startEventStream();
+      toast("Alerts on — you'll be notified while this page is open");
+    }
+  });
+  startEventStream();
+}
+
+// Demo password gate: show Sign out only when the server actually requires
+// a password. A local run has auth disabled and never shows the button.
+(async () => {
+  try {
+    const r = await fetch("/api/auth");
+    const info = await r.json();
+    if (info.enabled) {
+      const btn = $("#signOut");
+      if (btn) {
+        btn.hidden = false;
+        btn.addEventListener("click", async () => {
+          await fetch("/api/logout", { method: "POST" }).catch(() => {});
+          location.href = "/login";
+        });
+      }
+    }
+  } catch (_) { /* offline / no gate: keep local runs clean */ }
+})();
 
 refresh();
 renderLangButton();

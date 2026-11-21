@@ -3,12 +3,14 @@ from __future__ import annotations
 
 import json
 import mimetypes
+import queue
 import re
+import time
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from pathlib import Path
 from urllib.parse import parse_qs, urlparse
 
-from . import audit, db
+from . import audit, auth, db, events
 
 WEB_DIR = Path(__file__).resolve().parent / "web"
 
@@ -56,6 +58,67 @@ class Handler(BaseHTTPRequestHandler):
         except (ValueError, json.JSONDecodeError):
             return {}
 
+    # ------------------------------------------------ auth gate
+
+    def _cookie(self, name: str) -> str:
+        for part in (self.headers.get("Cookie") or "").split(";"):
+            k, _, v = part.strip().partition("=")
+            if k == name:
+                return v
+        return ""
+
+    def _is_public(self, path: str) -> bool:
+        # Everything needed to render the login page stays public; all data
+        # and control routes are gated. Local runs (no DEMO_PASSWORD) never
+        # reach here as gated, because auth.enabled() is False.
+        return path in ("/login", "/login.html", "/api/login", "/api/auth")
+
+    def _authorized(self, path: str) -> bool:
+        if not auth.enabled() or self._is_public(path):
+            return True
+        return auth.verify_token(self._cookie(auth.COOKIE))
+
+    def _secure_cookie(self) -> bool:
+        # Behind Caddy the browser is on HTTPS; trust its forwarded header so
+        # the cookie gets the Secure flag, but stay HTTP-friendly locally.
+        fwd = (self.headers.get("X-Forwarded-Proto") or "").lower()
+        return "https" in fwd or getattr(self.connection, "cipher", None) is not None
+
+    def _deny(self) -> None:
+        self._json({"error": "login required"}, 401)
+
+    def _sse(self) -> None:
+        """Server-sent events: push live notifications to an open page.
+
+        Kept deliberately simple and bounded: a 60 s stream, a heartbeat every
+        15 s so proxies do not drop it, and a queue per subscriber. The client
+        reconnects automatically, so expiry is a feature, not a leak.
+        """
+        self.send_response(200)
+        self.send_header("Content-Type", "text/event-stream; charset=utf-8")
+        self.send_header("Cache-Control", "no-cache")
+        self.send_header("Connection", "keep-alive")
+        self.send_header("X-Accel-Buffering", "no")
+        self.end_headers()
+        q = events.subscribe()
+        deadline = time.monotonic() + 60
+        next_ping = time.monotonic() + 15
+        try:
+            while time.monotonic() < deadline:
+                try:
+                    ev = q.get(timeout=0.5)
+                    self.wfile.write(events.sse(ev).encode("utf-8"))
+                    self.wfile.flush()
+                except queue.Empty:
+                    if time.monotonic() >= next_ping:
+                        self.wfile.write(b": ping\n\n")
+                        self.wfile.flush()
+                        next_ping = time.monotonic() + 15
+        except (BrokenPipeError, ConnectionResetError, OSError):
+            pass
+        finally:
+            events.unsubscribe(q)
+
     def _static(self, rel: str) -> None:
         rel = rel.lstrip("/") or "index.html"
         if not re.fullmatch(r"[A-Za-z0-9_\-./]+", rel) or ".." in rel:
@@ -77,8 +140,18 @@ class Handler(BaseHTTPRequestHandler):
     def do_GET(self) -> None:
         url = urlparse(self.path)
         path = url.path
+        if path == "/api/auth":
+            return self._json({"enabled": auth.enabled(),
+                               "authenticated": not auth.enabled() or
+                               auth.verify_token(self._cookie(auth.COOKIE))})
+        if path in ("/login", "/login.html"):
+            return self._static("login.html")
+        if not self._authorized(path):
+            return self._deny()
         if path in ("/", "/index.html"):
             return self._static("index.html")
+        if path == "/api/events":
+            return self._sse()
         if path in ("/soft", "/soft/", "/soft/index.html"):
             # The v3 "soft modern" interface from the Figma design (savings
             # card, region and language pickers). "/" keeps the v1-v6 switcher.
@@ -120,6 +193,16 @@ class Handler(BaseHTTPRequestHandler):
         if path == "/api/proactive":
             engine = getattr(self.agent_ref, "proactive", None)
             return self._json(engine.state() if engine else {"running": False})
+        if path == "/api/preferences":
+            engine = getattr(self.agent_ref, "proactive", None)
+            if not engine or not getattr(engine, "learn_enabled", False):
+                return self._json({"enabled": False, "preferences": []})
+            from . import preference
+            try:
+                return self._json({"enabled": True,
+                                   "preferences": preference.all_preferences()})
+            except Exception:
+                return self._json({"enabled": True, "preferences": []})
         if path.startswith("/api/"):
             return self._json({"error": "not found"}, 404)
         return self._static(path)
@@ -127,6 +210,30 @@ class Handler(BaseHTTPRequestHandler):
     def do_POST(self) -> None:
         path = urlparse(self.path).path
         body = self._body()
+
+        if path == "/api/login":
+            if not auth.enabled():
+                return self._json({"ok": True, "enabled": False})
+            if not auth.check(str(body.get("password") or "")):
+                return self._json({"error": "wrong password"}, 401)
+            token = auth.issue_token()
+            self.send_response(200)
+            self.send_header("Content-Type", "application/json; charset=utf-8")
+            self.send_header("Set-Cookie", auth.cookie_header(token, self._secure_cookie()))
+            self.send_header("Cache-Control", "no-store")
+            self.end_headers()
+            self.wfile.write(b'{"ok":true,"enabled":true}')
+            return
+        if path == "/api/logout":
+            self.send_response(200)
+            self.send_header("Content-Type", "application/json; charset=utf-8")
+            self.send_header("Set-Cookie", auth.clear_cookie_header())
+            self.send_header("Cache-Control", "no-store")
+            self.end_headers()
+            self.wfile.write(b'{"ok":true}')
+            return
+        if not self._authorized(path):
+            return self._deny()
 
         if path == "/api/chat":
             text = (body.get("text") or "").strip()
@@ -189,6 +296,8 @@ class Handler(BaseHTTPRequestHandler):
 
     def do_DELETE(self) -> None:
         path = urlparse(self.path).path
+        if not self._authorized(path):
+            return self._deny()
         m = re.fullmatch(r"/api/jobs/([A-Za-z0-9_]+)", path)
         if m:
             ok = db.delete_job(m.group(1))
