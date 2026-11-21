@@ -34,7 +34,6 @@ let sheetId = null;
 let chipsSig = "";
 let askSig = null;         // signature of the pending approval queue
 let askBusy = false;
-let spokenAsks = new Set();
 let knownAskIds = new Set(); // approvals already present when this page opened
 let askInitialised = false;
 let auditRows = null;     // /api/audit, FR-6 trail
@@ -117,8 +116,8 @@ let voiceFinals = 0;           // finalised phrases the engine has handed back
 let voiceInterim = "";         // the last thing the engine was still guessing at
 let voiceLastHeard = 0;        // when any text last arrived from the engine
 
-function speak(text, force) {
-  if (!(ttsOn || force) || !("speechSynthesis" in window)) return;
+function speak(text) {
+  if (!ttsOn || !("speechSynthesis" in window)) return;
   const clean = String(text || "").replace(/\s+/g, " ").trim();
   if (!clean) return;
   window.speechSynthesis.cancel();
@@ -420,14 +419,9 @@ function renderAsk() {
           <p class="ask-clock" data-clock="${esc(ap.id)}"></p>
         </div>`;
     }).join("");
-    // A page reload must not start talking at the resident. Existing cards are
-    // visible immediately; speak only an approval that arrives after the page
-    // has already seen its initial state. Two questions in a row still cut
-    // each other off, so announce at most the first newly-arrived card.
-    if (newAsk && askInitialised && !spokenAsks.has(newAsk.id)) {
-      spokenAsks.add(newAsk.id);
-      speak(newAsk.question || newAsk.summary, true);
-    }
+    // Existing cards stay silent on reload. New cards are read only when the
+    // resident has explicitly enabled Read aloud.
+    if (newAsk && askInitialised) speak(newAsk.question || newAsk.summary);
     list.forEach((ap) => knownAskIds.add(ap.id));
     askInitialised = true;
   }
@@ -707,11 +701,8 @@ function addMsg(role, text, message, opts = {}) {
   chatBox().appendChild(el);
   scrollChatToEnd(opts.force);
 
-  // Read replies aloud when asked to — and always read a Tier-2 question,
-  // because that is the one message that must not be missed. A transcript
-  // rebuild is not a new message and must stay silent.
-  const approval = message && message.payload && message.payload.approval;
-  if (!opts.silent && (ttsOn || approval)) speak(text);
+  // Transcript rebuilds are silent; live replies follow Read aloud.
+  if (!opts.silent) speak(text);
   return el;
 }
 
@@ -783,7 +774,7 @@ async function send(text) {
     });
     pending.remove();
     addMsg("assistant", data.reply || "…", { ts: new Date().toISOString(), payload: data });
-    showReply(data.reply || "");
+    showReply(data.reply || "", false);
     await refresh();
     return data.reply || "";
   } catch (err) {
@@ -855,13 +846,13 @@ function toast(text) {
 /* Kept on screen until the next one. The old path showed a reply as a toast for
    2.6 s and cut it to its first line — the answer to "it's stuffy" arrived,
    was shown in 15 px type, and was gone before anyone could read it. */
-function showReply(text) {
+function showReply(text, readAloud = true) {
   const clean = String(text || "").trim();
   if (!clean) return;
   $("#replyText").textContent = clean;
   $("#reply").hidden = false;
   $("#reply").classList.remove("pending");
-  speak(clean);
+  if (readAloud) speak(clean);
 }
 
 /* Something on screen the moment the button is pressed. A 5-second wait with
