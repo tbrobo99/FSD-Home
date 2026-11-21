@@ -435,8 +435,8 @@ let voiceFinals = 0;           // finalised phrases the engine has handed back
 let voiceInterim = "";         // the last thing the engine was still guessing at
 let voiceLastHeard = 0;        // when any text last arrived from the engine
 
-function speak(text, force) {
-  if (!(ttsOn || force) || !("speechSynthesis" in window)) return;
+function speak(text) {
+  if (!ttsOn || !("speechSynthesis" in window)) return;
   const clean = String(text || "").replace(/\s+/g, " ").trim();
   if (!clean) return;
   window.speechSynthesis.cancel();
@@ -880,12 +880,11 @@ function renderAsk() {
       }).join("")}
       <p class="rule">${esc(t("ask.rule"))}</p>`;
     if (askDismissed !== sig) openSheet("askSheet");
-    // One spoken prompt for the whole set, so two questions never cut each
-    // other off. Read aloud regardless of the read-aloud setting.
+    // One spoken prompt for the whole set, only when Read aloud is enabled.
     if (spokenAsks !== sig) {
       spokenAsks = sig;
       const qs = list.map((ap) => questionText(ap).q).join(" ");
-      speak(`${title}. ${list.length === 1 ? t("ask.speakOne") : t("ask.speakN", { n: list.length })} ${qs}`, true);
+      speak(`${title}. ${list.length === 1 ? t("ask.speakOne") : t("ask.speakN", { n: list.length })} ${qs}`);
     }
   }
   const lefts = list.map(askLeft);
@@ -1096,11 +1095,8 @@ function addMsg(role, text, message, opts = {}) {
   chatBox().appendChild(el);
   scrollChatToEnd(opts.force);
 
-  // Read replies aloud when asked to — and always read a Tier-2 question,
-  // because that is the one message that must not be missed. A transcript
-  // rebuild is not a new message and must stay silent.
-  const approval = message && message.payload && message.payload.approval;
-  if (!opts.silent && (ttsOn || approval)) speak(text);
+  // Transcript rebuilds are silent; live replies follow Read aloud.
+  if (!opts.silent) speak(text);
   return el;
 }
 
