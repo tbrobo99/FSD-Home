@@ -245,9 +245,13 @@ python -m eval.run
 python -m eval.latency
 ```
 
+`docs/TEST_PLAN.md` records the test cases with expected / actual / status,
+based on commands actually run (364 tests OK, plus the intent regression).
+
 The unit suite covers the risk indices, the seven-action whitelist, per-action
 approvals, pre-execution revalidation, cooktop safeguards, the append-only
-audit trail, and the command / conversation split (`tests/test_chat.py`
+audit trail, the demo password gate, live notifications, optional preference
+learning, and the command / conversation split (`tests/test_chat.py`
 uses a scripted model to check that a chat request carries no tools and that
 no device write or audit action follows a greeting). `eval.run` is the
 intent-parser regression suite. `eval.latency`
@@ -266,6 +270,15 @@ unit tests and `eval.run` on Windows and Linux with Python 3.10, 3.12 and 3.13.
 - **Optional LG ThinQ adapter:** `app/devices/thinq.py`, with `dry_run` enabled
   by default. Real-device control needs the optional `thinqconnect` SDK and
   payload calibration per appliance model.
+- **Demo password:** set `DEMO_PASSWORD` in the environment to require a
+  password on a hosted copy. Local runs have no gate. A signed cookie keeps
+  the session for 24 h; rotating the password signs everyone out.
+- **Live notifications:** with `Enable alerts` the page shows browser
+  notifications for Tier-2 approvals, automatic actions and the dryer
+  reminder. They arrive over server-sent events while a page is open.
+- **Preference learning:** off by default. When enabled it records repeated
+  explicit answers so a future version could ask less often; it never skips a
+  Tier-2 approval or changes the safety rules.
 - **Scope:** simulated sensors and appliances for the course demonstration;
   local, single-user environment; voice input needs browser speech support,
   typing remains available.

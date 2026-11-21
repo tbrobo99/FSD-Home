@@ -46,6 +46,14 @@ DEFAULTS: dict = {
         "max_tokens": 200,
         "timeout": 8,
     },
+    # Preference learning is OFF by default. When enabled, repeated explicit
+    # approvals of the same risk/action pair are recorded; nothing executes
+    # differently and FR-4 approvals are never skipped. It is a record of
+    # habit for a future opt-in version, not a change to the safety model.
+    "preference": {
+        "learn_enabled": False,
+        "threshold": 3,
+    },
     "agent": {
         # used when the user does not name a room
         "default_room": "Living Room",

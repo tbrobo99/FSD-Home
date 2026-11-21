@@ -36,7 +36,7 @@ import threading
 import time
 from datetime import datetime
 
-from . import approval, audit, db, llm, policy, risk, sensors
+from . import approval, audit, db, events, llm, policy, preference, risk, sensors
 
 DECIDE_SYSTEM = """You are the decision layer of a proactive smart-home agent for a
 household that includes a senior. Sensors have flagged a risk; rules have
@@ -155,6 +155,18 @@ class ProactiveEngine:
         # putting the Tier-2 question to the user would mean asking the same
         # question every five minutes for as long as the condition lasts.
         self.quiet_seconds = float(pcfg.get("quiet_seconds", 1800))
+        # Preference learning records a user's repeated explicit answers so a
+        # future version could ask less often. It is OFF by default and never
+        # changes what this engine executes: every Tier-2 answer still goes
+        # through confirm()/decline() exactly as FR-4 requires.
+        self.learn_enabled = preference.learning_enabled(cfg)
+        if self.learn_enabled:
+            try:
+                preference.init()
+            except Exception as exc:
+                db.log("preference.init_failed", str(exc), "error")
+                self.learn_enabled = False
+        self.learn_threshold = int((cfg.get("preference") or {}).get("threshold", 3))
         self.llm_decide = bool(pcfg.get("llm_decide", True)) and llm.available(cfg)
         # Off by default. The template question already names the situation, the
         # change, the deadline and the one-word answer; the model's version was
@@ -331,6 +343,9 @@ class ProactiveEngine:
                              "audit_blocked": bool(res.get("audit_blocked"))})
             db.log("proactive.tier1",
                    f"{r.kind}: {c.label} -> {'ok' if ok else res.get('error')}")
+            if ok:
+                events.emit("action", "Actioned automatically", c.label,
+                            risk_kind=r.kind, tier=policy.TIER1)
 
         # FR-4: one approval, one action, one question, one approval_id. A
         # "yes" to stopping the dryer can never authorise the cooktop.
@@ -352,6 +367,12 @@ class ProactiveEngine:
             approval_ids.append(ap.id)
             questions.append(question)
         if questions:
+            # Live notification: the page pushes this to the browser's system
+            # tray while it is open. Best-effort; a failure here never blocks
+            # the approval card or the safety loop.
+            events.emit("approval", "Your home needs an answer",
+                        questions[0], risk_kind=r.kind,
+                        approval_ids=approval_ids)
             # One announcement in the transcript; the interface renders one
             # card per question. Two text-to-speech prompts back to back would
             # cut each other off, so the spoken aid covers the batch once.
@@ -567,6 +588,12 @@ class ProactiveEngine:
 
         self.sensors.note_action(item["device_id"], item["actions"])
         kind = item.get("kind") or ap.action_kind
+        if self.learn_enabled:
+            try:
+                preference.record_decision(ap.risk_kind, kind, True,
+                                           threshold=self.learn_threshold)
+            except Exception as exc:
+                db.log("preference.record_failed", str(exc), "error")
         if kind == "preheat_cooktop":
             self._cooktop_on_since = time.monotonic()
             self._cooktop_last_cooking = (time.monotonic()
@@ -589,6 +616,13 @@ class ProactiveEngine:
         # No is an answer. Asking again in three minutes is not respect, it is
         # a machine that did not listen.
         self._cooldown[ap.risk_kind] = time.monotonic() + self.quiet_seconds
+        if self.learn_enabled:
+            try:
+                kind = ap.action_kind or (ap.actions[0].get("kind") if ap.actions else "")
+                preference.record_decision(ap.risk_kind, kind, False,
+                                           threshold=self.learn_threshold)
+            except Exception as exc:
+                db.log("preference.record_failed", str(exc), "error")
         db.add_message("system",
                        f"\u2717 All right \u2014 I left {_devices(ap)} as it was.",
                        {"approval": ap.to_dict()})
@@ -744,6 +778,8 @@ class ProactiveEngine:
         if "thermal" in fired_kinds:
             return []                              # still too hot; wait
         self._pending_dryer_reminder = False
+        events.emit("reminder", "Dryer is still off",
+                    "The kitchen cooled down. Restart it yourself when ready.")
         db.add_message("system",
                        "\U0001f514 The kitchen has cooled down. The dryer is still off "
                        "\u2014 you can start it yourself when you are ready. "
