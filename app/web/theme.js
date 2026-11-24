@@ -32,8 +32,9 @@
     v6: ["/themes/v4-dual.css", "/themes/v6-mission.css"],
   };
   // Default is v6: both ends come from the same overlay, so nothing has to be
-  // switched when moving from a phone to a laptop / projector. v0..v5 stay
-  // available via ?ui= for comparison.
+  // switched when moving from a phone to a laptop / projector. Older overlays
+  // stay in this map and remain reachable via ?ui=, but the on-screen switcher
+  // shows only v6 so the demo has a single, consistent interface.
   const DEFAULT = "v6";
   const KEY = "lg-ui-version";
   const $ = (s) => document.querySelector(s);
@@ -426,6 +427,14 @@
           const url = new URL(location.href);
           url.searchParams.set("ui", next);
           location.href = url.toString();
+        });
+      });
+      // v7 is the team's separate Figma front end at /soft/, not an overlay.
+      // Open it in a new tab so this page keeps its own version and the two
+      // interfaces can be shown side by side during a demo.
+      box.querySelectorAll("[data-open]").forEach((btn) => {
+        btn.addEventListener("click", () => {
+          window.open(btn.dataset.open, "_blank", "noopener");
         });
       });
     }
