@@ -7,8 +7,8 @@
  * /api/proactive and /api/audit. The three stylesheets are overlays on the
  * shared style.css, so every existing id and class keeps its meaning.
  *
- * Pick a version with ?ui=v0 / v1 / v2 / v3 / v4 (v0 = original). The choice
- * is remembered in localStorage until changed again.
+ * Pick a version with ?ui=v0 through ?ui=v6 (v0 = original). The choice
+ * is remembered in localStorage until changed again. UI 7 is the team dashboard page.
  */
 
 (function () {
@@ -32,9 +32,8 @@
     v6: ["/themes/v4-dual.css", "/themes/v6-mission.css"],
   };
   // Default is v6: both ends come from the same overlay, so nothing has to be
-  // switched when moving from a phone to a laptop / projector. Older overlays
-  // stay in this map and remain reachable via ?ui=, but the on-screen switcher
-  // shows only v6 so the demo has a single, consistent interface.
+  // switched when moving from a phone to a laptop / projector. The on-screen
+  // switcher keeps every earlier proposal available for comparison.
   const DEFAULT = "v6";
   const KEY = "lg-ui-version";
   const $ = (s) => document.querySelector(s);
@@ -429,12 +428,12 @@
           location.href = url.toString();
         });
       });
-      // v7 is the team dashboard preview at /dashboard/, not an overlay.
-      // Open it in a new tab so this page keeps its own version and the two
-      // interfaces can be shown side by side during a demo.
+      // UI 7 is the team dashboard at /dashboard/. It is a separate page rather
+      // than a stylesheet overlay, so switch to it in the current tab just like
+      // the earlier versions instead of opening an extra tab.
       box.querySelectorAll("[data-open]").forEach((btn) => {
         btn.addEventListener("click", () => {
-          window.open(btn.dataset.open, "_blank", "noopener");
+          location.href = btn.dataset.open;
         });
       });
     }
