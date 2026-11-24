@@ -87,6 +87,17 @@
   </symbol>
 </svg>
 
+<!-- Switch back to the main v6 console served at / (Caddy routes /dashboard/
+     here as a separate service). Self-contained so the dashboard stylesheet
+     and the rest of this page stay untouched. -->
+<a href="/?ui=v6" aria-label="Back to Console" title="Back to Console"
+   style="position:fixed;top:8px;right:8px;z-index:60;display:inline-flex;align-items:center;gap:5px;
+          padding:5px 11px;border-radius:999px;background:rgba(25,31,40,.82);color:#fff;
+          font:600 12px/1 system-ui,sans-serif;text-decoration:none;border:1px solid rgba(255,255,255,.22);
+          box-shadow:0 2px 8px rgba(16,24,40,.2)">
+  <span style="font-size:13px">&#8592;</span> Console
+</a>
+
 <div class="app">
 
   <!-- ================= HOME ================= -->
