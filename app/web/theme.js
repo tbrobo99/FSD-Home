@@ -429,7 +429,7 @@
           location.href = url.toString();
         });
       });
-      // v7 is the team's separate Figma front end at /soft/, not an overlay.
+      // v7 is the team dashboard preview at /dashboard/, not an overlay.
       // Open it in a new tab so this page keeps its own version and the two
       // interfaces can be shown side by side during a demo.
       box.querySelectorAll("[data-open]").forEach((btn) => {
