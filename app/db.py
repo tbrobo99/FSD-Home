@@ -110,6 +110,13 @@ CREATE INDEX IF NOT EXISTS idx_energy_decisions_ts ON energy_decisions(ts);
 
 -- FR-8: a decision record is evidence. Like audit_log, it must survive an
 -- application bug or a mistaken cleanup — no UPDATE, no DELETE, ever.
+-- Household energy settings that outlive a billing month (the max kW cap).
+CREATE TABLE IF NOT EXISTS energy_settings (
+    key        TEXT PRIMARY KEY,
+    value      TEXT,
+    updated_at TEXT
+);
+
 CREATE TRIGGER IF NOT EXISTS energy_decisions_no_update BEFORE UPDATE ON energy_decisions
 BEGIN SELECT RAISE(ABORT, 'energy_decisions is append-only'); END;
 CREATE TRIGGER IF NOT EXISTS energy_decisions_no_delete BEFORE DELETE ON energy_decisions
@@ -207,6 +214,16 @@ def update_job_after_run(job_id: str, next_run_at: str | None,
             "UPDATE jobs SET last_run_at=?, last_result=?, next_run_at=?, enabled=?"
             " WHERE id=?",
             (now_iso(), result, next_run_at, 0 if disable else 1, job_id),
+        )
+
+
+def defer_job(job_id: str, next_run_at: str, result: str, rule: dict) -> None:
+    """Move a due job to a later time and keep it enabled (max kW re-check)."""
+    with _lock, conn() as c:
+        c.execute(
+            "UPDATE jobs SET last_run_at=?, last_result=?, next_run_at=?, rule=?, enabled=1"
+            " WHERE id=?",
+            (now_iso(), result, next_run_at, json.dumps(rule, ensure_ascii=False), job_id),
         )
 
 

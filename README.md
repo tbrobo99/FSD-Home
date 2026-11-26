@@ -451,6 +451,59 @@ curl http://127.0.0.1:8860/api/audit
 curl http://127.0.0.1:8860/api/savings
 ```
 
+### Scenario 4 — max kW limit ("not now — later")
+
+The monthly budget counts kWh; the max kW limit caps how much the house draws
+*at once*. Set it in the Energy tab (**Max kW limit**) or:
+
+```bash
+curl -X POST http://127.0.0.1:8860/api/budget \
+  -H "Content-Type: application/json" -d '{"max_kw":3.0}'
+```
+
+Then ask for a chore while the house is busy:
+
+```text
+turn on the dryer
+→ Not now. The house is drawing 2.0 kW and Balcony Dryer would take it to 3.4 kW,
+  over your 3 kW limit. Booked for 22:00; it will start by itself then if it fits.
+```
+
+Rules (`budget.can_start`, Strict Mode only):
+
+| Load | Over the limit |
+|---|---|
+| Washer, dryer, dishwasher (not yet running) | **DELAY**: off-peak start if in the peak band, otherwise at least 30 min later |
+| Other loads a user starts (e.g. dehumidifier) | **BLOCK**: switch something off first or raise the limit |
+| Air conditioner, fridge, purifier, range hood | never limited (heat, food, air) |
+| The proactive engine's own risk responses | never refused by the limit |
+
+A booked job is checked again when it comes due. If the house is still too
+busy it moves another 30 minutes, up to 6 hours, then reports that it did
+not start. A booking is never a licence to exceed the limit later.
+
+### Evaluation — one simulated week, before and after
+
+`python -m eval.week` runs the same model household for a week three times,
+with every FSD start going through the real `budget.can_start()`:
+
+| | No FSD | Peak shift only | Peak shift + 3 kW cap |
+|---|---:|---:|---:|
+| Minutes over 3 kW | 490 | 570 | 210 |
+| … caused by cooking / cooling alone | 210 | 210 | 210 |
+| kWh in the 16–22 h peak band | 75.0 | 52.4 | 52.4 |
+| Time-of-use cost (₩) | 23,916 | 22,068 | 22,068 |
+| Chores done | 19 | 19 | 19 |
+| Average wait (min) | 0 | 104 | 142 |
+
+Peak shifting alone moves every chore to 22:00 and creates a new peak there
+(more minutes over 3 kW than doing nothing). The cap staggers them: every
+minute still over 3 kW is caused by cooking and cooling, which FSD may not
+move. Total kWh and CO₂ do not change — shifting a load in time saves money
+and peak load, not energy. Full table and load curves: `docs/eval/week.md`.
+
+![Simulated load curves](docs/eval/week.svg)
+
 ### Additional safety scenario 1 — mold risk
 
 ```bash
@@ -511,6 +564,7 @@ directory starts from clean device defaults.
 python -m unittest discover -s tests -v
 python -m eval.run
 python -m eval.latency
+python -m eval.week
 ```
 
 `docs/TEST_PLAN.md` records the historical test cases with expected / actual /

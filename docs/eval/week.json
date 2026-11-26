@@ -1,0 +1,401 @@
+{
+  "assumptions": {
+    "region": "KR",
+    "max_kw": 3.0,
+    "start": "2026-11-23T00:00:00",
+    "days": 7,
+    "step_min": 1,
+    "seed": 7
+  },
+  "results": {
+    "no_fsd": {
+      "peak_kw": 6.015,
+      "minutes_over_cap": 490,
+      "minutes_over_cap_unmovable": 210,
+      "kwh": 128.2,
+      "peak_band_kwh": 75.0,
+      "cost_krw": 23916,
+      "co2_kg": 53.5,
+      "chores_done": 19,
+      "chores_not_done": 0,
+      "avg_wait_min": 0,
+      "max_wait_min": 0
+    },
+    "peak_shift": {
+      "peak_kw": 5.515,
+      "minutes_over_cap": 570,
+      "minutes_over_cap_unmovable": 210,
+      "kwh": 128.2,
+      "peak_band_kwh": 52.4,
+      "cost_krw": 22068,
+      "co2_kg": 53.5,
+      "chores_done": 19,
+      "chores_not_done": 0,
+      "avg_wait_min": 104,
+      "max_wait_min": 220
+    },
+    "max_kw": {
+      "peak_kw": 5.515,
+      "minutes_over_cap": 210,
+      "minutes_over_cap_unmovable": 210,
+      "kwh": 128.2,
+      "peak_band_kwh": 52.4,
+      "cost_krw": 22068,
+      "co2_kg": 53.5,
+      "chores_done": 19,
+      "chores_not_done": 0,
+      "avg_wait_min": 142,
+      "max_wait_min": 220
+    }
+  },
+  "starts": {
+    "no_fsd": [
+      {
+        "device": "washer",
+        "asked": "2026-11-23T18:50",
+        "started": "2026-11-23T18:50",
+        "wait_min": 0
+      },
+      {
+        "device": "dish_washer",
+        "asked": "2026-11-23T19:50",
+        "started": "2026-11-23T19:50",
+        "wait_min": 0
+      },
+      {
+        "device": "dryer",
+        "asked": "2026-11-23T19:50",
+        "started": "2026-11-23T19:50",
+        "wait_min": 0
+      },
+      {
+        "device": "washer",
+        "asked": "2026-11-24T19:00",
+        "started": "2026-11-24T19:00",
+        "wait_min": 0
+      },
+      {
+        "device": "dish_washer",
+        "asked": "2026-11-24T19:50",
+        "started": "2026-11-24T19:50",
+        "wait_min": 0
+      },
+      {
+        "device": "dryer",
+        "asked": "2026-11-24T20:00",
+        "started": "2026-11-24T20:00",
+        "wait_min": 0
+      },
+      {
+        "device": "washer",
+        "asked": "2026-11-25T18:20",
+        "started": "2026-11-25T18:20",
+        "wait_min": 0
+      },
+      {
+        "device": "dryer",
+        "asked": "2026-11-25T19:20",
+        "started": "2026-11-25T19:20",
+        "wait_min": 0
+      },
+      {
+        "device": "dish_washer",
+        "asked": "2026-11-25T20:30",
+        "started": "2026-11-25T20:30",
+        "wait_min": 0
+      },
+      {
+        "device": "dish_washer",
+        "asked": "2026-11-26T19:50",
+        "started": "2026-11-26T19:50",
+        "wait_min": 0
+      },
+      {
+        "device": "washer",
+        "asked": "2026-11-27T18:50",
+        "started": "2026-11-27T18:50",
+        "wait_min": 0
+      },
+      {
+        "device": "dish_washer",
+        "asked": "2026-11-27T19:50",
+        "started": "2026-11-27T19:50",
+        "wait_min": 0
+      },
+      {
+        "device": "dryer",
+        "asked": "2026-11-27T19:50",
+        "started": "2026-11-27T19:50",
+        "wait_min": 0
+      },
+      {
+        "device": "washer",
+        "asked": "2026-11-28T19:00",
+        "started": "2026-11-28T19:00",
+        "wait_min": 0
+      },
+      {
+        "device": "dryer",
+        "asked": "2026-11-28T20:00",
+        "started": "2026-11-28T20:00",
+        "wait_min": 0
+      },
+      {
+        "device": "dish_washer",
+        "asked": "2026-11-28T20:20",
+        "started": "2026-11-28T20:20",
+        "wait_min": 0
+      },
+      {
+        "device": "washer",
+        "asked": "2026-11-29T19:00",
+        "started": "2026-11-29T19:00",
+        "wait_min": 0
+      },
+      {
+        "device": "dish_washer",
+        "asked": "2026-11-29T19:50",
+        "started": "2026-11-29T19:50",
+        "wait_min": 0
+      },
+      {
+        "device": "dryer",
+        "asked": "2026-11-29T20:00",
+        "started": "2026-11-29T20:00",
+        "wait_min": 0
+      }
+    ],
+    "peak_shift": [
+      {
+        "device": "washer",
+        "asked": "2026-11-23T18:50",
+        "started": "2026-11-23T22:00",
+        "wait_min": 190
+      },
+      {
+        "device": "dish_washer",
+        "asked": "2026-11-23T19:50",
+        "started": "2026-11-23T22:00",
+        "wait_min": 130
+      },
+      {
+        "device": "dryer",
+        "asked": "2026-11-23T23:00",
+        "started": "2026-11-23T23:00",
+        "wait_min": 0
+      },
+      {
+        "device": "washer",
+        "asked": "2026-11-24T19:00",
+        "started": "2026-11-24T22:00",
+        "wait_min": 180
+      },
+      {
+        "device": "dish_washer",
+        "asked": "2026-11-24T19:50",
+        "started": "2026-11-24T22:00",
+        "wait_min": 130
+      },
+      {
+        "device": "dryer",
+        "asked": "2026-11-24T23:00",
+        "started": "2026-11-24T23:00",
+        "wait_min": 0
+      },
+      {
+        "device": "washer",
+        "asked": "2026-11-25T18:20",
+        "started": "2026-11-25T22:00",
+        "wait_min": 220
+      },
+      {
+        "device": "dish_washer",
+        "asked": "2026-11-25T20:30",
+        "started": "2026-11-25T22:00",
+        "wait_min": 90
+      },
+      {
+        "device": "dryer",
+        "asked": "2026-11-25T23:00",
+        "started": "2026-11-25T23:00",
+        "wait_min": 0
+      },
+      {
+        "device": "dish_washer",
+        "asked": "2026-11-26T19:50",
+        "started": "2026-11-26T22:00",
+        "wait_min": 130
+      },
+      {
+        "device": "washer",
+        "asked": "2026-11-27T18:50",
+        "started": "2026-11-27T22:00",
+        "wait_min": 190
+      },
+      {
+        "device": "dish_washer",
+        "asked": "2026-11-27T19:50",
+        "started": "2026-11-27T22:00",
+        "wait_min": 130
+      },
+      {
+        "device": "dryer",
+        "asked": "2026-11-27T23:00",
+        "started": "2026-11-27T23:00",
+        "wait_min": 0
+      },
+      {
+        "device": "washer",
+        "asked": "2026-11-28T19:00",
+        "started": "2026-11-28T22:00",
+        "wait_min": 180
+      },
+      {
+        "device": "dish_washer",
+        "asked": "2026-11-28T20:20",
+        "started": "2026-11-28T22:00",
+        "wait_min": 100
+      },
+      {
+        "device": "dryer",
+        "asked": "2026-11-28T23:00",
+        "started": "2026-11-28T23:00",
+        "wait_min": 0
+      },
+      {
+        "device": "washer",
+        "asked": "2026-11-29T19:00",
+        "started": "2026-11-29T22:00",
+        "wait_min": 180
+      },
+      {
+        "device": "dish_washer",
+        "asked": "2026-11-29T19:50",
+        "started": "2026-11-29T22:00",
+        "wait_min": 130
+      },
+      {
+        "device": "dryer",
+        "asked": "2026-11-29T23:00",
+        "started": "2026-11-29T23:00",
+        "wait_min": 0
+      }
+    ],
+    "max_kw": [
+      {
+        "device": "washer",
+        "asked": "2026-11-23T18:50",
+        "started": "2026-11-23T22:00",
+        "wait_min": 190
+      },
+      {
+        "device": "dish_washer",
+        "asked": "2026-11-23T19:50",
+        "started": "2026-11-23T23:00",
+        "wait_min": 190
+      },
+      {
+        "device": "dryer",
+        "asked": "2026-11-23T23:00",
+        "started": "2026-11-24T00:00",
+        "wait_min": 60
+      },
+      {
+        "device": "washer",
+        "asked": "2026-11-24T19:00",
+        "started": "2026-11-24T22:00",
+        "wait_min": 180
+      },
+      {
+        "device": "dish_washer",
+        "asked": "2026-11-24T19:50",
+        "started": "2026-11-24T23:00",
+        "wait_min": 190
+      },
+      {
+        "device": "dryer",
+        "asked": "2026-11-24T23:00",
+        "started": "2026-11-25T00:00",
+        "wait_min": 60
+      },
+      {
+        "device": "washer",
+        "asked": "2026-11-25T18:20",
+        "started": "2026-11-25T22:00",
+        "wait_min": 220
+      },
+      {
+        "device": "dish_washer",
+        "asked": "2026-11-25T20:30",
+        "started": "2026-11-25T23:00",
+        "wait_min": 150
+      },
+      {
+        "device": "dryer",
+        "asked": "2026-11-25T23:00",
+        "started": "2026-11-26T00:00",
+        "wait_min": 60
+      },
+      {
+        "device": "dish_washer",
+        "asked": "2026-11-26T19:50",
+        "started": "2026-11-26T22:00",
+        "wait_min": 130
+      },
+      {
+        "device": "washer",
+        "asked": "2026-11-27T18:50",
+        "started": "2026-11-27T22:00",
+        "wait_min": 190
+      },
+      {
+        "device": "dish_washer",
+        "asked": "2026-11-27T19:50",
+        "started": "2026-11-27T23:00",
+        "wait_min": 190
+      },
+      {
+        "device": "dryer",
+        "asked": "2026-11-27T23:00",
+        "started": "2026-11-28T00:00",
+        "wait_min": 60
+      },
+      {
+        "device": "washer",
+        "asked": "2026-11-28T19:00",
+        "started": "2026-11-28T22:00",
+        "wait_min": 180
+      },
+      {
+        "device": "dish_washer",
+        "asked": "2026-11-28T20:20",
+        "started": "2026-11-28T23:00",
+        "wait_min": 160
+      },
+      {
+        "device": "dryer",
+        "asked": "2026-11-28T23:00",
+        "started": "2026-11-29T00:00",
+        "wait_min": 60
+      },
+      {
+        "device": "washer",
+        "asked": "2026-11-29T19:00",
+        "started": "2026-11-29T22:00",
+        "wait_min": 180
+      },
+      {
+        "device": "dish_washer",
+        "asked": "2026-11-29T19:50",
+        "started": "2026-11-29T23:00",
+        "wait_min": 190
+      },
+      {
+        "device": "dryer",
+        "asked": "2026-11-29T23:00",
+        "started": "2026-11-30T00:00",
+        "wait_min": 60
+      }
+    ]
+  }
+}

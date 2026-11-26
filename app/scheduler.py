@@ -104,6 +104,33 @@ class Scheduler:
             if verdict["decision"] == budget.BLOCK:
                 result = f"Blocked by budget: {verdict['reason']}"
                 db.log("scheduler.budget_blocked", f"{job['id']} {result}")
+            elif (verdict["decision"] == budget.DELAY
+                  and verdict.get("limit") == "max_kw"):
+                # The max kW cap is about the load *now*, so an old booking is
+                # no permission to exceed it. Try again later, but not forever.
+                rule = dict(job.get("rule") or {})
+                tries = int(rule.get("cap_retries", 0)) + 1
+                if tries <= budget.CAP_MAX_RETRIES:
+                    rule["cap_retries"] = tries
+                    when = verdict.get("scheduled_at")
+                    result = (f"Waiting: {verdict['reason']}; "
+                              f"next try {str(when)[11:16]}")
+                    db.defer_job(job["id"], when, result, rule)
+                    db.log("scheduler.max_kw_deferred", f"{job['id']} {result}")
+                    db.add_message(
+                        "system",
+                        f"\u23f3 {now.strftime('%H:%M')} {name} still does not fit "
+                        f"under {verdict.get('max_kw'):g} kW (house at "
+                        f"{verdict.get('load_kw'):.1f} kW). Trying again at "
+                        f"{str(when)[11:16]}.",
+                        {"job_id": job["id"], "energy_delay": True,
+                         "scheduled_at": when},
+                    )
+                    return
+                result = (f"Not started: {name} did not fit under "
+                          f"{verdict.get('max_kw'):g} kW in "
+                          f"{budget.CAP_MAX_RETRIES * budget.CAP_RETRY_MINUTES // 60} hours")
+                db.log("scheduler.max_kw_gave_up", f"{job['id']} {result}")
             elif verdict["decision"] == budget.DELAY:
                 # The job IS the deferral. Delaying again at execution time
                 # would push a task back forever. Honour the appointment, but
