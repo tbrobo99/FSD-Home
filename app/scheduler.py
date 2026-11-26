@@ -11,7 +11,7 @@ import threading
 import traceback
 from datetime import datetime
 
-from . import audit, db, nlu
+from . import audit, budget, db, nlu
 from .devices.base import describe_action
 
 
@@ -95,9 +95,30 @@ class Scheduler:
         elif not device.get("online", True):
             result = "Failed: device offline"
         else:
-            res = audit.execute(self.adapter, job["device_id"], job["actions"])
-            done = ", ".join(describe_action(a) for a in job["actions"])
-            result = f"Success: {done}" if res.get("ok") else f"Failed: {res.get('error')}"
+            # FR-8: re-check at execution time, not at scheduling time. A job
+            # queued while budget remained can come due after the household
+            # spent it; an hour-old verdict is not authorisation to spend now.
+            verdict = budget.gate(
+                self.adapter, job["device_id"], job["actions"], now=now,
+                channel="scheduler", judge=budget.SOURCE_RULES)
+            if verdict["decision"] == budget.BLOCK:
+                result = f"Blocked by budget: {verdict['reason']}"
+                db.log("scheduler.budget_blocked", f"{job['id']} {result}")
+            elif verdict["decision"] == budget.DELAY:
+                # The job IS the deferral. Delaying again at execution time
+                # would push a task back forever. Honour the appointment, but
+                # record that the band was still peak when it ran.
+                budget.record_decision(budget.ALLOW, budget.SOURCE_OVERRIDE,
+                                       job["device_id"],
+                                       "due job: deferral already applied when queued",
+                                       channel="scheduler")
+                res = audit.execute(self.adapter, job["device_id"], job["actions"])
+                done = ", ".join(describe_action(a) for a in job["actions"])
+                result = f"Success: {done}" if res.get("ok") else f"Failed: {res.get('error')}"
+            else:
+                res = audit.execute(self.adapter, job["device_id"], job["actions"])
+                done = ", ".join(describe_action(a) for a in job["actions"])
+                result = f"Success: {done}" if res.get("ok") else f"Failed: {res.get('error')}"
 
         rule = job["rule"]
         is_once = rule.get("type") == "once"

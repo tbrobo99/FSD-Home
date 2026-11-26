@@ -328,6 +328,50 @@ button:active { opacity: .92; }
   letter-spacing: 0;
 }
 
+/* Masthead actions. These used to be inline styles on the buttons, which no
+   theme could restyle — on the dark console they floated as grey pills. */
+.head-actions { display: flex; gap: 6px; align-self: flex-start; }
+.head-btn {
+  padding: 5px 9px;
+  font: 500 11px/1 inherit;
+  color: var(--ink-3);
+  background: transparent;
+  border: 1px solid var(--line);
+  border-radius: 999px;
+  cursor: pointer;
+  opacity: .7;
+}
+.head-btn:hover { opacity: 1; border-color: var(--accent); color: var(--ink); }
+
+/* Horizontal room filter above the device list. Same data-room buttons the
+   room cards use, so one click handler keeps both in sync. */
+.room-tabs {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  overflow-x: auto;
+  scrollbar-width: none;
+  padding: 0 0 10px;
+}
+.room-tabs::-webkit-scrollbar { display: none; }
+.room-tabs button {
+  min-height: 36px;
+  padding: 0 15px;
+  border: 1px solid var(--line);
+  border-radius: 999px;
+  background: var(--surface);
+  color: var(--ink-2);
+  font: 600 0.84rem/1 inherit;
+  white-space: nowrap;
+  cursor: pointer;
+}
+.room-tabs button:hover { border-color: var(--accent); }
+.room-tabs button[aria-selected="true"] {
+  background: var(--ink);
+  border-color: var(--ink);
+  color: var(--bg);
+}
+
 /* ---------- quick actions ---------- */
 
 .quick {
@@ -747,7 +791,8 @@ button:active { opacity: .92; }
 .composer input::placeholder { color: var(--ink-4); }
 .composer input:focus { border-color: var(--accent); background: #fff; }
 .composer .lang {
-  min-width: 50px;
+  min-width: 52px;
+  padding: 0 8px;
   border: 0;
   background: var(--surface);
   border-radius: var(--radius-control);
@@ -776,7 +821,7 @@ button:active { opacity: .92; }
 .tabbar {
   flex: 0 0 auto;
   display: grid;
-  grid-template-columns: repeat(3, 1fr);
+  grid-template-columns: repeat(4, 1fr);
   background: var(--bg);
   border-top: 1px solid var(--line);
   padding-bottom: env(safe-area-inset-bottom);
@@ -784,6 +829,7 @@ button:active { opacity: .92; }
 .tabbar .tab {
   border: 0;
   background: none;
+  text-decoration: none;
   min-height: 62px;
   display: flex;
   flex-direction: column;
@@ -916,6 +962,42 @@ button:active { opacity: .92; }
   cursor: pointer;
 }
 .sheet-power.on { background: var(--red); }
+
+/* ---------- FR-8: Energy view, the fourth tab (same app, not a new page) ---------- */
+
+.energy-body { padding: 0 16px 20px; }
+.energy-body .scope { display: inline-block; margin: 12px 0 18px; padding: 6px 10px;
+  border: 1px solid var(--line-strong); border-radius: 8px;
+  font-size: .78rem; font-weight: 600; color: var(--ink-2); background: var(--surface); }
+.energy-body .card { border: 1px solid var(--line); border-radius: 14px;
+  padding: 18px; margin-bottom: 14px; background: var(--bg); }
+.energy-body h2 { font-size: 1rem; margin: 0 0 14px; }
+.energy-body .big { font-size: 2.1rem; font-weight: 700; letter-spacing: -.03em; line-height: 1.1; }
+.energy-body .unit { font-size: .95rem; color: var(--ink-2); font-weight: 500; }
+.energy-body .bar { height: 12px; border-radius: 6px; background: var(--surface);
+  overflow: hidden; margin: 14px 0 8px; }
+.energy-body .bar i { display: block; height: 100%; background: var(--accent); width: 0; }
+.energy-body .bar.warn i { background: var(--amber); }
+.energy-body .bar.over i { background: var(--red); }
+.energy-body .row { display: flex; justify-content: space-between; gap: 10px;
+  padding: 11px 0; border-bottom: 1px solid var(--line); font-size: .92rem; }
+.energy-body .row:last-child { border-bottom: 0; }
+.energy-body .row .muted { color: var(--ink-2); }
+.energy-body .pill { display: inline-block; padding: 3px 8px; border-radius: 999px;
+  font-size: .72rem; font-weight: 700; }
+.energy-body .pill.llm { background: var(--accent-weak); color: var(--accent-ink); }
+.energy-body .pill.fallback, .energy-body .pill.rules { background: var(--surface); color: var(--ink-2); }
+.energy-body .pill.override { background: var(--amber-weak, #fff4e5); color: var(--amber-ink, #a85300); }
+.energy-body .pill.block { background: var(--red-weak, #ffe9e9); color: var(--red); }
+.energy-body label { display: block; font-size: .85rem; color: var(--ink-2); margin: 12px 0 6px; }
+.energy-body input[type=number] { width: 100%; padding: 12px; font-size: 1rem;
+  border: 1px solid var(--line-strong); border-radius: 10px; box-sizing: border-box; }
+.energy-body #save, .energy-body #alerts { margin-top: 12px; width: 100%; padding: 14px;
+  font-size: 1rem; font-weight: 600; color: #fff; background: var(--accent);
+  border: 0; border-radius: 10px; cursor: pointer; }
+.energy-body .note { font-size: .82rem; color: var(--ink-2); line-height: 1.6; }
+.energy-body .empty { color: var(--ink-3); font-size: .9rem; padding: 10px 0; }
+.energy-body b { color: var(--ink); }
 
 /* ---------- wide screens: keep the phone frame honest ---------- */
 

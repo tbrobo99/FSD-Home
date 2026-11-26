@@ -77,6 +77,43 @@ BEGIN SELECT RAISE(ABORT, 'audit_log is append-only'); END;
 CREATE TRIGGER IF NOT EXISTS audit_log_no_delete BEFORE DELETE ON audit_log
 BEGIN SELECT RAISE(ABORT, 'audit_log is append-only'); END;
 CREATE INDEX IF NOT EXISTS idx_audit_ts ON audit_log(ts);
+
+-- FR-8: monthly energy budget. One row per billing period; accrual is a
+-- time-weighted integral of whole-house watts, so a restart cannot lose it.
+CREATE TABLE IF NOT EXISTS energy_state (
+    period_key       TEXT PRIMARY KEY,
+    used_kwh         REAL NOT NULL DEFAULT 0,
+    budget_kwh       REAL NOT NULL,
+    strict_mode      INTEGER NOT NULL DEFAULT 1,
+    last_accrual_ts  TEXT,
+    updated_at       TEXT
+);
+
+-- FR-8: decision provenance. audit_log records that a decision happened;
+-- this table records *what the model actually saw and said*, so a claim of
+-- "LLM decided" can be checked against the real prompt and output.
+CREATE TABLE IF NOT EXISTS energy_decisions (
+    id              INTEGER PRIMARY KEY AUTOINCREMENT,
+    ts              TEXT NOT NULL,
+    device_id       TEXT,
+    decision        TEXT NOT NULL,
+    source          TEXT NOT NULL,
+    reason          TEXT,
+    prompt          TEXT,
+    model_input     TEXT,
+    model_output    TEXT,
+    estimated_kwh   REAL,
+    remaining_kwh   REAL,
+    channel         TEXT
+);
+CREATE INDEX IF NOT EXISTS idx_energy_decisions_ts ON energy_decisions(ts);
+
+-- FR-8: a decision record is evidence. Like audit_log, it must survive an
+-- application bug or a mistaken cleanup — no UPDATE, no DELETE, ever.
+CREATE TRIGGER IF NOT EXISTS energy_decisions_no_update BEFORE UPDATE ON energy_decisions
+BEGIN SELECT RAISE(ABORT, 'energy_decisions is append-only'); END;
+CREATE TRIGGER IF NOT EXISTS energy_decisions_no_delete BEFORE DELETE ON energy_decisions
+BEGIN SELECT RAISE(ABORT, 'energy_decisions is append-only'); END;
 """
 
 

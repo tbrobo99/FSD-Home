@@ -73,10 +73,17 @@ _SCENE_TALK = re.compile(
 # read it as a command. A miss here is expensive: sending "hi, living room AC
 # 25" or "the whole house is too warm" to a chat model would turn a perfectly
 # good command into small talk. So the generic small-talk fallback is narrow.
+#
+# "cold", "hot" and "warm" are deliberately NOT in this list. On their own they
+# decide nothing: "today is cold" and "I am cold" are statements the rule
+# engine and the classifier route, not words that force the command path -- a
+# word list that kept them sent "today is cold" to a tool loop as if it were a
+# heating order. "cool" and "heat" stay: they are mode names, and "cool mode"
+# in a sentence the parser missed is still a request about the AC.
 _HOME_SIGNAL = re.compile(
     r"\b(?:turn|switch|shut|set|start|stop|power|put|open|close|wake|"
     r"activate|deactivate|enable|disable|cancel|clear|list|show|schedule|"
-    r"on|off|up|down|cool|cooling|heat|heating|warm|cold|hot|stuffy|humid|"
+    r"on|off|up|down|cool|cooling|heat|heating|stuffy|humid|"
     r"clammy|muggy|noisy|loud|smell|stink|odou?r|"
     r"air|water|temp|temperature|degrees?|celsius|fahrenheit|fan|mode|speed|"
     r"status|state|running|working|level|"

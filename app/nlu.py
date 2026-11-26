@@ -17,7 +17,7 @@ import difflib
 import re
 from datetime import datetime, timedelta
 
-from . import food, scenes
+from . import food, ko, scenes
 
 # ---------------------------------------------------------------- numbers
 
@@ -509,6 +509,26 @@ LIST_RE = re.compile(
 
 GROUP_RE = re.compile(r"\b(everything|all|both)\b|\bevery\s+device\b", re.I)
 
+# Three sentences that share the word "cold" and mean three different things:
+#
+#   "the bedroom is cold"   a room is named     -> the comfort path below
+#   "I am cold"             no room, a feeling  -> ask which room
+#   "today is cold"         the world outside   -> no data here, say so
+#
+# The last one is why this regex exists. The comfort rules ran first and read
+# every bare "cold" as a heating order, so "today is cold" and "it is cold
+# outside" came back as "Which room?" -- a question about a room the sentence
+# never mentioned. "it" is deliberately absent from the second alternative:
+# "it is cold in here" is a room complaint, not a weather report.
+OUTSIDE_TEMP_RE = re.compile(
+    r"\bit(?:'s|\s+is|\s+feels?)\s+(?:really\s+|very\s+|quite\s+|so\s+)?"
+    r"(?:cold|freezing|chilly|hot|warm)\s+(?:outside|out\s+there|today|tonight)\b"
+    r"|\b(?:today|tonight|the\s+weather)\s+(?:is|'s|feels?)\s+"
+    r"(?:really\s+|very\s+|quite\s+|so\s+)?(?:cold|freezing|chilly|hot|warm)\b"
+    r"|\b(?:cold|freezing|chilly|hot|warm)\s+"
+    r"(?:outside|out\s+there|today|tonight)\b",
+    re.I)
+
 COMFORT_PATTERNS = [
     # Damp before hot: "clammy" is a humidity complaint, and cooling it does not
     # dry it. Measured — the loop answered "it feels clammy in the bedroom" with
@@ -540,7 +560,29 @@ COMFORT_PATTERNS = [
       {"action": "temperature", "value": 24}]),
     (re.compile(r"\b(too\s+loud|noisy|too\s+noisy)\b", re.I),
      [{"action": "fan", "value": "low"}]),
+    # An imperative is a command even without "turn on": "make the bedroom
+    # warmer" used to fall through every tier to the generic help text, which
+    # reads as "I did not understand". They live in the comfort table rather
+    # than MODE_PATTERNS so the room is resolved by the comfort path -- and so
+    # a bare "make it warmer" with no room asks instead of guessing.
+    (re.compile(r"\b(?:make|get)\s+(?:it\s+|the\s+)?(?:\w+\s+){0,2}"
+                r"(?:warmer|hotter)\b"
+                r"|\bwarmer\s+(?:in\s+here|in\s+this\s+room)\b", re.I),
+     [{"action": "power", "value": True},
+      {"action": "mode", "value": "heat"},
+      {"action": "temperature", "value": 24}]),
+    (re.compile(r"\b(?:make|get)\s+(?:it\s+|the\s+)?(?:\w+\s+){0,2}"
+                r"(?:colder|cooler)\b"
+                r"|\b(?:colder|cooler)\s+(?:in\s+here|in\s+this\s+room)\b", re.I),
+     [{"action": "power", "value": True},
+      {"action": "mode", "value": "cool"},
+      {"action": "temperature", "value": 24}]),
 ]
+
+# The same table, worded for a question. parse() records which pattern fired so
+# the clarification can ask "Which room feels cold?" instead of printing a
+# device list the sentence never asked about. Order matches COMFORT_PATTERNS.
+COMFORT_WORDS = ["damp", "too hot", "too hot", "cold", "too loud", "warmer", "cooler"]
 
 
 def extract_comfort(text: str) -> list[dict]:
@@ -549,6 +591,14 @@ def extract_comfort(text: str) -> list[dict]:
         if rx.search(text):
             return [dict(a) for a in acts]
     return []
+
+
+def comfort_word(text: str) -> str | None:
+    """Which comfort pattern fired, worded for a clarification question."""
+    for i, (rx, _acts) in enumerate(COMFORT_PATTERNS):
+        if rx.search(text):
+            return COMFORT_WORDS[i] if i < len(COMFORT_WORDS) else None
+    return None
 
 
 # A smell is not a temperature, and it is not about the appliance in the room
@@ -575,6 +625,10 @@ AIR_ACTIONS = [{"action": "power", "value": True},
 #
 # Kept as a table, checked only after every control, schedule and query path has
 # failed, so "turn on the dehumidifier, it's raining" is still a command.
+WEATHER_REPLY = ("I cannot see the weather — the only things I can read are the "
+                 "appliances in this house. Tell me what it is doing outside and I "
+                 "can act on it: a damp day is a good reason to run the dehumidifier.")
+
 OUT_OF_SCOPE: list[tuple[re.Pattern, str]] = [
     (re.compile(r"\b(?:weather|forecast|rain(?:s|ing|y)?|snow(?:s|ing|y)?|"
                 r"sunny|cloudy|windy|umbrella|humid outside|"
@@ -582,9 +636,7 @@ OUT_OF_SCOPE: list[tuple[re.Pattern, str]] = [
                 r"how (?:hot|cold|warm) is it (?:outside|out there)|"
                 r"(?:good|nice|bad|fine|ok|okay|wet|dry)\s+(?:day|weather)\s+"
                 r"(?:to|for))\b", re.I),
-     "I cannot see the weather — the only things I can read are the appliances "
-     "in this house. Tell me what it is doing outside and I can act on it: a "
-     "damp day is a good reason to run the dehumidifier."),
+     WEATHER_REPLY),
     (re.compile(r"\b(?:music|song|songs|playlist|podcast|radio|spotify|"
                 r"netflix|youtube|movie)\b", re.I),
      "I cannot play music or video — I only control the appliances."),
@@ -661,6 +713,8 @@ friday saturday sunday once twice
 minute minutes hour hours half quarter past to o clock
 degree degrees celsius fahrenheit
 cool cooling heat heating dry fan auto low mid medium high
+warmer colder cooler hotter
+cold hot warm freezing chilly stuffy humid clammy outside weather
 all everything whole house home flat place room rooms
 wake sleep sleeping leave leaving away going come back
 it's that this is are be do does make makes
@@ -772,9 +826,19 @@ def _ask_for(res: dict, slot: str, devices: list[dict], **partial) -> dict:
     res["missing"] = slot
     res.update(partial)
     if slot == "target":
-        prompt = "Which room?" if res.get("comfort") else "Which device?"
-        res["clarify"] = (prompt + " I can control: "
-                          + ", ".join(d["name"] for d in devices[:6]))
+        if res.get("comfort"):
+            word = res.get("comfort_word")
+            if word == "warmer":
+                res["clarify"] = "Which room should I warm up?"
+            elif word == "cooler":
+                res["clarify"] = "Which room should I cool down?"
+            elif word:
+                res["clarify"] = f"Which room feels {word}?"
+            else:
+                res["clarify"] = "Which room?"
+        else:
+            res["clarify"] = ("Which device? I can control: "
+                              + ", ".join(d["name"] for d in devices[:6]))
     else:
         res["clarify"] = ('What should I do at that time? '
                           'e.g. "turn off the AC at 11 pm".')
@@ -785,11 +849,15 @@ def parse(text: str, devices: list[dict], now: datetime | None = None,
           default_room: str = "Living Room",
           fallback_device: dict | None = None) -> dict:
     now = now or datetime.now()
-    t = (text or "").strip()
+    raw = (text or "").strip()
+    # Korean commands are rewritten into the English phrasing this engine
+    # already understands, then take the identical deterministic path. The
+    # original words are kept in raw_text so the audit shows what was said.
+    t = ko.to_english(raw) if ko.is_korean(raw) else raw
     res = {
         "intent": "unknown", "device_id": None, "device_name": None, "targets": [],
         "actions": [], "rule": None, "repeat_label": "",
-        "confidence": 0.0, "clarify": None, "raw_text": t,
+        "confidence": 0.0, "clarify": None, "raw_text": raw,
     }
     if not t:
         res["clarify"] = 'Say something like "turn off the living room AC at 11 pm".'
@@ -868,8 +936,17 @@ def parse(text: str, devices: list[dict], now: datetime | None = None,
     if not actions and not QUERY_RE.search(t):
         comfort = extract_comfort(t)
         if comfort:
+            # A statement about the world outside is not a heating order. It
+            # matched a comfort word, but it names no room and no change, so
+            # the honest answer is the one the weather table gives -- not
+            # "Which room?" about a room the sentence never mentioned.
+            if OUTSIDE_TEMP_RE.search(t):
+                res["clarify"] = WEATHER_REPLY
+                res["out_of_scope"] = True
+                return res
             actions = comfort
             res["comfort"] = True
+            res["comfort_word"] = comfort_word(t)
 
     # A feeling ("it's stuffy") is about the room, not about the last device
     # we happened to touch. A named appliance that does not exist here is not

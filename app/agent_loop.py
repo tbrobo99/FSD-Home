@@ -75,7 +75,12 @@ Rules:
    24 °C, and the work is done: call `finish` and say so ("The bedroom AC is
    already cooling at 24 °C."). Do not change a device just to have something
    to report, and do not stop without calling `finish` — a turn that ends in
-   prose is thrown away, and the user gets "I did not understand" instead."""
+   prose is thrown away, and the user gets "I did not understand" instead.
+13. A statement about temperature is not automatically a command. "I am cold",
+   "today is cold" and "it is cold outside" name no room and ask for no
+   change: ask ONE short question ("Which room feels cold?") or say plainly
+   that you cannot see the weather — and call no control tool for them. A room
+   that IS named ("the bedroom is cold") is a request, and rule 7 applies."""
 
 OFFER_SURE = """
 
@@ -281,6 +286,21 @@ def run(cfg: dict, text: str, adapter, now: datetime,
             nudged = False
 
             if box.finished:
+                # A model that was told "reply with a tool call only" may call
+                # finish() with no `reply` argument even though it already
+                # wrote the answer as prose one step earlier (measured on
+                # "check the rooms and suggest how to stay comfortable": step 2
+                # carried the suggestion, step 3 was finish({}), and the whole
+                # turn was thrown away to the local fallback). Recover that
+                # last assistant message so the user gets the model's answer.
+                if not box.reply:
+                    for prior_msg in reversed(messages):
+                        if (prior_msg.get("role") == "assistant"
+                                and not prior_msg.get("tool_calls")):
+                            recovered = clean_reply(prior_msg.get("content") or "")
+                            if recovered:
+                                box.reply = recovered
+                            break
                 break
 
         if box.question:

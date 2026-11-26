@@ -10,7 +10,7 @@ from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from pathlib import Path
 from urllib.parse import parse_qs, urlparse
 
-from . import audit, auth, db, events
+from . import audit, auth, budget, db, events
 
 WEB_DIR = Path(__file__).resolve().parent / "web"
 
@@ -48,6 +48,13 @@ class Handler(BaseHTTPRequestHandler):
     def _json(self, data, code: int = 200) -> None:
         self._send(code, json.dumps(data, ensure_ascii=False, default=str).encode("utf-8"),
                    "application/json; charset=utf-8")
+
+    def _redirect(self, location: str) -> None:
+        self.send_response(302)
+        self.send_header("Location", location)
+        self.send_header("Content-Length", "0")
+        self.send_header("Cache-Control", "no-store")
+        self.end_headers()
 
     def _body(self) -> dict:
         try:
@@ -150,6 +157,10 @@ class Handler(BaseHTTPRequestHandler):
             return self._deny()
         if path in ("/", "/index.html"):
             return self._static("index.html")
+        if path in ("/energy", "/energy.html"):
+            # The dashboard is the fourth tab of the same app, not a second
+            # page. Old links still work: they land on that tab directly.
+            return self._redirect("/?ui=v6#energy")
         if path == "/api/events":
             return self._sse()
         if path in ("/soft", "/soft/", "/soft/index.html"):
@@ -179,6 +190,23 @@ class Handler(BaseHTTPRequestHandler):
             period = (q.get("period") or ["week"])[0]
             region = (q.get("region") or [None])[0]
             return self._json(savings.report("today" if period == "today" else "week", region=region))
+        if path == "/api/budget":
+            # FR-8: instantaneous kW, cumulative kWh and money are separate
+            # fields. `decisions` carries the provenance of recent verdicts.
+            q = parse_qs(url.query)
+            region = (q.get("region") or [None])[0]
+            engine = getattr(self.agent_ref, "proactive", None)
+            cfg = self.agent_ref.cfg
+            snap = (getattr(engine, "_last_snapshot", None) or {}) if engine else {}
+            return self._json({
+                **budget.state(cfg=cfg, region=region),
+                # kW here is instantaneous and separate from cumulative kWh.
+                "total_load_w": snap.get("total_load_w"),
+                "tariff_band": snap.get("tariff"),
+                "decisions": budget.decisions(30),
+                "scope": "simulator",
+                "preauthorised": bool(engine.preauthorised) if engine else True,
+            })
         if path == "/api/regions":
             # Country presets: language, currency, prices, emission factor.
             from . import regions
@@ -242,6 +270,22 @@ class Handler(BaseHTTPRequestHandler):
             result = self.agent_ref.handle(text)
             return self._json({**result, "snapshot": self.agent_ref.snapshot()})
 
+        if path == "/api/budget":
+            # Setting the budget is the pre-authorisation act. Record it in
+            # the audit trail as a deliberate policy change.
+            try:
+                kwh = float(body.get("budget_kwh"))
+            except (TypeError, ValueError):
+                return self._json({"error": "budget_kwh must be a number"}, 400)
+            if not 0 < kwh <= 100000:
+                return self._json({"error": "budget_kwh out of range"}, 400)
+            strict = bool(body.get("strict_mode", True))
+            result = budget.set_budget(kwh, strict)
+            db.audit_write("energy.budget_set", execution_status="configured",
+                           detail=f"monthly budget {kwh} kWh, strict={strict}")
+            db.log("budget.set", f"{kwh} kWh strict={strict}")
+            return self._json({"ok": True, **result})
+
         if path == "/api/mode":
             # Switched live, not on restart: the point of the two modes is that
             # the same sentence can be asked of both, one after the other.
@@ -257,9 +301,57 @@ class Handler(BaseHTTPRequestHandler):
             actions = body.get("actions") or []
             if not device_id or not actions:
                 return self._json({"error": "device_id and actions are required"}, 400)
+            # FR-8: the raw API is a fourth execution path and must obey the
+            # same budget as the engine. The budget is a hard limit by default;
+            # `override` is the one explicit, audited exception — an emergency
+            # manual action that is allowed to spend past the budget, with the
+            # bypass and its reason written to the append-only audit log.
+            override = bool(body.get("override"))
+            if override:
+                budget.record_decision(budget.ALLOW, budget.SOURCE_RULES,
+                                       device_id, "emergency manual override",
+                                       channel="manual-override")
+                verdict = None
+            else:
+                try:
+                    verdict = budget.gate(
+                        self.agent_ref.adapter, device_id, actions,
+                        cfg=self.agent_ref.cfg, channel="manual")
+                except Exception as exc:
+                    # Same rule as the chat path: an unreadable budget is not
+                    # an empty one. Refuse the write and say why; switching a
+                    # device off stays available because it lowers the load.
+                    detail = f"{type(exc).__name__}: {exc}"[:300]
+                    try:
+                        audit.record("budget.gate_failed", device_id=device_id,
+                                     channel="manual",
+                                     execution_status="blocked",
+                                     decision_source=budget.SOURCE_RULES,
+                                     action_kind="energy_gate", detail=detail)
+                    except Exception:
+                        pass
+                    if self.agent_ref._adds_load(actions):
+                        return self._json({
+                            "ok": False, "blocked": True,
+                            "error": "the energy budget could not be checked; "
+                                     "nothing was sent to the device",
+                            "snapshot": self.agent_ref.snapshot(),
+                        }, 503)
+                    verdict = None
+                if verdict is not None and verdict["decision"] == budget.BLOCK:
+                    db.log("control.budget_blocked",
+                           f"{device_id}: {verdict['reason']}")
+                    return self._json({
+                        "ok": False, "blocked": True,
+                        "error": verdict["reason"], "budget": verdict,
+                        "snapshot": self.agent_ref.snapshot(),
+                    }, 403)
             res = audit.execute(self.agent_ref.adapter, device_id, actions)
-            db.log("control.manual", f"{device_id} {actions} -> {res.get('ok')}")
-            return self._json({**res, "snapshot": self.agent_ref.snapshot()})
+            db.log("control.manual",
+                   f"{device_id} {actions} -> {res.get('ok')}"
+                   + (" [OVERRIDE]" if override else ""))
+            return self._json({**res, "budget": verdict,
+                               "snapshot": self.agent_ref.snapshot()})
 
         if path == "/api/jobs/clear":
             n = db.clear_jobs()

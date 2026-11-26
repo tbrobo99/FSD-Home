@@ -134,7 +134,9 @@ class OfferTests(AgentModeTestBase):
         self.fake.script = [tool_call("finish", reply="Done.")]
         self.ask("the bedroom is unbearable")
 
-        names = [t["function"]["name"] for t in self.fake.requests[0]["tools"]]
+        # the classifier's JSON round trip comes first; the loop call follows
+        self.assertNotIn("tools", self.fake.requests[0])
+        names = [t["function"]["name"] for t in self.fake.requests[1]["tools"]]
         self.assertNotIn("adopt_parse", names)
         self.assertIn("control", names)
 
@@ -243,7 +245,9 @@ class FallbackTests(AgentModeTestBase):
         self.fake.script = []
         self.ask("make it nicer in there")
 
-        self.assertEqual(len(self.fake.requests), 1)
+        # one classifier round trip, then exactly one loop run: the loop's
+        # failure must not earn it a second run with a worse prompt
+        self.assertEqual(len([r for r in self.fake.requests if "tools" in r]), 1)
 
     def test_a_comfort_phrase_still_asks_instead_of_guessing(self):
         """Which room someone is standing in is not something a tool can read.
