@@ -12,7 +12,7 @@
 \begin{document}
 
 \title{Proactive Comfort Agent: Full Self-Driving Home Orchestration\\
-\large Specification, Design and Implementation (Phase 2 -- Deliverables B--D)}
+\large Specification, Design and Implementation (Phase 2 -- Deliverables A--D, revised for C and D)}
 
 \author{
 \IEEEauthorblockN{Ha Yun Kim}
@@ -43,11 +43,11 @@ tbrobo99@outlook.com}
 \maketitle
 
 \begin{abstract}
-Modern smart homes present usability and sustainability barriers when users must manage disconnected appliance apps, monitor indoor environmental hazards, and coordinate high-wattage operations. We propose \textbf{FSD-Home (Full Self-Driving Home Orchestration)}, a proactive orchestration system designed for inclusive, zero-labor, and energy-conscious living. By evaluating real-time IoT telemetry streams (ambient temperature, humidity decay, appliance power draw, and compressor duty cycles) alongside household schedules, FSD-Home predicts indoor environmental and energy risks---such as post-wash mold buildup, kitchen thermal spikes, and peak electricity surges---before they escalate. To ensure safety, sustainability, and user autonomy, the system introduces a Tesla-inspired Risk-Graded Framework: Level 1 eco-efficiency and environmental adjustments run automatically with plain-language updates, while Level 2 high-load or schedule-altering operations require explicit, per-action user approval via a touch-first, accessible interface overlay backed by an append-only audit trail.
+Modern smart homes present usability and sustainability barriers when users must manage disconnected appliance apps, monitor indoor environmental hazards, and coordinate high-wattage operations. We propose \textbf{FSD-Home (Full Self-Driving Home Orchestration)}, a proactive orchestration system designed for inclusive, zero-labor, and energy-conscious living. By evaluating real-time IoT telemetry streams (ambient temperature, humidity decay, appliance power draw, and compressor duty cycles) alongside household schedules, FSD-Home predicts indoor environmental and energy risks---such as post-wash mold buildup, kitchen thermal spikes, and peak electricity surges---before they escalate. To ensure safety, sustainability, and user autonomy, the system introduces a Tesla-inspired Risk-Graded Framework: Level 1 eco-efficiency and environmental adjustments run automatically with plain-language updates, while Level 2 high-load or schedule-altering operations require explicit, per-action user approval via a touch-first, accessible interface overlay backed by an append-only audit trail. Since the specification milestone the system has also become an energy-budget agent: the household sets a monthly energy budget (kWh) and, optionally, a maximum instantaneous load (kW) once, and inside these limits the agent controls energy loads on its own. One gate returns ALLOW, BLOCK or DELAY for every path that can start an appliance --- the proactive loop, chat and voice commands, the language-model tool loop, the raw control API and the scheduler --- and a movable load that does not fit now is booked for later instead of refused. In a one-week simulation, shifting chores out of the peak band cut the time-of-use cost by 8\%, and the 3~kW limit removed every overload that a movable load caused.
 \end{abstract}
 
 \begin{IEEEkeywords}
-Smart Home Orchestration, FSD-Home, Full Self-Driving Home, Risk-Graded Autonomy, Energy Load-Balancing, Environmental Sustainability, Level 1 and Level 2 Control, Functional Safety, LG ThinQ Ecosystem.
+Smart Home Orchestration, FSD-Home, Full Self-Driving Home, Risk-Graded Autonomy, Energy Load-Balancing, Environmental Sustainability, Level 1 and Level 2 Control, Functional Safety, Energy Budget, Demand Limiting, Load Shifting, LG ThinQ Ecosystem.
 \end{IEEEkeywords}
 
 \section{Introduction}
@@ -59,7 +59,7 @@ Smart home appliances are ubiquitous today, but having more features does not au
 Current smart home apps like LG ThinQ work in reactive silos \cite{lgspec2026}. They wait for manual button taps or send passive alerts (such as ``Cycle Finished''), leaving household members to diagnose environmental or energy issues themselves \cite{pradhan2020}. More importantly, appliances do not share thermodynamic or power-load awareness across rooms. When someone bakes in a hot oven while running a dryer, kitchen temperatures surge, forcing the refrigerator compressor and air conditioner to run at maximum duty cycles and draw peak electricity without coordinated pre-cooling, ventilation, or load interruption \cite{ashrae2023}. FSD-Home solves this by combining continuous sensor tracking with automated cross-appliance environmental and energy orchestration.
 
 \subsection{Related Software}
-Current commercial tools offer strong single-device features: LG AI DD\textsuperscript{TM} senses fabric softness via motor torque; LG ezDispense\textsuperscript{TM} automates detergent dosing; and LG ThinQ ON / ThinQ Claw provides conversational voice hubs \cite{lgwhitepaper2024, lgspec2026}. Samsung's Bespoke AI sends lifestyle pattern notifications \cite{samsung2026a, samsung2026b}. However, none of them coordinate thermal load, moisture prevention, and electricity demand across multiple devices \cite{yuan2024}. FSD-Home introduces three main contributions: (1) four explicit, explainable risk scores --- indoor mold hygiene (MRI), kitchen thermal overload (TOI), heat stress where residents live (HSI) and whole-house power load against the time-of-use price (PLI) --- (2) a Tesla-inspired Level 1 / Level 2 autonomy model with per-action confirmation, energy-saving pre-cooling/load interruption, and safe standby fallback, and (3) an inclusive, touch-first overlay designed around WCAG 2.2 contrast and touch targets \cite{wcag2023}.
+Current commercial tools offer strong single-device features: LG AI DD\textsuperscript{TM} senses fabric softness via motor torque; LG ezDispense\textsuperscript{TM} automates detergent dosing; and LG ThinQ ON / ThinQ Claw provides conversational voice hubs \cite{lgwhitepaper2024, lgspec2026}. Samsung's Bespoke AI sends lifestyle pattern notifications \cite{samsung2026a, samsung2026b}. However, none of them coordinate thermal load, moisture prevention, and electricity demand across multiple devices \cite{yuan2024}. FSD-Home introduces three main contributions: (1) four explicit, explainable risk scores --- indoor mold hygiene (MRI), kitchen thermal overload (TOI), heat stress where residents live (HSI) and whole-house power load against the time-of-use price (PLI) --- (2) a Tesla-inspired Level 1 / Level 2 autonomy model with per-action confirmation, energy-saving pre-cooling/load interruption, and safe standby fallback, and (3) an inclusive, touch-first overlay designed around WCAG 2.2 contrast and touch targets \cite{wcag2023}. Commercial apps already show how much energy was used and let users set schedules; what they do not do is \emph{decide}. The added contribution of this phase is closed-loop budget governance: the household authorises the agent once, by setting a budget and a load limit, and every control path then passes the same deterministic gate before a device is touched, with every verdict kept in an append-only ledger.
 
 \section{Requirements Overview}
 
@@ -67,17 +67,19 @@ Current commercial tools offer strong single-device features: LG AI DD\textsuper
 \begin{itemize}
     \item \textbf{FR-1 (Real-Time Environmental \& Power Telemetry Perception):} Continuously sample indoor temperature, humidity, drum moisture decay, door contact, household presence (\texttt{user\_home}), compressor duty cycle, and wattage at 1~Hz.
     \item \textbf{FR-2 (Predictive Environmental Hazard \& Energy Modeling):} Deterministically compute the Mold Risk Index (MRI), Thermal Overload Index (TOI), Heat Stress Index (HSI) and Power Load Index (PLI) to trigger interventions at a threshold of $50.0$.
-    \item \textbf{FR-3 (Level 1 \& Level 2 Action Framework):} Enforce a strict 10-action whitelist separating automatic eco/comfort adjustments (Level 1) from per-action approval-gated interventions (Level 2).
+    \item \textbf{FR-3 (Level 1 \& Level 2 Action Framework):} Enforce a strict 10-action whitelist separating automatic eco/comfort adjustments (Level 1) from per-action approval-gated interventions (Level 2). For the energy risk, setting the budget (FR-8) is the user's authorisation, so its Level~2 actions run without a separate question; every other risk keeps per-action approval.
     \item \textbf{FR-4 (Inclusive UI/UX \& Per-Action Consent Overlay):} Provide WCAG 2.2 compliant touch controls, separate approval prompts per Level 2 action, supplementary TTS voice prompts, manual quiet-period status review, and truthful adapter-grounded result messages.
     \item \textbf{FR-5 (Fail-Safe Default \& Pre-Execution Safety Policy):} Enforce a 300-second approval expiration defaulting to safe standby, pre-execution state/risk revalidation, cooktop presence and auto-off safeguards, and dryer restart reminders.
     \item \textbf{FR-6 (Structured Append-Only Audit Trail):} Maintain an immutable SQLite \texttt{audit\_log} linking risk triggers, per-action approvals (\texttt{approval\_id}), and actual device execution outcomes.
     \item \textbf{FR-7 (Energy \& Environment Savings Report):} Estimate, from executed actions in the audit trail only, the energy saved (kWh), peak energy shifted (kWh), cost saved (local currency) and CO$_2$ avoided (kg) for today and this week, priced for the household's country or state, and show them as labelled estimates with their assumptions.
+    \item \textbf{FR-8 (Energy Budget and Maximum Load Limit):} Let the household set a monthly energy budget (kWh) and an optional maximum instantaneous load (kW). Before any appliance is started or its load raised, on every control path, decide ALLOW, BLOCK or DELAY: block what does not fit the remaining budget or lies outside autonomous authority (oven, cooktop); move a not-yet-running washer, dryer or dishwasher out of the peak band or past the load limit and start it later by itself; re-check a booked start when it comes due; refuse a start when the budget cannot be read (fail closed); and record every verdict with its source and, for a model decision, the actual prompt, input and output.
 \end{itemize}
 
 \subsection{Non-Functional Requirements (NFR)}
 \begin{itemize}
     \item \textbf{NFR-1 (Latency \& Architectural Decoupling):} Complete deterministic local risk evaluation within $1.2\text{ ms}$ per 1~Hz tick ($30\text{ ms}$ tick budget) while isolating cloud LLM reasoning ($2.0\text{--}3.0\text{ s}$) behind a 180-second cooldown and rule-based fallback.
-    \item \textbf{NFR-2 (Simulation Containment \& Verification):} Validate system behavior locally without physical appliance hardware using deterministic JSON/CSV telemetry streams, automated unit tests, and latency benchmarks.
+    \item \textbf{NFR-2 (Simulation Containment \& Verification):} Validate system behavior locally without physical appliance hardware using deterministic JSON/CSV telemetry streams, automated unit tests, latency benchmarks and a simulated-week evaluation of FR-8.
+    \item \textbf{NFR-3 (Hosted Access and Notification):} When the demonstration is published on the Internet, protect the control routes with a password and a signed session cookie, and push approvals and energy decisions to an open page as they happen, without third-party push services.
 \end{itemize}
 
 \section{Development Environment}
@@ -90,6 +92,7 @@ The FSD-Home backend system is developed using \textbf{Python 3.10+} (targeting 
     \item \textbf{Storage and Persistence:} SQLite 3.43 utilizing Write-Ahead Logging (WAL) mode for transactional isolation, audit decision logs, and user preference state tracking.
     \item \textbf{Target Operating Environment:} Tested locally on Windows 11 (AMD Ryzen 7 5800H, 16\,GB RAM) without requiring discrete GPU acceleration. Designed for cross-platform portability across Linux (Ubuntu 22.04 LTS) and ARM-based single-board devices (e.g., Raspberry Pi 4, OpenWrt routers).
     \item \textbf{Cloud Hybrid Architecture:} While real-time risk checks run deterministically on local infrastructure in $1.2\text{ ms}$, LLM reasoning calls out asynchronously to OpenAI-compatible cloud endpoints (Zhipu GLM-4-Flash / vLLM API).
+    \item \textbf{Cloud Deployment (bonus):} The demonstration runs on an AWS Lightsail Linux instance behind Caddy, which obtains and renews the HTTPS certificate; the public address is \url{https://fsd-home-demo.duckdns.org}. The same code runs unchanged on a laptop.
     \item \textbf{Version Control:} Managed via Git and hosted on GitHub (\url{https://github.com/tbrobo99/proactive-senior-care-comfort-agent}).
 \end{itemize}
 
@@ -99,6 +102,8 @@ The system decouples real-time physical risk perception from LLM decision reason
     \item \textbf{Deterministic Risk Engines (\texttt{app/risk.py}):} Evaluates the MRI, TOI, HSI and PLI using closed-form models (including Steadman's apparent temperature for HSI) and 30-minute least-squares linear trend forecasting.
     \item \textbf{OpenAI-Compatible LLM Inference:} Integrates with Zhipu AI \texttt{glm-4-flash} (or local vLLM endpoints) for intent resolution and action candidate selection.
     \item \textbf{Deterministic Safety Gating (\texttt{app/policy.py}):} Restricts LLM output via a strict 10-action candidate whitelist divided into Level 1 (Autonomous) and Level 2 (Approval Required) tiers. Unknown or malformed action names are rejected and logged rather than executed.
+    \item \textbf{Deterministic Energy Gate (\texttt{app/budget.py}):} Integrates measured watts into kilowatt-hours, compares a start against the remaining budget and the load limit, and returns ALLOW, BLOCK or DELAY (Section~\ref{sec:fr8}). The model may propose a verdict; the gate decides.
+    \item \textbf{Intent Classifier (\texttt{app/classifier.py}):} One no-tool, JSON-only model call that labels a message the rules cannot read (\emph{command}, \emph{observation}, \emph{smalltalk}, \emph{outside\_weather}, \emph{clarification}); it can buy a clarification question but never an action.
 \end{itemize}
 
 \subsection{Cost Estimation}
@@ -112,9 +117,10 @@ The system decouples real-time physical risk perception from LLM decision reason
 Development HW & Existing Ryzen 7 PC & \textwon 0 \\
 Core Software & Python 3.11, SQLite (Open-source) & \textwon 0 \\
 Cloud API / LLM & Zhipu GLM-4-Flash / vLLM API & \textwon 0 (Free version) \\
-Deployment & Local / Edge Simulation & \textwon 0 \\
+Development & Local / Edge Simulation & \textwon 0 \\
+Cloud hosting & AWS Lightsail instance, Caddy HTTPS, DuckDNS name & \textcolor{red}{TBD}/month \\
 \midrule
-\textbf{Total Estimated Cost} & & \textbf{\textwon 0} \\
+\textbf{Total Estimated Cost} & & \textbf{\textcolor{red}{TBD}} \\
 \bottomrule
 \end{tabular}
 \end{center}
@@ -157,10 +163,12 @@ Reject Unknown Actions | Assign Level 1 vs. Level 2\\
 {[LLM Ranker / Abstain]} \hspace*{3.5em} {[Per-Action Approval Queue]}\\
 (2--3 s; 180 s cooldown) \hspace*{3.5em} (app/approval.py, 300s TTL)\\
 \hspace*{1em}$\searrow$ \hspace*{10em} $\swarrow$ [Confirm] + Revalidate\\
+{[Energy Budget Gate: app/budget.py]} \quad ALLOW | BLOCK | DELAY\\
+\hspace*{3em}$\downarrow$ (ALLOW) \hspace*{4em} DELAY $\rightarrow$ scheduler, re-checked\\
 {[Device Adapters \& Append-Only Audit Log: app/db.py]}\\
 Write Intent $\rightarrow$ Execute Adapter $\rightarrow$ Log Outcome $\rightarrow$ Update UI
 }}
-\caption{FSD-Home decoupled sensing, safety gating, per-action Level 2 approval, and append-only audit architecture.}
+\caption{FSD-Home decoupled sensing, safety gating, per-action Level 2 approval, energy budget gate and append-only audit architecture.}
 \label{fig:arch}
 \end{figure}
 
@@ -192,6 +200,7 @@ The local rule engine (\texttt{app/policy.py}) strictly enforces a 10-action whi
 \begin{itemize}
     \item \textbf{Level 1 (Autonomous Eco \& Comfort Actions):} Low-power, reversible actions execute immediately when selected---including proactive kitchen pre-cooling (\texttt{precool\_kitchen} prior to scheduled cooking so the AC compressor runs smoothly at high efficiency rather than surging against peak oven heat) and targeted ventilation/dehumidification.
     \item \textbf{Level 2 (Per-Action Confirmation Required):} High-load or schedule-interrupting operations---such as stopping the dryer (\texttt{stop\_dryer}) during thermal/power overload so high-wattage heating elements do not overlap with kitchen cooking---generate individual pending confirmation states in \texttt{app/approval.py}. In the current proactive flow, Level 2 interventions are triggered by kitchen overload (TOI) and by power load at the peak rate (PLI, pausing a running wash); mold (MRI) and heat stress (HSI) produce Level 1 actions only.
+    \item \textbf{Energy Pre-Authorisation:} For the power-load risk the monthly budget of FR-8 is the authorisation: \texttt{pause\_washer} runs without a question, but only after the energy gate allows it. Kitchen overload keeps its question, because a hot cooktop is not made safe by a kWh budget.
 \end{itemize}
 
 \begin{table}[htbp]
@@ -224,6 +233,7 @@ L2 & \texttt{pause\_washer} & Pause wash at peak (PLI) \\
     \item \textbf{Real-Time Visual Countdown:} Displays a visible 300-second countdown timer. Upon timeout, the request transitions to \texttt{expired} without altering appliance state.
     \item \textbf{Touch-First Multimodal Support:} Touch buttons serve as the primary consent method. Spoken prompts (via Web Speech API TTS) and visible text act as supplementary aids; silence, ambiguous speech, or prompt playback alone never count as consent.
     \item \textbf{Truthful Outcome Reporting \& Quiet-Period Status View:} Reports actual adapter outcomes (\texttt{completed}, \texttt{canceled}, or \texttt{failed}) with a concise reason, keeping technical telemetry in the audit log. During the 30-minute quiet period after a decline or timeout, users can still open the interface to manually check live risk status.
+    \item \textbf{Live Notifications and Energy Tab (NFR-3):} Approval requests, automatic actions and energy deferrals are pushed to any open page as Server-Sent Events (\texttt{GET /api/events}) and shown as browser notifications if the user enables them; prompts are silent by default. An \emph{Energy} tab shows the month's kWh against the budget, the estimated cost, the live load against the kW limit, and the latest gate decisions with their source.
 \end{itemize}
 
 \subsection{FR-5: Fail-Safe Default Policy}
@@ -296,6 +306,147 @@ Dryer stopped during cooking & 1.4 kW $\times$ 30 min = 0.7 kWh shifted & \cite{
 \end{tabular}
 \end{table}
 
+\subsection{FR-8: Energy Budget and Maximum Load Limit}
+\label{sec:fr8}
+The energy gate (\texttt{app/budget.py}) keeps three quantities apart, because mixing them is how an energy demonstration becomes a fiction: \emph{power} in watts (the simulator's whole-house \texttt{total\_load\_w}), \emph{energy} in kilowatt-hours, and \emph{money}, which is always kWh times a regional price (Table~\ref{tab:regions}) and never the other way round.
+
+\textbf{Accrual.} On every 1~Hz tick the proactive loop calls \texttt{accrue()}, which adds the energy used since the previous sample to the current month's row of \texttt{energy\_state}:
+\begin{equation}
+E_{\text{month}} \mathrel{+}= \frac{P\,\Delta t}{3.6\times10^{6}}\ \text{kWh}, \quad P\ \text{in W},\ \Delta t\ \text{in s}.
+\end{equation}
+Sampling by elapsed time rather than by tick count means a paused process does not under-count, a repeated or backward timestamp adds nothing, and a new month (key \texttt{YYYY-MM}) starts a fresh row. The same call keeps the latest load $L$ for the kW check.
+
+\textbf{Decision.} \texttt{can\_start(device, actions)} is the single decision (Algorithm~\ref{alg:canstart}). It is called by the proactive loop, the chat command path, the model's tool loop, the raw control API and the scheduler. The estimate of a start is the appliance's rated draw $P_d$ (the same LG figures as the simulator) times a nominal run time, and it is always labelled an estimate. A start is checked against the remaining budget $B - E_{\text{month}}$ and, if the household set one, against the load limit $L_{\max}$: $L + P_d > L_{\max}$. Table~\ref{tab:verdicts} summarises the outcome per kind of load. A DELAY becomes a real job in the SQLite scheduler, and the chat reply says why and when, e.g.\ ``Not now. The house is drawing 1.8~kW and Balcony Dryer would take it to 3.2~kW, over your 3~kW limit. Booked for 22:00; it will start by itself then if it fits.''
+
+\begin{algorithm}[htbp]
+\caption{Energy Gate: \textsc{can\_start} and the Due-Job Re-Check}
+\label{alg:canstart}
+\begin{algorithmic}[1]
+\STATE \textbf{function} \textsc{can\_start}($d, acts, now, L$)
+\STATE \quad \textbf{if} $d$ unknown or offline \textbf{then return} ALLOW \COMMENT{adapter decides}
+\STATE \quad \textbf{if} $acts$ neither starts $d$ nor sets a temperature \textbf{then return} ALLOW
+\STATE \quad \textbf{if} $d.\text{type} \in \{\text{oven}, \text{cooktop}\}$ \textbf{then return} BLOCK
+\STATE \quad $est \leftarrow P_d \times h_d$ \COMMENT{rated W $\times$ nominal hours}
+\STATE \quad \textbf{if} strict $\land\ est > B - E_{\text{month}}$ \textbf{then return} BLOCK
+\STATE \quad \textbf{if} strict $\land\ L_{\max} \land$ start $\land\ \lnot$running $\land\ d \notin$ exempt $\land\ L + P_d > L_{\max}$ \textbf{then}
+\STATE \quad \quad \textbf{if} $d \in$ movable \textbf{then return} DELAY(off-peak start if peak, else $\geq$30 min)
+\STATE \quad \quad \textbf{if} channel $\neq$ engine \textbf{then return} BLOCK \COMMENT{switch something off}
+\STATE \quad \textbf{if} band $=$ peak $\land\ d \in$ movable $\land$ start $\land\ \lnot$running \textbf{then return} DELAY(off-peak)
+\STATE \quad \textbf{return} ALLOW
+\STATE
+\STATE \textbf{function} \textsc{run\_due\_job}($job$) \COMMENT{scheduler, every second}
+\STATE \quad $v \leftarrow$ \textsc{can\_start}($job.d, job.acts, now, L$) \COMMENT{never the old verdict}
+\STATE \quad \textbf{if} $v =$ BLOCK \textbf{then} report ``not started''
+\STATE \quad \textbf{else if} $v =$ DELAY(max kW) \textbf{then} move $+30$ min (at most 12 times), else report
+\STATE \quad \textbf{else} \texttt{audit.execute}($job$) \COMMENT{a peak booking is honoured}
+\end{algorithmic}
+\end{algorithm}
+
+\begin{table}[htbp]
+\caption{Gate Verdicts by Kind of Load (Strict Mode)}
+\label{tab:verdicts}
+\centering
+\footnotesize
+\begin{tabular}{p{2.7cm}p{2.3cm}p{2.3cm}}
+\toprule
+\textbf{Load} & \textbf{Over budget} & \textbf{Over kW limit / at peak} \\
+\midrule
+Washer, dryer, dishwasher (not running) & BLOCK & DELAY: off-peak, or $\geq$30 min later \\
+Other user-started loads & BLOCK & BLOCK over the limit; allowed at peak \\
+AC, fridge, purifier, range hood & BLOCK & never limited \\
+Oven, cooktop (autonomous) & BLOCK & BLOCK \\
+Proactive risk response & BLOCK & not refused by the limit \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+\textbf{Fail closed, one override, provenance.} If the gate itself raises (SQLite locked, the energy row unreadable) the exception is not read as ``budget is fine'': a start or load increase is refused and written to \texttt{audit\_log} as \texttt{budget.gate\_failed}, while switching something off stays allowed, because refusing that would be the more dangerous failure. The one exception to the hard limit is an explicit manual override on the control API, recorded with its reason. Every verdict is appended to \texttt{energy\_decisions}, a second append-only table, with its source --- \texttt{llm} only for an actual model reply, \texttt{rules\_fallback} when the model was unavailable, \texttt{rules\_override} when the rules overruled the model, \texttt{rules} otherwise --- and, for a model decision, the actual prompt, input and output. A Level~2 action the user confirmed (Section~IV-E) is a user decision, revalidated before it runs (FR-5); it does not pass the energy gate.
+
+\subsection{LLM Decision Layer and Prompt Design}
+\label{sec:prompt}
+The language model is called only when an event needs a choice --- a risk with rule-generated candidates, or a message the rules cannot read --- and never on the 1~Hz tick (NFR-1). \texttt{ProactiveEngine.\_decide()} sends the system prompt of Fig.~\ref{fig:prompt}, adds the energy addendum only when the risk is the power load, and appends an input block built from the risk, its drivers, presence, the budget state, the tariff band and the candidate list. The prompt states what the model may do (choose, reorder or take none of the listed candidates) and, as deliberately, what it cannot do: execute anything, add an action, or override a BLOCK. An earlier version told the model that Level~2 choices would be put to the user; in repeated runs the model then left every Level~2 candidate off its list, so that sentence was removed and the tier decision stays entirely in code.
+
+\begin{figure*}[t]
+\centering
+\footnotesize
+\begin{minipage}{0.49\textwidth}
+\textbf{System prompt} (\texttt{DECIDE\_SYSTEM}, \texttt{app/proactive.py})
+\begin{verbatim}
+You are the decision layer of a proactive smart-home
+agent for a household that includes a senior. Sensors
+have flagged a risk; rules have proposed candidate
+actions. Your job is to choose.
+
+Choose only from the candidates, and list them in the
+order they should run. You may:
+- take some and leave others (a candidate whose device
+  is offline or already in the wanted state should be
+  left alone),
+- reorder them when the order matters,
+- take none, if the evidence says the situation is
+  resolving on its own.
+
+You cannot execute anything yourself.
+
+Answer with the kind names you chose, in order, as JSON
+only and nothing else:
+{"chosen": ["candidate_kind", "..."]}
+
+Use an empty list, {"chosen": []}, when the right
+answer is to do nothing.
+\end{verbatim}
+\textbf{Input block} (example of one call)
+\begin{verbatim}
+Risk: Power load 57/100 (2.4 kW, peak rate)
+Drivers: {...}   User home: true
+Budget: 12.400 of 100.0 kWh used, 87.600 kWh left,
+strict=True. Tariff band: peak; instantaneous draw: 2.4 kW
+Candidates:
+- kind=eco_ac tier=1 device=Living Room AC does: ...
+- kind=pause_washer tier=2 device=Balcony Washer ...
+\end{verbatim}
+\end{minipage}\hfill
+\begin{minipage}{0.49\textwidth}
+\textbf{Energy addendum} (appended when the risk is the power load)
+\begin{verbatim}
+ENERGY BUDGET (when the risk kind is "energy"):
+The household pre-authorised autonomous energy control
+by setting a monthly kWh budget. You still choose only
+from the listed candidates; you never invent an action.
+For each candidate that would START or raise the load
+of a device:
+  - ALLOW  - the estimated kWh fits the remaining
+             budget.
+  - BLOCK  - the estimate would exceed the remaining
+             budget, or the device is outside
+             autonomous authority (cooktop, oven).
+  - DELAY  - the device is not running yet and is
+             movable (washer, dryer, dishwasher) and
+             the band is peak. Name the off-peak time.
+  - OPTIMIZE - a reversible setpoint change saves
+             energy without stopping a plan.
+Never DELAY a device that is already running: a real
+appliance may not support pause and resume. Return the
+same JSON shape, with each chosen entry as an object:
+{"kind": "...", "verdict": "ALLOW|BLOCK|DELAY|OPTIMIZE",
+"reason": "one short clause",
+"scheduled_at": "ISO time if DELAY"}.
+A BLOCK verdict you return is honoured; it is never
+overridden into a start.
+\end{verbatim}
+\textbf{Validation of the reply} (in code, in this order)
+\begin{verbatim}
+1. not JSON / no "chosen" / timeout -> rules decide
+2. unknown kind -> action.blocked in audit_log
+3. model BLOCK  -> never turned into a start
+4. every start  -> budget.can_start()   (Alg. 2)
+5. source + prompt/input/output -> energy_decisions
+\end{verbatim}
+\end{minipage}
+\caption{The prompt as it is sent, the per-call input, and the checks applied to the model's reply. Line breaks are re-wrapped for print; the text is otherwise verbatim.}
+\label{fig:prompt}
+\end{figure*}
+
 \subsection{Control Flow and Algorithmic Execution}
 Algorithm~\ref{alg:control} defines the 1~Hz orchestration loop, per-action Level 2 approval queuing, and pre-execution revalidation.
 
@@ -318,7 +469,8 @@ Algorithm~\ref{alg:control} defines the 1~Hz orchestration loop, per-action Leve
 \STATE \quad \quad \textbf{if} $\text{tier\_of}(c) == \text{TIER2}$ \textbf{then}
 \STATE \quad \quad \quad $\text{approval.propose}(c, \text{ttl}=300)$ \COMMENT{per-action ID}
 \STATE \quad \quad \textbf{else if} $c \in chosen \land \text{revalidate}(c, snap)$ \textbf{then}
-\STATE \quad \quad \quad $\text{run\_and\_log}(c)$
+\STATE \quad \quad \quad $v \leftarrow \text{budget.gate}(c)$ \COMMENT{Algorithm~\ref{alg:canstart}}
+\STATE \quad \quad \quad \textbf{if} $v = \text{ALLOW}$ \textbf{then} $\text{run\_and\_log}(c)$ \textbf{else if} $v = \text{DELAY}$ \textbf{then} $\text{book}(c, v.\text{at})$
 \STATE
 \STATE \textbf{function} \textsc{on\_confirm}($approval\_id, channel$)
 \STATE \quad $ap \leftarrow \text{approval.confirm}(approval\_id, channel)$
@@ -332,21 +484,24 @@ Algorithm~\ref{alg:control} defines the 1~Hz orchestration loop, per-action Leve
 \subsection{NFR-1 \& NFR-2: Latency Decoupling and Verification}
 \begin{itemize}
     \item \textbf{Latency Budget (NFR-1):} Deterministic local sensor checks complete in $1.2\text{ ms}$ per 1~Hz tick (overall deterministic tick budget: $30\text{ ms}$). Cloud LLM reasoning runs within $2.0$--$3.0\text{ s}$ upon threshold breach, bounded by a 180-second cooldown ($\sim$40 calls/hour max). If model output is disabled, times out, or returns invalid JSON, deterministic rule defaults apply while keeping all Level 2 actions strictly approval-gated.
-    \item \textbf{Simulation Containment \& Verification (NFR-2):} All telemetry, calendar schedules, and appliance adapters execute locally via synthetic JSON/CSV streams and are verified through automated unit test suites and latency/accuracy benchmark scripts (\texttt{tests/}, \texttt{eval/}).
+    \item \textbf{Simulation Containment \& Verification (NFR-2):} All telemetry, calendar schedules, and appliance adapters execute locally via synthetic JSON/CSV streams and are verified through automated unit test suites and latency/accuracy benchmark scripts (\texttt{tests/}, \texttt{eval/}). \texttt{python -m eval.week} replays one model household for a week with and without the energy gate (Use Case~15).
+    \item \textbf{Hosted Access and Notification (NFR-3):} With \texttt{DEMO\_PASSWORD} set, every control route requires a session cookie signed with HMAC-SHA256 and valid for 24~h (\texttt{app/auth.py}); a local run has no password. Notifications use Server-Sent Events from the standard library (\texttt{app/events.py}): no push service and no credentials, so they arrive while a page is open.
 \end{itemize}
 
 % ======================================================================
 \section{Architecture Design \& Implementation}
 
 \subsection{Overall Architecture}
-Fig.~\ref{fig:arch-impl} shows the implemented system as eleven software components. Each box names the component, its source location, its responsibility and its main classes or functions; each directed edge is labelled with the call that crosses it. Amber boxes and edges mark the safety path: every proposed action passes the whitelist in the Safety Policy, every Level~2 action passes the Approval Queue, and every device write --- from the proactive loop, from voice or text commands, from scheduled jobs and from the manual controls --- passes the Audit Gate before it reaches a Device Adapter.
+Fig.~\ref{fig:arch-impl} shows the implemented system. The blue line is the system boundary: everything inside it is our code, everything outside it is the environment the code reads from or acts on. Data therefore enters from outside --- the home's sensors, the calendar file and the published tariff and emission data on the left, the users on top --- and leaves through the device adapter to the appliances on the right; the optional language model is an external service, too. In the demonstration the house itself is simulated, but the simulator plays the part of the external sources: the system reads it only through the Input layer and the Device Adapter, so a real ESP32 sensor or LG ThinQ appliance replaces it without changing layers~\textcircled{\scriptsize 2}--\textcircled{\scriptsize 5}.
 
-The architecture keeps three properties that the requirements depend on. First, \emph{perception is deterministic}: the Sensor Simulator and the Risk Engine run on every 1~Hz tick without the language model in the path (NFR-1). Second, \emph{the model ranks but never authorizes}: the LLM Client only orders Level~1 candidates that the policy already produced, and any failure falls back to the rules (FR-3). Third, \emph{there is one door to the devices}: \texttt{audit.execute()} is the only function that calls \texttt{DeviceAdapter.apply()} on the action path, so intent and outcome are always recorded on either side of a device write (FR-6).
+Inside, the components sit in five layers: \emph{Interface} (web UI, REST API with live alerts, login gate), \emph{Input} (sensor and state reader, regional presets), \emph{Decision} (risk engine, proactive engine, command reader, savings report, safety policy, approval queue, preference learning), \emph{Execution} (energy budget gate, audit gate, device adapter) and \emph{Storage} (one SQLite file). Each box names the component, its source files and its responsibility; each directed edge is labelled with what crosses it. Amber marks the safety path: every proposed action passes the whitelist, every Level~2 action passes the Approval Queue, every start passes the Energy Budget Gate, and every device write --- from the proactive loop, from voice or text commands, from scheduled jobs and from the manual controls --- passes the Audit Gate before it reaches a Device Adapter. The lettered edges A--G carry the data formats printed under the diagram: the JSON sensor snapshot and CSV file, the calendar file, the regional preset, the REST and event-stream messages, the model request, the adapter's action format with its LG ThinQ payload, and the audit row.
+
+The architecture keeps three properties that the requirements depend on. First, \emph{perception is deterministic}: the Sensor Simulator and the Risk Engine run on every 1~Hz tick without the language model in the path (NFR-1). Second, \emph{the model ranks but never authorizes}: the LLM Client only orders Level~1 candidates that the policy already produced, and any failure falls back to the rules (FR-3). Third, \emph{there is one door to the devices}: \texttt{audit.execute()} is the only function that calls \texttt{DeviceAdapter.apply()} on the action path, so intent and outcome are always recorded on either side of a device write (FR-6). Fourth, \emph{there is one energy decision}: \texttt{budget.can\_start()} is called on every path that can start a load, so the budget and the kW limit cannot be bypassed by choosing a different way to ask (FR-8).
 
 \begin{figure*}[t]
 \centering
-\includegraphics[width=0.92\textwidth]{figures/architecture.png}
-\caption{Implemented FSD-Home architecture. Boxes are software components (title, location, responsibility, main classes); directed edges are labelled with the call that crosses them. Amber marks the safety path: whitelist, per-action approval, and the write-before-act audit gate.}
+\includegraphics[width=\textwidth]{figures/architecture-v4.png}
+\caption{Implemented FSD-Home architecture. Inside the blue boundary: our code in five layers; outside: data sources, users, the optional language model and the appliances. Boxes are components (title, source files, responsibility); edges are labelled with what crosses them. Amber marks the safety path: whitelist, per-action approval, energy budget gate and the write-before-act audit gate. The panel below gives the data format on each lettered edge, with field names as in the code.}
 \label{fig:arch-impl}
 \end{figure*}
 
@@ -369,15 +524,18 @@ Table~\ref{tab:dirs} lists the source tree. The core runtime uses only the Pytho
 \texttt{app/} & \texttt{proactive.py} & Proactive Engine & \texttt{ProactiveEngine}: loop, revalidation, cooktop interlock, dryer reminder \\
 \texttt{app/} & \texttt{approval.py} & Approval Queue & \texttt{Approval}, \texttt{ApprovalQueue}: per-action requests, 300~s expiry \\
 \texttt{app/} & \texttt{savings.py}, \texttt{regions.py} & Savings Report & \texttt{summarize()}, \texttt{report()}: kWh, money and CO$_2$ estimated from executed actions (FR-7); per-region (13 presets) language, currency, prices and emission factor \\
-\texttt{app/} & \texttt{audit.py}, \texttt{db.py} & Audit Gate, Persistence & \texttt{execute()}, \texttt{record()}, \texttt{blocked()}; SQLite schema with append-only triggers \\
+\texttt{app/} & \texttt{budget.py} & Energy Budget Gate & \texttt{accrue()}, \texttt{can\_start()}, \texttt{gate()}, \texttt{set\_budget()}, \texttt{set\_max\_kw()}: kWh budget, kW limit, ALLOW/BLOCK/DELAY, provenance (FR-8) \\
+\texttt{app/} & \texttt{audit.py}, \texttt{db.py} & Audit Gate, Persistence & \texttt{execute()}, \texttt{record()}, \texttt{blocked()}; SQLite schema with append-only triggers (\texttt{audit\_log}, \texttt{energy\_decisions}) \\
+\texttt{app/} & \texttt{auth.py}, \texttt{events.py} & Login Gate, Live Alerts & Demo password and signed 24~h cookie; Server-Sent Event bus (NFR-3) \\
+\texttt{app/} & \texttt{preference.py} & Preference Learning & Opt-in record of repeated approvals; off by default \\
 \texttt{app/} & \texttt{llm.py} & LLM Client & OpenAI-compatible \texttt{chat()}; used for ranking and conversation \\
 \texttt{app/} & \texttt{server.py} & HTTP Server & \texttt{Handler}: REST API and static files \\
-\texttt{app/} & \texttt{agent.py}, \texttt{chat.py}, \texttt{nlu.py}, \texttt{tools.py}, \texttt{scheduler.py}, \texttt{agent\_loop.py}, \texttt{scenes.py}, \texttt{food.py} & Conversational Agent & Phase~1 voice/text commands, schedules and conversation; device writes go through the Audit Gate \\
+\texttt{app/} & \texttt{agent.py}, \texttt{chat.py}, \texttt{nlu.py}, \texttt{ko.py}, \texttt{classifier.py}, \texttt{tools.py}, \texttt{scheduler.py}, \texttt{agent\_loop.py}, \texttt{scenes.py}, \texttt{food.py} & Conversational Agent & Voice/text commands (Korean input via \texttt{ko.py}), long-tail intent classifier, schedules and conversation; starts pass the energy gate, device writes the Audit Gate \\
 \texttt{app/} & \texttt{config.py}, \texttt{build.py} & Configuration & Defaults, \texttt{config.json}, build stamp \\
 \texttt{app/devices/} & \texttt{base.py}, \texttt{mock.py}, \texttt{thinq.py} & Device Adapters & \texttt{DeviceAdapter}, \texttt{MockAdapter} (11 simulated appliances), \texttt{ThinQAdapter} (dry-run by default) \\
-\texttt{app/web/} & \texttt{index.html}, \texttt{app.js}, \texttt{style.css}, \texttt{sw.js} & Web UI & Four phone-screen tabs, ask sheet, talk sheet; Korean / English; no build step \\
-\texttt{tests/} & \texttt{test\_phase2.py}, \texttt{test\_fr456.py}, \ldots & Unit tests & 308 tests (incl.\ \texttt{test\_heat\_energy.py}, \texttt{test\_savings.py}); run on Windows and Linux in GitHub Actions \\
-\texttt{eval/} & \texttt{run.py}, \texttt{latency.py}, \texttt{dataset.jsonl} & Benchmarks & Intent-parser regression and latency measurement \\
+\texttt{app/web/} & \texttt{index.html}, \texttt{app.js}, \texttt{style.css}, \texttt{sw.js}, \texttt{login.html}, \texttt{soft/} & Web UI & Console (Home, Schedule, Assistant, Energy) and the Figma-designed \texttt{/soft/} interface; six languages; no build step \\
+\texttt{tests/} & \texttt{test\_phase2.py}, \texttt{test\_fr456.py}, \texttt{test\_budget.py}, \texttt{test\_max\_kw.py}, \ldots & Unit tests & 434 tests; run on Windows and Linux (Python 3.10, 3.12, 3.13) in GitHub Actions \\
+\texttt{eval/} & \texttt{run.py}, \texttt{latency.py}, \texttt{week.py}, \texttt{dataset.jsonl} & Benchmarks & Intent-parser regression, latency, and the simulated-week evaluation of FR-8 (\texttt{docs/eval/}) \\
 \texttt{docs/} & \texttt{*.tex}, \texttt{figures/} & Documentation & This paper, figures and screenshots \\
 \bottomrule
 \end{tabular}
@@ -401,11 +559,17 @@ It also reports the whole-house load (\texttt{total\_load\_w}) and the time-of-u
 \subsection{Proactive Engine (\texttt{app/proactive.py})}
 \textbf{Purpose.} Run Algorithm~\ref{alg:control}.
 \textbf{Functionality.} \texttt{ProactiveEngine.tick()} takes a snapshot, evaluates both risks, writes one \texttt{risk.triggered} row when a risk crosses its threshold, and calls \texttt{\_intervene()} for every risk that is neither in its cooldown nor already waiting for an answer. \texttt{\_intervene()} asks the LLM Client to rank the Level~1 candidates (\texttt{\_decide()}), revalidates and executes them through the Audit Gate, and creates one approval per Level~2 candidate. \texttt{confirm()} revalidates the approved action against a fresh snapshot: the approval must still be valid, the risk must still be active, and the device must still be in the state the question described. \texttt{preheat\_cooktop} is the exception: it prepares a meal rather than relieving the overload, so it is checked against the meal (someone at home, cooking still scheduled within 30 minutes, cooktop still off). On every tick \texttt{\_cooktop\_guard()} switches a preheated cooktop off when no cooking starts within 5 minutes of the scheduled time or after 30 minutes of continuous running, and \texttt{\_dryer\_followup()} sends one restart reminder after a confirmed dryer stop once the overload clears. \texttt{state()} exposes live scores, pending approvals, quiet periods, heat load and the interlock timers to the UI.
+Every action it runs on its own first passes \texttt{budget.gate()}; a DELAY becomes a booked job and a message (``It is scheduled for 22:00. Your budget has not been spent yet.''), and \texttt{\_trace\_decision()} stores the prompt, input and output of each model decision.
 \textbf{Why.} Keeping the timer, the risk check and the safety gates in deterministic code means a slow, unavailable or wrong model can delay a Level~1 choice but can never execute a Level~2 action.
 
 \subsection{Approval Queue (\texttt{app/approval.py})}
 \textbf{Purpose.} Hold Level~2 requests until the user answers (FR-4, FR-5).
 \textbf{Functionality.} \texttt{ApprovalQueue.propose()} creates one \texttt{Approval} per action with its own identifier, plain-language question, risk score and a deadline 300~s ahead. \texttt{confirm()} re-checks the deadline itself, so an answer that arrives between two ticks after the deadline is treated as an expiry; \texttt{decline()} and \texttt{expire\_due()} close requests without executing anything. Every transition writes an \texttt{approval.*} audit row. Pending approvals live in memory only, so a restart drops them --- which, under the fail-safe default, means nothing runs.
+
+\subsection{Energy Budget Gate (\texttt{app/budget.py})}
+\textbf{Purpose.} Make one decision about energy for every path that can start a load (FR-8).
+\textbf{Functionality.} \texttt{accrue()} integrates the 1~Hz load into the month's kWh and keeps the latest load; \texttt{can\_start()} implements Algorithm~\ref{alg:canstart}; \texttt{gate()} calls it and appends the verdict to \texttt{energy\_decisions} and \texttt{audit\_log} before any adapter call; \texttt{set\_budget()} and \texttt{set\_max\_kw()} store the household's limits (\texttt{energy\_state}, \texttt{energy\_settings}); \texttt{state()} feeds the Energy tab through \texttt{GET /api/budget}. Callers: the proactive engine, \texttt{Agent}, the tool loop (\texttt{tools.py}), \texttt{POST /api/control} and the \texttt{Scheduler}, which calls it again when a booked job comes due.
+\textbf{Why.} Putting the rule in one function, instead of in each path, is what makes the budget a limit rather than a convention: a fifth path added later has one call to make, and a test can prove it was made.
 
 \subsection{Audit Gate and Persistence (\texttt{app/audit.py}, \texttt{app/db.py})}
 \textbf{Purpose.} Make every device write traceable (FR-6).
@@ -417,15 +581,19 @@ It also reports the whole-house load (\texttt{total\_load\_w}) and the time-of-u
 
 \subsection{HTTP Server and Web UI (\texttt{app/server.py}, \texttt{app/web/})}
 \textbf{Purpose.} Give the household one accessible screen (FR-4).
-\textbf{Functionality.} \texttt{Handler} serves the static interface and a small REST API: \texttt{GET /api/proactive}, \texttt{/api/approvals}, \texttt{/api/audit}, \texttt{/api/savings}, \texttt{/api/regions}, \texttt{/api/snapshot}; \texttt{POST /api/approvals/<id>/confirm} and \texttt{/decline} (the only route into Level~2 execution), \texttt{/api/control}, \texttt{/api/chat} and \texttt{/api/scenario} for demonstrations. The interface is vanilla HTML, CSS and JavaScript with no build step, designed first in Figma (Section~VI shows it). It has four tabs that each fit one phone screen: \emph{Home} (a one-sentence status from a small house mascot, four risk rings with the threshold at 50, quick actions and a one-line savings summary), \emph{Devices}, \emph{Activity} (the savings estimate and the audit trail in plain language) and \emph{Settings}; talking is the button in the middle of the tab bar. Level~2 questions open a bottom sheet by themselves: the reason once, then one card per action with its own Yes~/~No and a shared countdown. A language picker on Home (Korean, English, German, French, Spanish, Italian) switches the whole interface, speech recognition and read-aloud; Korean is the default. A \emph{Country / region} setting (Korea; the United States on average or one of six states; the United Kingdom, Germany, France, Spain, Italy) sets the language together with the currency, electricity prices and emission factor of the savings report. Both are native selects, so a phone shows its own large picker. Text and signal colours meet WCAG~2.2 AA contrast ($\geq 4.5{:}1$), controls show a visible keyboard focus, touch targets are 44--56~px, and the status line, banner and notifications are ARIA live regions \cite{wcag2023}.
+\textbf{Functionality.} \texttt{Handler} serves the static interface and a small REST API: \texttt{GET /api/proactive}, \texttt{/api/approvals}, \texttt{/api/audit}, \texttt{/api/savings}, \texttt{/api/regions}, \texttt{/api/snapshot}; \texttt{POST /api/approvals/<id>/confirm} and \texttt{/decline} (the only route into Level~2 execution), \texttt{/api/control}, \texttt{/api/chat} and \texttt{/api/scenario} for demonstrations; \texttt{GET/POST /api/budget} for the energy budget and kW limit, \texttt{GET /api/events} for live alerts, and \texttt{/login} when a password is set. The default console at \texttt{/} has four tabs --- Home, Schedule, Assistant and \emph{Energy} --- and the Figma-designed interface described next is served at \texttt{/soft/}. The interface is vanilla HTML, CSS and JavaScript with no build step, designed first in Figma (Section~VI shows it). It has four tabs that each fit one phone screen: \emph{Home} (a one-sentence status from a small house mascot, four risk rings with the threshold at 50, quick actions and a one-line savings summary), \emph{Devices}, \emph{Activity} (the savings estimate and the audit trail in plain language) and \emph{Settings}; talking is the button in the middle of the tab bar. Level~2 questions open a bottom sheet by themselves: the reason once, then one card per action with its own Yes~/~No and a shared countdown. A language picker on Home (Korean, English, German, French, Spanish, Italian) switches the whole interface, speech recognition and read-aloud; Korean is the default. A \emph{Country / region} setting (Korea; the United States on average or one of six states; the United Kingdom, Germany, France, Spain, Italy) sets the language together with the currency, electricity prices and emission factor of the savings report. Both are native selects, so a phone shows its own large picker. Text and signal colours meet WCAG~2.2 AA contrast ($\geq 4.5{:}1$), controls show a visible keyboard focus, touch targets are 44--56~px, and the status line, banner and notifications are ARIA live regions \cite{wcag2023}.
 
 \subsection{Conversational Agent (\texttt{app/agent.py} and related)}
 \textbf{Purpose.} Keep the Phase~1 voice and text assistant working on the same safety path.
-\textbf{Functionality.} \texttt{Agent.handle()} parses commands with a rule-based intent parser (\texttt{nlu.py}), optionally with the language model, and executes device commands and scheduled jobs (\texttt{Scheduler}) through \texttt{audit.execute()}. Messages that are not commands are answered by \texttt{chat.py}, which has no access to adapters and therefore cannot change a device.
+\textbf{Functionality.} \texttt{Agent.handle()} parses commands with a rule-based intent parser (\texttt{nlu.py}); Korean input is first normalised by \texttt{ko.py}. Every start passes \texttt{\_budget\_check()}, which turns a DELAY into a booked job and a plain reply, and every device write goes through \texttt{audit.execute()}; if the gate cannot be read, a start is refused and a switch-off still runs. A message the rules cannot read goes to \texttt{classifier.py}: one JSON-only model call with no tools and no device identifiers, whose label can hand a confident command back to the rule cascade or buy one clarification question, but never an action. Messages that are not commands are answered by \texttt{chat.py}, which has no access to adapters and therefore cannot change a device.
+
+\subsection{Live Alerts, Login Gate and Preference Learning}
+\textbf{Purpose.} Run the demonstration safely on the Internet and tell the user what happened (NFR-3).
+\textbf{Functionality.} \texttt{events.py} is a thread-safe fan-out: the proactive loop publishes an event (an approval request, an automatic action, an energy deferral) and each open \texttt{/api/events} stream receives it. \texttt{auth.py} gates the control routes behind \texttt{DEMO\_PASSWORD} with a signed cookie. \texttt{preference.py} can record that the user approved the same risk/action pair three times in a row; it is off by default, a single decline resets it, it never changes a tier in \texttt{policy.py}, and every learned execution is audited.
 
 % ======================================================================
 \section{Use Cases}
-All use cases run on a laptop with \texttt{python run.py}. Screenshots were taken from the running app at phone size with the language model disabled, so every decision shown was made by the rules. Each scenario can be loaded from \emph{Settings} $\rightarrow$ \emph{Demo}, or with \texttt{python run.py --scenario <name>}. The interface opens in Korean; the screenshots use the English setting except Use Case~9.
+All use cases run on a laptop with \texttt{python run.py}. Screenshots were taken from the running app at phone size with the language model disabled, so every decision shown was made by the rules. Each scenario can be loaded from \emph{Settings} $\rightarrow$ \emph{Demo}, or with \texttt{python run.py --scenario <name>}. The interface opens in Korean; the screenshots use the English setting except Use Case~9. Use Cases~1--11 use the \texttt{/soft/} interface; Use Cases~12--14 use the console at \texttt{/}, whose \emph{Energy} tab holds the budget and the kW limit.
 
 \subsection{Use Case 1: Mold Risk Handled Automatically}
 \textbf{Satisfies:} FR-1, FR-2 (MRI), FR-3 (Level~1), FR-4.
@@ -529,18 +697,18 @@ These paths are exercised by unit tests in \texttt{tests/test\_fr456.py}.
 \end{figure}
 
 \subsection{Use Case 8: Power Load at the Peak Rate}
-\textbf{Satisfies:} FR-2 (PLI), FR-3 (Level~1 and Level~2), FR-4, FR-5.
+\textbf{Satisfies:} FR-2 (PLI), FR-3 (Level~1 and energy pre-authorisation), FR-8, FR-4.
 \begin{enumerate}
-    \item Choose \emph{Demo} $\rightarrow$ \emph{Peak rate}: evening peak band, two air conditioners set to 22~$^\circ$C and a wash running --- about 2.4~kW against a 2.5~kW peak budget (PLI~57; 2.3~kW and PLI~55 once the AC is raised).
-    \item PLI exceeds 50. The house raises the coldest AC by 2~$^\circ$C on its own (Level~1); the load falls but stays above the threshold.
-    \item The sheet asks one question: ``Pause the wash until the peak ends?'' (Fig.~\ref{fig:uc8}).
-    \item On \emph{Yes} the wash pauses (it does not count as finished, so the mold index does not start), the load drops to about 1.7~kW, PLI falls to about 41 and Home returns to ``All cozy at home''.
+    \item Choose \emph{Demo} $\rightarrow$ \emph{Peak rate}: evening peak band, two air conditioners set to 22~$^\circ$C and a wash running --- about 2.4~kW against a 2.5~kW peak budget (PLI~57).
+    \item PLI exceeds 50. The house raises the coldest AC by 2~$^\circ$C (Level~1); the energy gate allows it (within budget).
+    \item Because the household set a monthly budget, the power-load risk is pre-authorised: the house also pauses the wash \emph{without asking} --- the gate allows it, since pausing starts nothing --- and says so: ``Wash paused --- restart it after the peak'' (Fig.~\ref{fig:uc8}). The load drops to about 1.8~kW and PLI to about 43 (\emph{Watching}). In the Phase~2 specification this step was a question; with the budget turned off (\texttt{energy.preauthorised = false}) it is a question again.
+    \item The paused wash does not count as finished, so the mold index does not start. \texttt{GET /api/audit} shows, in order, the \texttt{energy.decision} (ALLOW), \texttt{action.intent} and \texttt{action.executed} rows of each action.
 \end{enumerate}
 
 \begin{figure}[htbp]
 \centering
-\includegraphics[width=0.58\columnwidth]{figures/v3-uc8-peak.png}
-\caption{Use Case 8: at the peak rate, the house lowers the AC load itself and asks before pausing the wash.}
+\includegraphics[width=0.58\columnwidth]{figures/v4-uc8-peak.png}
+\caption{Use Case 8: at the peak rate the house raised the AC setpoint and paused the wash on its own, inside the pre-authorised budget.}
 \label{fig:uc8}
 \end{figure}
 
@@ -572,7 +740,7 @@ These paths are exercised by unit tests in \texttt{tests/test\_fr456.py}.
 \begin{enumerate}
     \item Start the system with the model pointed at an unreachable address: \texttt{LLM\_BASE\_URL=http://127.0.0.1:9 python run.py --scenario oven}.
     \item The engine logs \texttt{proactive.decide\_fallback} and the rules choose the Level~1 actions. Questions, revalidation, the interlock and the audit trail behave exactly as above.
-    \item \texttt{python -m unittest discover -s tests} (308 tests) and \texttt{python -m eval.run} verify the same behaviour with no network access.
+    \item \texttt{python -m unittest discover -s tests} (434 tests) and \texttt{python -m eval.run} verify the same behaviour with no network access; the same suite runs on Windows and Linux with Python 3.10, 3.12 and 3.13 in GitHub Actions.
 \end{enumerate}
 
 \subsection{Use Case 11: What the House Saved}
@@ -596,6 +764,88 @@ These paths are exercised by unit tests in \texttt{tests/test\_fr456.py}.
 \includegraphics[width=0.58\columnwidth]{figures/v3-uc11-savings-de.png}
 \caption{Use Case 11 for a household in Germany: euros, the German emission factor, and a note that moving a load earns nothing without a time-of-use rate.}
 \label{fig:uc11de}
+\end{figure}
+
+
+\subsection{Use Case 12: A Chore Asked For at the Peak Is Booked for Later}
+\textbf{Satisfies:} FR-8 (DELAY), FR-6.
+\begin{enumerate}
+    \item In the evening peak band (16--22~h in the Korea preset), type or say ``turn on the dryer'' in the \emph{Assistant} tab.
+    \item The gate returns DELAY: the dryer is not running yet and is a movable load. The agent does not start it, creates a one-time job for the start of the off-peak band and replies ``I did not start Balcony Dryer now --- peak band; moved to off-peak at 22:00. Booked for 22:00.''
+    \item The job appears in the \emph{Schedule} tab. At 22:00 the scheduler calls the gate again --- the budget might have been spent in the meantime --- and only then starts the dryer through the Audit Gate; a message in the conversation reports whether it ran.
+\end{enumerate}
+
+\subsection{Use Case 13: A Spent Budget Blocks a Start}
+\textbf{Satisfies:} FR-8 (BLOCK, fail closed, provenance), FR-6.
+\begin{enumerate}
+    \item In the \emph{Energy} tab set the monthly budget to 0.05~kWh, or \texttt{POST /api/budget \{"budget\_kwh": 0.05\}}. The bar turns red once the month's use passes it (Fig.~\ref{fig:uc13}).
+    \item Ask ``turn on the dehumidifier''. The reply is ``I did not start Balcony Dehumidifier: estimated 0.30~kWh exceeds 0.00~kWh remaining this month. Set a higher budget or use the manual override.'' Nothing is sent to the device.
+    \item \emph{Recent decisions} lists the verdict, the device, the time, the reason and its source (Fig.~\ref{fig:uc13ledger}); the proactive engine's own attempt to adjust an air conditioner is refused the same way. A model decision would show \texttt{llm} and keep its prompt, input and output.
+    \item The raw API obeys the same gate: \texttt{POST /api/control} for the dryer returns \texttt{403} with the same reason, unless the request carries \texttt{"override": true}, which is recorded as a manual override.
+\end{enumerate}
+
+\begin{figure}[htbp]
+\centering
+\includegraphics[width=0.58\columnwidth]{figures/v4-uc13-budget.png}
+\caption{Use Case 13: the Energy tab with the month's use above a deliberately tiny budget; the live load and the kW limit are shown next to it, in their own units.}
+\label{fig:uc13}
+\end{figure}
+
+\begin{figure}[htbp]
+\centering
+\includegraphics[width=0.58\columnwidth]{figures/v4-uc13-ledger.png}
+\caption{Use Case 13: the decision ledger. Each verdict keeps its reason and its source.}
+\label{fig:uc13ledger}
+\end{figure}
+
+\subsection{Use Case 14: ``Not Now'' --- the Maximum Load Limit}
+\textbf{Satisfies:} FR-8 (kW limit, DELAY, due-job re-check).
+\begin{enumerate}
+    \item In the \emph{Energy} tab enter 3 in \emph{Max kW limit} and press \emph{Set limit}, or \texttt{POST /api/budget \{"max\_kw": 3.0\}}. The limit is written to \texttt{audit\_log} as a configuration change.
+    \item With the house drawing 1.8~kW, ask ``turn on the dryer''. The dryer's 1.4~kW would take the house to 3.2~kW, so the agent answers ``Not now. The house is drawing 1.8~kW and Balcony Dryer would take it to 3.2~kW, over your 3~kW limit. Booked for 22:00; it will start by itself then if it fits.'' (Fig.~\ref{fig:uc14}). Outside the peak band the booking is the next half hour at least 30 minutes ahead.
+    \item When the job comes due the gate runs again with the load at that moment. If the house is still too busy the job moves another 30 minutes and the user is told (``still does not fit under 3~kW \ldots\ Trying again at 22:30''); after six hours it reports that the dryer did not start. A booking is never permission to exceed the limit later.
+    \item A load that cannot wait (e.g.\ the dehumidifier) is refused over the limit with ``switch something off first or raise the limit''; cooling, the refrigerator and air cleaning are never limited.
+\end{enumerate}
+
+\begin{figure}[htbp]
+\centering
+\includegraphics[width=0.58\columnwidth]{figures/v4-uc14-maxkw.png}
+\caption{Use Case 14: the dryer would push the house over the 3~kW limit, so it is booked instead of started. (Screenshot taken with the server clock in the peak band; the bubble times are the phone's clock.)}
+\label{fig:uc14}
+\end{figure}
+
+\subsection{Use Case 15: One Simulated Week, Before and After}
+\textbf{Satisfies:} FR-8, NFR-2.
+\begin{enumerate}
+    \item Run \texttt{python -m eval.week}. One model household --- fridge, standby and evening lights; cooking four evenings a week; an air conditioner every evening; a wash, a dryer load and a dishwasher load asked for most evenings --- is replayed minute by minute for seven days (plus a quiet eighth day so that late bookings can finish), three times: without FSD, with peak shifting only, and with peak shifting and a 3~kW limit. Every FSD start goes through the real \texttt{can\_start()}; nothing in the evaluation is a second copy of the rules.
+    \item The script writes \texttt{docs/eval/week.md}, \texttt{week.json} and the load curves of Fig.~\ref{fig:uc15}; Table~\ref{tab:week} gives the totals.
+    \item \emph{Result.} Peak shifting alone moves every chore to 22:00 and creates a new peak there --- more minutes over 3~kW than doing nothing (570 vs.\ 490). The limit staggers the chores instead: every minute still over 3~kW (210) is caused by cooking and cooling, which the gate may not move. Peak-band energy falls by 30\% and the time-of-use cost by 8\%, all 19 chores still run, and they wait 142 minutes on average. Total kWh and CO$_2$ do not change: moving a load in time saves money and peak demand, not energy, and the report says so.
+\end{enumerate}
+
+\begin{table}[htbp]
+\caption{Simulated Week (Use Case 15)}
+\label{tab:week}
+\centering
+\footnotesize
+\begin{tabular}{p{2.9cm}rrr}
+\toprule
+ & \textbf{No FSD} & \textbf{Peak shift} & \textbf{+3~kW limit} \\
+\midrule
+Minutes over 3~kW & 490 & 570 & 210 \\
+\quad of which cooking/cooling alone & 210 & 210 & 210 \\
+kWh in the 16--22~h band & 75.0 & 52.4 & 52.4 \\
+Time-of-use cost (KRW) & 23,916 & 22,068 & 22,068 \\
+Energy (kWh) / CO$_2$ (kg) & 128.2 / 53.5 & 128.2 / 53.5 & 128.2 / 53.5 \\
+Chores done / average wait & 19 / 0 min & 19 / 104 min & 19 / 142 min \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+\begin{figure}[htbp]
+\centering
+\includegraphics[width=\columnwidth]{figures/v4-eval-week.png}
+\caption{Use Case 15: whole-house load on the same day in the three runs. Peak shifting alone (middle) piles the chores up at 22:00; the 3~kW limit (bottom) staggers them. The spike near 19:00 is cooking and cooling, which FSD may not move.}
+\label{fig:uc15}
 \end{figure}
 
 \section{Software Installation Guide}
