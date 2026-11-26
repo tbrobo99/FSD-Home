@@ -1,0 +1,203 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="theme-color" content="#ffffff">
+<title>FSD Home · Energy</title>
+<link rel="icon" href="/icon.svg" type="image/svg+xml">
+<link rel="stylesheet" href="/style.css">
+<style>
+/* This page deliberately reuses style.css tokens. It is a separate route so
+   the main console is untouched; only these layout rules are local. */
+body { margin: 0; background: var(--bg); color: var(--ink);
+       font-family: var(--font-sans, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif); }
+.energy { max-width: 760px; margin: 0 auto; padding: 22px 18px 48px; }
+.energy header { display: flex; align-items: baseline; justify-content: space-between;
+                 gap: 12px; margin-bottom: 4px; }
+.energy h1 { font-size: 1.4rem; margin: 0; letter-spacing: -.02em; }
+.energy .back { font-size: .9rem; color: var(--accent-ink); text-decoration: none; }
+.energy .scope { display: inline-block; margin: 12px 0 20px; padding: 6px 10px;
+                 border: 1px solid var(--line-strong); border-radius: 8px;
+                 font-size: .78rem; font-weight: 600; color: var(--ink-2);
+                 background: var(--surface); }
+.energy .card { border: 1px solid var(--line); border-radius: 14px; padding: 18px;
+                margin-bottom: 14px; background: var(--bg); }
+.energy h2 { font-size: 1rem; margin: 0 0 14px; }
+.energy .big { font-size: 2.1rem; font-weight: 700; letter-spacing: -.03em; line-height: 1.1; }
+.energy .unit { font-size: .95rem; color: var(--ink-2); font-weight: 500; }
+.energy .grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px; }
+.energy .cell { background: var(--surface); border-radius: 10px; padding: 14px; }
+.energy .cell .k { font-size: .78rem; color: var(--ink-2); margin-bottom: 6px; }
+.energy .cell .v { font-size: 1.35rem; font-weight: 700; }
+.energy .bar { height: 12px; border-radius: 6px; background: var(--surface);
+               overflow: hidden; margin: 14px 0 8px; }
+.energy .bar i { display: block; height: 100%; background: var(--accent); width: 0; }
+.energy .bar.warn i { background: #f59e0b; }
+.energy .bar.over i { background: #e5484d; }
+.energy .row { display: flex; justify-content: space-between; gap: 10px;
+               padding: 11px 0; border-bottom: 1px solid var(--line); font-size: .92rem; }
+.energy .row:last-child { border-bottom: 0; }
+.energy .row .muted { color: var(--ink-2); }
+.energy .pill { display: inline-block; padding: 3px 8px; border-radius: 999px;
+                font-size: .72rem; font-weight: 700; }
+.energy .pill.llm { background: #e8f3ff; color: #1b64da; }
+.energy .pill.fallback { background: #f2f4f6; color: #4e5968; }
+.energy .pill.override { background: #fff4e5; color: #a85300; }
+.energy .pill.block { background: #ffe9e9; color: #b42318; }
+.energy label { display: block; font-size: .85rem; color: var(--ink-2); margin: 12px 0 6px; }
+.energy input[type=number] { width: 100%; padding: 12px; font-size: 1rem;
+     border: 1px solid var(--line-strong); border-radius: 10px; box-sizing: border-box; }
+.energy button { margin-top: 12px; width: 100%; padding: 14px; font-size: 1rem;
+     font-weight: 600; color: #fff; background: var(--accent); border: 0; border-radius: 10px;
+     cursor: pointer; }
+.energy .note { font-size: .82rem; color: var(--ink-2); line-height: 1.6; }
+.energy .empty { color: var(--ink-3); font-size: .9rem; padding: 10px 0; }
+.energy a { color: var(--accent-ink); }
+@media (min-width: 620px) { .energy .grid { gap: 16px; } }
+</style>
+</head>
+<body>
+<div class="energy">
+  <header>
+    <h1>Energy budget</h1>
+    <a class="back" href="/?ui=v6">← Console</a>
+  </header>
+  <div class="scope">SIMULATOR · estimated from published appliance ratings · no meter readings</div>
+
+  <div class="card">
+    <h2>This month</h2>
+    <div><span class="big" id="used">—</span> <span class="unit">kWh used</span></div>
+    <div class="bar" id="bar"><i id="barFill"></i></div>
+    <div class="row"><span class="muted">Budget</span><span id="budget">—</span></div>
+    <div class="row"><span class="muted">Remaining</span><span id="remaining">—</span></div>
+    <div class="row"><span class="muted">Estimated cost</span><span id="cost">—</span></div>
+    <div class="row"><span class="muted">Instantaneous draw</span><span id="power">—</span></div>
+    <div class="row"><span class="muted">Mode</span><span id="mode">—</span></div>
+  </div>
+
+  <div class="card">
+    <h2>Pre-authorisation</h2>
+    <p class="note">Setting a monthly budget authorises the agent to act inside it.
+      The budget is a hard limit: a start or an increase that does not fit is
+      blocked, and an unreadable budget blocks rather than allows. Heating
+      appliances (cooktop, oven) stay blocked too. The one exception is the
+      explicit, audited override on the console.</p>
+    <label for="kwh">Monthly limit (kWh)</label>
+    <input id="kwh" type="number" min="1" max="100000" step="1" value="100">
+    <button id="save" type="button">Set budget</button>
+  </div>
+
+  <div class="card">
+    <h2>Browser alerts</h2>
+    <p class="note" id="alertState">Checking…</p>
+    <button id="alerts" type="button" hidden>Enable alerts</button>
+  </div>
+
+  <div class="card">
+    <h2>Recent decisions</h2>
+    <div id="decisions"></div>
+    <p class="note" style="margin-top:14px">Source: <b>llm</b> = model reply ·
+      <b>rules_fallback</b> = model unavailable, rules decided ·
+      <b>rules_override</b> = rules overrode a model choice. Real prompts,
+      inputs and outputs are kept in the decision ledger.</p>
+  </div>
+</div>
+
+<script>
+const $ = (id) => document.getElementById(id);
+const escapeHtml = (s) => String(s == null ? "" : s).replace(/[&<>"']/g,
+  c => ({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));
+
+function render(b) {
+  $('used').textContent = b.used_kwh;
+  $('budget').textContent = b.budget_kwh + ' kWh';
+  $('remaining').textContent = b.remaining_kwh + ' kWh';
+  $('cost').textContent = b.symbol + b.estimated_cost;
+  const w = (b.total_load_w || 0) / 1000;
+  $('power').textContent = w.toFixed(2) + ' kW';
+  $('mode').textContent = b.preauthorised ? 'Autonomous inside budget' : 'Ask every time';
+  const pct = Math.min(100, b.used_pct || 0);
+  $('barFill').style.width = pct + '%';
+  $('bar').className = 'bar' + (b.used_pct > 100 ? ' over' : b.used_pct > 80 ? ' warn' : '');
+  $('kwh').value = b.budget_kwh;
+
+  const rows = (b.decisions || []).slice(0, 20);
+  const box = $('decisions');
+  if (!rows.length) { box.innerHTML = '<div class="empty">No decisions yet.</div>'; return; }
+  const label = { llm: 'llm', rules_fallback: 'rules fallback',
+                  rules_override: 'rules override', rules: 'rules' };
+  box.innerHTML = rows.map(d => {
+    const cls = d.source === 'llm' ? 'llm' : d.source === 'rules_override' ? 'override' : 'fallback';
+    const bad = d.decision === 'BLOCK' ? ' block' : '';
+    const when = String(d.ts || '').slice(11, 16);
+    return '<div class="row"><span><span class="pill ' + cls + bad + '">' +
+      escapeHtml(label[d.source] || d.source) + '</span> &nbsp;' +
+      escapeHtml(d.decision) + ' · ' + escapeHtml(d.device_id) + '</span>' +
+      '<span class="muted">' + when + '</span></div>' +
+      '<div class="note" style="margin:2px 0 10px">' + escapeHtml(d.reason) + '</div>';
+  }).join('');
+}
+
+async function load() {
+  try {
+    const b = await fetch('/api/budget').then(r => r.json());
+    render(b);
+  } catch (e) {
+    $('decisions').innerHTML = '<div class="empty">Could not load: ' + escapeHtml(e) + '</div>';
+  }
+}
+
+/* Browser alerts: the enable control lives here, off the main console's
+   sticky header. The page must be open for a notification to arrive. */
+(function alerts() {
+  if (!('Notification' in window) || !('EventSource' in window)) {
+    $('alertState').textContent = 'This browser does not support alerts.';
+    return;
+  }
+  const sync = () => {
+    const p = Notification.permission;
+    $('alertState').textContent = p === 'granted'
+      ? 'On — you will be notified while a page is open.'
+      : p === 'denied'
+        ? 'Blocked in browser settings. Nothing to change here.'
+        : 'Off. Enable to see approvals and budget decisions while this page is open.';
+    $('alerts').hidden = p !== 'default';
+    $('alerts').textContent = 'Enable alerts';
+  };
+  $('alerts').addEventListener('click', async () => {
+    const p = await Notification.requestPermission();
+    sync();
+    if (p === 'granted') startAlerts();
+  });
+  function startAlerts() {
+    if (Notification.permission !== 'granted' || window._alertStream) return;
+    window._alertStream = new EventSource('/api/events');
+    window._alertStream.onmessage = (e) => {
+      let ev; try { ev = JSON.parse(e.data); } catch (_) { return; }
+      if (!ev || !ev.title) return;
+      try { new Notification(ev.title, { body: ev.body || '' }); } catch (_) {}
+    };
+  }
+  sync();
+  startAlerts();
+})();
+
+$('save').addEventListener('click', async () => {
+  const kwh = Number($('kwh').value);
+  if (!kwh || kwh <= 0) return;
+  $('save').disabled = true;
+  try {
+    await fetch('/api/budget', {
+      method: 'POST', headers: {'Content-Type': 'application/json'},
+      body: JSON.stringify({budget_kwh: kwh, strict_mode: true})
+    });
+    await load();
+  } finally { $('save').disabled = false; }
+});
+
+load();
+setInterval(load, 5000);
+</script>
+</body>
+</html>

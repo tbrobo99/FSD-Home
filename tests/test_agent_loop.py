@@ -474,7 +474,12 @@ class CascadeTests(LoopTestBase):
         # a complete command must drop the thread, not answer it
         result = agent.handle("turn on the balcony washer")
         self.assertEqual(result["intent_name"], "control")
-        self.assertTrue(self.state("washer")["power"])
+        # FR-8: at peak a movable load is deferred to 22:00 instead of being
+        # started. This test is about dropping the old thread, not about the
+        # tariff band, so either a real start or a booked delay passes.
+        started = self.state("washer")["power"]
+        deferred = "Booked for" in (result.get("reply") or "")
+        self.assertTrue(started or deferred, result.get("reply"))
 
 
 class ProseBeforeActingTests(LoopTestBase):
@@ -750,16 +755,19 @@ class RoutingTests(LoopTestBase):
         result = Agent(self.adapter, self.cfg).handle("the bedroom is unbearable")
 
         self.assertEqual(result["tier"], "loop")
-        first = self.fake.requests[0]
-        self.assertIn("tools", first)
-        self.assertNotIn("response_format", first)
+        # the classifier's JSON round trip comes first; the loop call follows
+        self.assertNotIn("tools", self.fake.requests[0])
+        second = self.fake.requests[1]
+        self.assertIn("tools", second)
+        self.assertNotIn("response_format", second)
 
     def test_a_whole_home_request_skips_the_blind_pass(self):
         """One device is all tier 2 can express, so a whole-home request must
         not be answered by it — it would do one room and report success."""
         self.fake.script = [tool_call("finish", reply="Done.")]
         Agent(self.adapter, self.cfg).handle("the whole house is too warm")
-        self.assertIn("tools", self.fake.requests[0])
+        # requests[0] is the classifier's JSON round trip; the loop follows
+        self.assertIn("tools", self.fake.requests[1])
 
     def test_the_blind_pass_is_never_asked_about_the_whole_home(self):
         """Same decision, isolated: the text names a value ("22") so the setting
@@ -848,6 +856,33 @@ class RoutingTests(LoopTestBase):
                                   self.adapter.list_devices(), "Living Room",
                                   self.now)
         self.assertIsNone(got)
+
+
+class EmptyFinishTests(LoopTestBase):
+    def test_empty_finish_recovers_the_models_last_prose(self):
+        """Measured on Zhipu: asked to 'check the rooms and suggest', the model
+        wrote the suggestion as prose, was nudged to use a tool call, then
+        called finish({}) with no reply. The whole turn was thrown away and the
+        user got the local 'I can turn devices on...' fallback instead of the
+        suggestion. Recover the prose."""
+        suggestion = ("Set the living room AC to 24 and turn on the purifier "
+                      "to stay comfortable without wasting energy.")
+        self.fake.script = [
+            tool_call("list_devices"),
+            prose(suggestion),
+            tool_call("finish"),          # no reply argument
+        ]
+        result = self.run_loop("check the rooms and suggest how to stay comfortable")
+
+        self.assertTrue(result["handled"], result)
+        self.assertEqual(result["reply"], suggestion)
+        self.assertEqual(self.fake.requests[0]["tools"][0]["function"]["name"],
+                         "list_devices")
+
+    def test_empty_finish_with_no_prose_still_falls_through(self):
+        """No answer was ever written — do not invent one."""
+        result = self.run_loop("do something unspecified")
+        self.assertFalse(result["handled"])
 
 
 class RuleTierIsUntouchedTests(LoopTestBase):

@@ -357,7 +357,22 @@ function startVoice() {
 
 function renderLangButton() {
   const btn = $("#lang");
-  if (btn) btn.textContent = voiceLang.startsWith("ko") ? "KO" : "EN";
+  const ko = voiceLang.startsWith("ko");
+  if (btn) {
+    btn.textContent = ko ? "한국어" : "EN";
+    btn.title = ko ? "한국어 음성 인식 — 누르면 영어로 전환" : "Voice language: English — tap for Korean";
+    btn.setAttribute("aria-label", btn.title);
+  }
+  // The input hint follows the mic language so the mode is visible without
+  // hunting for a tiny chip: people assumed voice was English-only because
+  // nothing on screen said otherwise.
+  const input = $("#input");
+  if (input) {
+    input.dataset.ph = ko ? "한국어로 말하거나 입력하세요…" : "Or type here…";
+    // Only change the live text when the mic is idle; while listening the
+    // "Listening — pause..." hint must stay visible.
+    if (!listening) input.placeholder = input.dataset.ph;
+  }
 }
 
 /* ---------- status: the one thing the house has to say ---------- */
@@ -538,6 +553,16 @@ function renderRooms() {
       </span>
     </button>`;
   }).join("");
+
+  // The horizontal tab strip above the device list uses the same data-room
+  // buttons, so clicking either the card or the tab runs the one handler below.
+  const names = ["All", ...stats.map((s) => s.name)];
+  const tabs = $("#roomTabs");
+  if (tabs) {
+    tabs.innerHTML = names.map((name) =>
+      `<button type="button" role="tab" data-room="${esc(name)}" ` +
+      `aria-selected="${activeRoom === name}">${esc(name)}</button>`).join("");
+  }
 }
 
 /* ---------- devices ---------- */
@@ -755,6 +780,13 @@ function renderChips() {
 async function send(text) {
   const trimmed = (text || "").trim();
   if (!trimmed) return;
+  // Sending closes the current dictation turn. Otherwise a final speech
+  // result can arrive after the input is cleared below and put the already
+  // sent transcript back into the composer.
+  if (listening || voiceWatchdog) {
+    voiceDone = true;
+    stopMic();
+  }
   await switchTab("assistant");
   addMsg("user", trimmed, { ts: new Date().toISOString() }, { force: true });
   $("#input").value = "";
@@ -977,9 +1009,56 @@ async function refresh() {
   }
 }
 
+/* ---------- FR-8: energy view ---------- */
+
+function escapeHtml(s) {
+  return String(s == null ? "" : s).replace(/[&<>"']/g,
+    (c) => ({"&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;"}[c]));
+}
+
+function renderEnergy(b) {
+  if (!b || $("#used") === null) return;
+  $("#used").textContent = b.used_kwh;
+  $("#budget").textContent = b.budget_kwh + " kWh";
+  $("#remaining").textContent = b.remaining_kwh + " kWh";
+  $("#cost").textContent = b.symbol + b.estimated_cost;
+  $("#power").textContent = ((b.total_load_w || 0) / 1000).toFixed(2) + " kW";
+  $("#mode").textContent = b.preauthorised ? "Autonomous inside budget" : "Ask every time";
+  const pct = Math.min(100, b.used_pct || 0);
+  $("#barFill").style.width = pct + "%";
+  $("#bar").className = "bar" + (b.used_pct > 100 ? " over" : b.used_pct > 80 ? " warn" : "");
+  const field = $("#kwh");
+  if (field && document.activeElement !== field) field.value = b.budget_kwh;
+
+  const rows = (b.decisions || []).slice(0, 20);
+  const box = $("#decisions");
+  if (!box) return;
+  if (!rows.length) { box.innerHTML = '<div class="empty">No decisions yet.</div>'; return; }
+  const label = { llm: "llm", rules_fallback: "rules fallback",
+                  rules_override: "rules override", rules: "rules" };
+  box.innerHTML = rows.map((d) => {
+    const cls = d.source === "llm" ? "llm"
+              : d.source === "rules_override" ? "override" : "fallback";
+    const bad = d.decision === "BLOCK" ? " block" : "";
+    const when = String(d.ts || "").slice(11, 16);
+    return '<div class="row"><span><span class="pill ' + cls + bad + '">' +
+      escapeHtml(label[d.source] || d.source) + '</span> &nbsp;' +
+      escapeHtml(d.decision) + ' · ' + escapeHtml(d.device_id) + '</span>' +
+      '<span class="muted">' + when + '</span></div>' +
+      '<div class="note" style="margin:2px 0 10px">' + escapeHtml(d.reason) + '</div>';
+  }).join("");
+}
+
+async function loadEnergy() {
+  try {
+    const b = await fetch("/api/budget").then((r) => r.json());
+    renderEnergy(b);
+  } catch (_) { /* the next refresh will retry */ }
+}
+
 /* ---------- navigation ---------- */
 
-const TABS = ["home", "schedule", "assistant"];
+const TABS = ["home", "schedule", "assistant", "energy"];
 
 async function switchTab(name) {
   if (!TABS.includes(name)) name = "home";
@@ -1002,12 +1081,36 @@ async function switchTab(name) {
   if (name === "assistant" && changed) {
     await loadMessages().catch(() => {});
   }
+  if (name === "energy") {
+    await loadEnergy().catch(() => {});
+  }
 }
 
 /* ---------- events ---------- */
 
 document.addEventListener("click", (event) => {
   const target = event.target;
+
+  if (target.closest("#save")) {
+    const field = $("#kwh");
+    const kwh = field ? Number(field.value) : 0;
+    if (!kwh || kwh <= 0) return;
+    fetch("/api/budget", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ budget_kwh: kwh, strict_mode: true }),
+    }).then(() => loadEnergy()).catch(() => toast("Could not set the budget"));
+    return;
+  }
+
+  if (target.closest("#alerts")) {
+    if (!("Notification" in window)) return;
+    Notification.requestPermission().then((p) => {
+      syncAlertState();
+      if (p === "granted") toast("Alerts on — while this page is open");
+    });
+    return;
+  }
 
   const answerBtn = target.closest("[data-answer]");
   if (answerBtn) {
@@ -1109,7 +1212,9 @@ $("#mic").addEventListener("click", startVoice);
 $("#lang").addEventListener("click", () => {
   voiceLang = VOICE_LANGS[(VOICE_LANGS.indexOf(voiceLang) + 1) % VOICE_LANGS.length];
   renderLangButton();
-  toast(voiceLang.startsWith("ko") ? "한국어 음성 인식" : "English voice input");
+  toast(voiceLang.startsWith("ko")
+    ? "한국어 음성 인식 — 마이크를 누르고 말하세요"
+    : "English voice input — tap the mic and speak");
 });
 
 $("#tts").addEventListener("click", () => {
@@ -1127,15 +1232,23 @@ function notificationSupported() {
   return "Notification" in window && "EventSource" in window;
 }
 
+function syncAlertState() {
+  const label = $("#alertState");
+  const btn = $("#alerts");
+  if (!label || !("Notification" in window)) return;
+  const p = Notification.permission;
+  label.textContent = p === "granted"
+    ? "On — you will be notified while a page is open."
+    : p === "denied"
+      ? "Blocked in browser settings. Nothing to change here."
+      : "Off. Enable to see approvals and budget decisions while this page is open.";
+  if (btn) btn.hidden = p !== "default";
+}
+
+// Kept as a compatibility wrapper: old callers still ask for it, but the
+// control now lives in the Energy view, never in the sticky masthead.
 function updateNotifyButton() {
-  const btn = $("#notifyToggle");
-  if (!btn || !notificationSupported()) return;
-  const state = Notification.permission;
-  btn.hidden = false;
-  btn.textContent = state === "granted" ? "Alerts on"
-                  : state === "denied" ? "Alerts blocked"
-                  : "Enable alerts";
-  btn.setAttribute("aria-pressed", String(state === "granted"));
+  syncAlertState();
 }
 
 // The stream carries live events from the proactive loop. Show a system
@@ -1161,17 +1274,10 @@ function startEventStream() {
 
 /* ---------- boot ---------- */
 
+// The enable control lives in the Energy view, never in the sticky masthead.
+syncAlertState();
 if (notificationSupported()) {
-  const btn = $("#notifyToggle");
-  updateNotifyButton();
-  if (btn) btn.addEventListener("click", async () => {
-    const perm = await Notification.requestPermission();
-    updateNotifyButton();
-    if (perm === "granted") {
-      startEventStream();
-      toast("Alerts on — you'll be notified while this page is open");
-    }
-  });
+  // Open the event stream when permission was already granted.
   startEventStream();
 }
 

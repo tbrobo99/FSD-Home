@@ -19,7 +19,7 @@ from __future__ import annotations
 import re
 from datetime import datetime
 
-from . import audit, db, nlu
+from . import audit, budget, db, nlu
 from .devices.base import (FAN_LABELS, MODE_LABELS, capabilities_of,
                            describe_action, normalize_action, temperature_range)
 
@@ -373,6 +373,19 @@ class ToolBox:
             return {"error": err, "supports": capabilities_of(d),
                     "temperature_range": "-".join(
                         str(x) for x in temperature_range(d)) + " \u00b0C"}
+
+        # FR-8: the tool loop is a fourth execution path into an adapter. The
+        # budget verdict is recorded with the model call as its provenance.
+        verdict = budget.gate(
+            self.adapter, d["id"], clean, now=self.now, cfg=self.cfg,
+            channel="tool", judge=budget.SOURCE_LLM)
+        if verdict["decision"] == budget.BLOCK:
+            return {"error": f"budget blocked: {verdict['reason']}",
+                    "device": d["name"], "budget": verdict}
+        if verdict["decision"] == budget.DELAY:
+            return {"error": f"budget requires deferral: {verdict['reason']}",
+                    "device": d["name"], "budget": verdict,
+                    "hint": "call schedule with the user's own words for the off-peak time"}
 
         res = audit.execute(self.adapter, d["id"], clean)
         if not res.get("ok"):

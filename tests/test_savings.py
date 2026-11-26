@@ -129,12 +129,13 @@ class ReportFromEngineTest(unittest.TestCase):
         db.DATA_DIR, db.DB_PATH = self._orig
         self._tmp.cleanup()
 
-    def test_peak_scenario_with_yes_shows_up_in_the_report(self):
+    def test_peak_scenario_preauthorised_shows_up_in_the_report(self):
+        """FR-8: the pause is autonomous now; the savings must still be counted
+        from executed audit rows exactly as before."""
         e = ProactiveEngine(FakeAdapter(), _cfg())
         e.sensors.write_files = False
         e.sensors.apply_scenario("peak")
         e.tick()
-        e.confirm(e.approvals.pending()[0].id)
         r = savings.report("today")
         kinds = {a["kind"] for a in r["actions"]}
         self.assertIn("eco_ac", kinds)

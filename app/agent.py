@@ -24,7 +24,7 @@ from __future__ import annotations
 import re
 from datetime import datetime, timedelta
 
-from . import agent_loop, audit, build, chat, db, food, llm, nlu, scenes
+from . import agent_loop, audit, budget, build, chat, classifier, db, food, ko, llm, nlu, scenes
 from .devices.base import FAN_LABELS, MODE_LABELS, describe_action
 
 # how long a half-finished request stays open
@@ -66,6 +66,12 @@ CLAUSE_SPLIT_RE = re.compile(r"\s+and\s+|\s*,\s*(?:and\s+)?|\s+then\s+", re.I)
 # declining to ask about something there is nothing to decide.
 AGENT_INTENTS = frozenset({"control", "schedule", "query"})
 
+# Below this the classifier's verdict is worth less than a question. A "type"
+# the model half-believes is not a basis for anything; only a confident
+# "smalltalk" or "outside_weather" redirects the turn, and even a confident
+# "observation" only ever buys a clarification.
+CLASSIFY_MIN_CONFIDENCE = 0.6
+
 
 class Agent:
     def __init__(self, adapter, cfg: dict) -> None:
@@ -80,6 +86,90 @@ class Agent:
         # where the food guidance comes from is said once. Repeating it after
         # every ingredient is how a useful sentence turns into a wall of text.
         self._food_note_shown = False
+
+    # ------------------------------------------------ FR-8 budget gate
+
+    def _budget_check(self, device_id: str, actions: list[dict], now: datetime,
+                      schedule: bool = False):
+        """One gate for the chat command path. Returns (verdict, error_reply).
+
+        FR-8: a DELAY at peak is turned into a real job when `schedule` is set
+        (the single-device control path), so the professor's scenario works:
+        "turn on the washer" → booked for 22:00, not silently started now.
+        Multi-device paths do not queue individually; they report the deferral.
+        """
+        try:
+            v = budget.gate(self.adapter, device_id, actions, now=now,
+                            cfg=self.cfg, channel="chat")
+        except Exception as exc:
+            # FR-8 is a hard limit, so an unreadable budget cannot be treated
+            # as an empty one. Fail CLOSED for anything that starts or raises a
+            # load; keep the safe direction open, because refusing to switch
+            # something off is the more dangerous failure of the two.
+            return None, self._gate_failed(device_id, actions, exc)
+        if v["decision"] == budget.BLOCK:
+            return v, (f"I did not start {v['device']}: {v['reason']}. "
+                       f"Set a higher budget or use the manual override.")
+        if v["decision"] == budget.DELAY:
+            when = v.get("scheduled_at")
+            if schedule and when:
+                dev = self.adapter.get_device(device_id) or {}
+                job = db.add_job(
+                    device_id=device_id,
+                    device_name=dev.get("name") or device_id,
+                    actions=actions,
+                    rule={"type": "once", "reason": "energy budget DELAY",
+                          "decision_source": v.get("source", budget.SOURCE_RULES)},
+                    next_run_at=when,
+                    source_text="peak tariff / budget deferral",
+                )
+                when_short = str(when)[11:16]
+                return v, (f"I did not start {v['device']} now — {v['reason']}. "
+                           f"Booked for {when_short} (job {job}).")
+            return v, (f"I did not start {v['device']} now — {v['reason']}. "
+                       f"Ask again after the peak and I will run it.")
+        return v, None
+
+    @staticmethod
+    def _adds_load(actions: list[dict]) -> bool:
+        """Does this command start something, or raise a load?
+
+        Anything except an explicit power-off does. A bare mode, temperature or
+        fan change only ever lands on a running (or startable) machine, and
+        guessing that it is harmless is exactly the guess a budget check that
+        just failed must not make.
+        """
+        actions = actions or []
+        powers = [a for a in actions if a.get("action") == "power"]
+        if powers:
+            return any(bool(a.get("value")) for a in powers)
+        return bool(actions)
+
+    def _gate_failed(self, device_id: str, actions: list[dict],
+                     exc: Exception) -> str | None:
+        """Record the failure and word the refusal. None means "safe to run".
+
+        The event is written whether the command is allowed or not: a budget
+        that could not be read is a fact about the turn, and the append-only
+        log is where facts about turns live. If even that write fails, the
+        refusal still stands — a failed audit must never become a start.
+        """
+        dev = self.adapter.get_device(device_id) or {}
+        name = dev.get("name") or device_id
+        detail = f"{type(exc).__name__}: {exc}"[:300]
+        try:
+            audit.record("budget.gate_failed", device_id=device_id,
+                         channel="chat", execution_status="blocked",
+                         decision_source=budget.SOURCE_RULES,
+                         action_kind="energy_gate", detail=detail)
+        except Exception:
+            pass
+        if not self._adds_load(actions):
+            return None
+        return (f"I did not start {name}: the energy budget could not be "
+                f"checked just now ({type(exc).__name__}). Nothing was sent "
+                f"to the device. Try again in a moment, or switch it off by "
+                f"hand.")
 
     # ------------------------------------------------ entry point
 
@@ -124,11 +214,15 @@ class Agent:
             # approval queue and no audit writer, so there is no path from a
             # model's words here to a device write — actions stays empty by
             # construction rather than by promise.
+            # A Korean greeting is translated by nlu.parse but `text` here is
+            # still the original words; classify the translated form so it
+            # takes the same text-only door as "hello" does.
+            chat_text = ko.to_english(text) if ko.is_korean(text) else text
             if (intent["intent"] == "unknown"
                     and not intent.get("out_of_scope")
-                    and chat.is_conversation(text)):
+                    and chat.is_conversation(chat_text)):
                 result = {
-                    "reply": chat.reply(self.cfg, text),
+                    "reply": chat.reply(self.cfg, chat_text),
                     "ok": True,
                     "actions": [],
                     "intent_name": "chat",
@@ -139,6 +233,43 @@ class Agent:
                 db.add_message("assistant", result["reply"],
                                {"intent": "chat", "actions": []})
                 return result
+
+            # 2c. The classifier-only pass. The rules have had their say; what
+            # is left is the long tail they cannot read, and the question
+            # about the long tail is "what IS this sentence?" -- not "what
+            # should the devices do?". So the model is asked for a type, a
+            # room and a confidence, and nothing else: no tools, no device
+            # ids, no action schema -- there is no field in its reply a
+            # device could act on. The verdicts:
+            #
+            #   smalltalk       -> the text-only chat door
+            #   outside_weather -> the honest "I cannot see the weather" reply
+            #   observation     -> one clarification question, nothing changes
+            #   command         -> back to the cascade below (tier 2 / loop)
+            #   low confidence  -> a clarification, never an action
+            #
+            # Every device write still has to come from the rules, the policy
+            # checks and the budget gate; a classifier verdict cannot start a
+            # machine for the same reason a chat reply cannot.
+            #
+            # Skipped for the tier-2 shape: an unknown sentence that carries a
+            # value to set ("hi, living room AC 25") is command-shaped, tier 2
+            # already answers it in one call, and asking a classifier what the
+            # sentence IS before asking a planner what to DO would only buy a
+            # second round trip.
+            if (intent["intent"] == "unknown"
+                    and not intent.get("out_of_scope")
+                    and not chat.is_conversation(chat_text)
+                    and not (SETTING_RE.search(text)
+                             and not WHOLE_HOME_RE.search(text))):
+                routed = self._classify_route(chat_text)
+                if routed is not None:
+                    db.add_message("user", text,
+                                   {"intent": routed["intent_name"]})
+                    db.add_message("assistant", routed["reply"],
+                                   {"intent": routed["intent_name"],
+                                    "actions": []})
+                    return routed
 
             # Agent mode hands the parse to the model instead of applying it.
             deliberated = False
@@ -268,6 +399,13 @@ class Agent:
         fixed = nlu.repair(text, devices)
         if fixed == text:
             return intent
+        if intent.get("out_of_scope"):
+            # An honest "this house cannot answer that" is final: the repair
+            # pass exists to fix typos in commands, and letting it replace the
+            # weather answer with whatever the corrected string matched turned
+            # "today is cold" into "today is cod" -- a food question about a
+            # fish the user never mentioned.
+            return intent
         alt = nlu.parse(fixed, devices, now, default_room, fallback)
         if alt["intent"] == "unknown":
             return intent
@@ -351,6 +489,53 @@ class Agent:
                 return loop
 
         return None
+
+    # ------------------------------------------------ classifier-only tier
+
+    def _classify_route(self, text: str) -> dict | None:
+        """Turn a classifier verdict into a reply, or None to keep the cascade.
+
+        Returns None only for a confident "command": the rules and the two
+        model tiers below are the path that knows how to execute one, and the
+        classifier's job was only to keep everything that is NOT a command
+        away from them. A failed call returns None too -- offline, the cascade
+        is unchanged, which is the floor this layer must never dig under.
+        """
+        verdict = classifier.classify(self.cfg, text)
+        if verdict is None:
+            return None
+        kind = verdict["type"]
+        if verdict["confidence"] < CLASSIFY_MIN_CONFIDENCE:
+            kind = "clarification"
+
+        def result(reply: str, intent_name: str, ok: bool) -> dict:
+            return {"reply": reply, "ok": ok, "actions": [],
+                    "intent_name": intent_name, "tier": "classifier",
+                    "raw_text": text}
+
+        if kind == "smalltalk":
+            return result(chat.reply(self.cfg, text, kind="smalltalk"),
+                          "chat", True)
+        if kind == "outside_weather":
+            # The same wording the rules give, and no forecast: the model saw
+            # the sentence, but it cannot see the sky either.
+            return result(nlu.WEATHER_REPLY, "out_of_scope", True)
+        if kind == "observation":
+            room = verdict.get("room")
+            effect = verdict.get("desired_effect")
+            if room and effect:
+                reply = (f"Noted — the {room} could use {effect} air. Say "
+                         f'"make the {room} {effect}" and I will take care '
+                         f"of it.")
+            elif room:
+                reply = f"Noted. What would you like changed in the {room}?"
+            else:
+                reply = "I hear you. Which room should I take care of?"
+            return result(reply, "clarify", False)
+        if kind == "command":
+            return None
+        return result("Could you tell me what you would like changed in "
+                      "the house?", "clarify", False)
 
     @staticmethod
     def _complete(it: dict) -> bool:
@@ -644,7 +829,7 @@ class Agent:
         if kind == "food":
             return self._do_food(it)
         if kind == "control":
-            return self._do_control(it)
+            return self._do_control(it, now)
         if kind == "scene":
             return self._do_scene(it, now)
         if kind == "schedule":
@@ -666,7 +851,8 @@ class Agent:
             "actions": [],
         }
 
-    def _do_control(self, it: dict) -> dict:
+    def _do_control(self, it: dict, now: datetime | None = None) -> dict:
+        now = now or datetime.now()
         targets = self._targets(it)
         if not targets:
             # Nothing to command is not always "no such device": the comfort
@@ -690,7 +876,7 @@ class Agent:
                 targets = [t for t in targets if t not in keep]
 
         if len(targets) == 1 and not kept:
-            return self._do_control_one(it, targets[0])
+            return self._do_control_one(it, targets[0], now)
 
         outcomes = []
         for t in targets:
@@ -700,6 +886,10 @@ class Agent:
                 continue
             if not device.get("online", True):
                 outcomes.append((device["name"], False, "offline"))
+                continue
+            _, err_reply = self._budget_check(device["id"], it["actions"], now)
+            if err_reply:
+                outcomes.append((device["name"], False, err_reply))
                 continue
             res = audit.execute(self.adapter, device["id"], it["actions"])
             db.log("control", f"{device['name']} {it['actions']} -> {res.get('ok')}")
@@ -733,13 +923,21 @@ class Agent:
                 return rest
         return err
 
-    def _do_control_one(self, it: dict, target: dict) -> dict:
+    def _do_control_one(self, it: dict, target: dict, now: datetime | None = None) -> dict:
         device = self.adapter.get_device(target["id"])
         if not device:
             return {"reply": "I could not find that device.", "ok": False, "actions": []}
         if not device.get("online", True):
             return {"reply": f"{device['name']} is offline, so nothing was sent.",
                     "ok": False, "actions": []}
+
+        _, err_reply = self._budget_check(device["id"], it["actions"],
+                                         now or datetime.now(), schedule=True)
+        if err_reply:
+            # A deferral is a successful outcome: the job exists, the user
+            # was told why. A BLOCK is not.
+            delayed = "Booked for" in (err_reply or "")
+            return {"reply": err_reply, "ok": delayed, "actions": []}
 
         res = audit.execute(self.adapter, device["id"], it["actions"])
         db.log("control", f"{device['name']} {it['actions']} -> {res.get('ok')}")
@@ -818,6 +1016,10 @@ class Agent:
         failed: list[tuple[str, str]] = []
         actions: list[dict] = []
         for device, acts in plan:
+            _, err_reply = self._budget_check(device["id"], acts, now)
+            if err_reply:
+                failed.append((device["name"], err_reply))
+                continue
             res = audit.execute(self.adapter, device["id"], acts)
             db.log("scene", f"{it['scene']} {device['name']} {acts} -> {res.get('ok')}")
             if res.get("ok"):
@@ -1157,4 +1359,10 @@ class Agent:
             # is a poor way to tell them apart.
             "build": build.STAMP,
             "now": datetime.now().isoformat(timespec="seconds"),
+            # FR-8: instantaneous kW belongs beside the device list, distinct
+            # from cumulative kWh in /api/budget. No double conversion.
+            "total_load_w": (getattr(getattr(self, "proactive", None),
+                                     "_last_snapshot", None) or {}).get("total_load_w"),
+            "tariff": (getattr(getattr(self, "proactive", None),
+                               "_last_snapshot", None) or {}).get("tariff"),
         }

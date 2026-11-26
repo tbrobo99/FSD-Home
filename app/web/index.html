@@ -101,15 +101,8 @@
         <p class="eyebrow">FSD-HOME</p>
         <h1>My Home</h1>
       </div>
-      <div style="display:flex;gap:6px;align-self:flex-start">
-        <button type="button" id="notifyToggle" hidden
-                style="padding:8px 12px;font-size:13px;font-weight:600;
-                       color:inherit;background:transparent;border:1px solid currentColor;
-                       border-radius:8px;cursor:pointer;opacity:.75">Enable alerts</button>
-        <button type="button" id="signOut" hidden
-                style="padding:8px 12px;font-size:13px;font-weight:600;
-                       color:inherit;background:transparent;border:1px solid currentColor;
-                       border-radius:8px;cursor:pointer;opacity:.75">Sign out</button>
+      <div class="head-actions">
+        <button type="button" id="signOut" class="head-btn" hidden>Sign out</button>
       </div>
     </header>
 
@@ -141,6 +134,7 @@
     <div class="sec-head" data-sec="devices">
       <h2 id="deviceHead">Devices</h2>
     </div>
+    <div class="room-tabs" id="roomTabs" role="tablist" aria-label="Filter devices by room"></div>
     <div class="devices" id="devices"></div>
 
     <!-- FR-6: the append-only trail, visible to the user. Read-only here. -->
@@ -186,6 +180,58 @@
     <div class="chips" id="chips"></div>
   </section>
 
+  <!-- ================= ENERGY (FR-8) ================= -->
+  <section class="view" id="view-energy" hidden>
+    <header class="masthead">
+      <div>
+        <p class="eyebrow">ENERGY BUDGET</p>
+        <h1>Energy</h1>
+      </div>
+    </header>
+
+    <div class="energy-body">
+      <p class="scope">SIMULATOR · estimated from published appliance ratings · no meter readings</p>
+
+      <div class="card">
+        <h2>This month</h2>
+        <div><span class="big" id="used">—</span> <span class="unit">kWh used</span></div>
+        <div class="bar" id="bar"><i id="barFill"></i></div>
+        <div class="row"><span class="muted">Budget</span><span id="budget">—</span></div>
+        <div class="row"><span class="muted">Remaining</span><span id="remaining">—</span></div>
+        <div class="row"><span class="muted">Estimated cost</span><span id="cost">—</span></div>
+        <div class="row"><span class="muted">Instantaneous draw</span><span id="power">—</span></div>
+        <div class="row"><span class="muted">Mode</span><span id="mode">—</span></div>
+      </div>
+
+      <div class="card">
+        <h2>Pre-authorisation</h2>
+        <p class="note">Setting a monthly budget authorises the agent to act inside it.
+          The budget is a hard limit: a start or an increase that does not fit is
+          blocked, and an unreadable budget blocks rather than allows. Heating
+          appliances (cooktop, oven) stay blocked too. The one exception is the
+          explicit, audited override on the console.</p>
+        <label for="kwh">Monthly limit (kWh)</label>
+        <input id="kwh" type="number" min="1" max="100000" step="1" value="100">
+        <button id="save" type="button">Set budget</button>
+      </div>
+
+      <div class="card">
+        <h2>Browser alerts</h2>
+        <p class="note" id="alertState">Checking…</p>
+        <button id="alerts" type="button" hidden>Enable alerts</button>
+      </div>
+
+      <div class="card">
+        <h2>Recent decisions</h2>
+        <div id="decisions"></div>
+        <p class="note">Source: <b>llm</b> = model reply ·
+          <b>rules_fallback</b> = rules decided when the model was unavailable ·
+          <b>rules_override</b> = rules overrode a model choice.
+          Real prompts, inputs and outputs stay in the decision ledger.</p>
+      </div>
+    </div>
+  </section>
+
   <!-- The talk button is permanent: for the household this is the app. -->
   <div class="talkbar">
     <button class="talk" id="mic">
@@ -213,6 +259,10 @@
     <button class="tab" data-tab="assistant">
       <svg viewBox="0 0 24 24"><use href="#i-chat"/></svg>
       <span>Assistant</span>
+    </button>
+    <button class="tab" data-tab="energy">
+      <svg viewBox="0 0 24 24"><use href="#i-temp"/></svg>
+      <span>Energy</span>
     </button>
   </nav>
 

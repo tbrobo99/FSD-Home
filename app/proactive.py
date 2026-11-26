@@ -36,7 +36,7 @@ import threading
 import time
 from datetime import datetime
 
-from . import approval, audit, db, events, llm, policy, preference, risk, sensors
+from . import approval, audit, budget, db, events, llm, policy, preference, risk, sensors
 
 DECIDE_SYSTEM = """You are the decision layer of a proactive smart-home agent for a
 household that includes a senior. Sensors have flagged a risk; rules have
@@ -67,6 +67,30 @@ Use an empty list, {"chosen": []}, when the right answer is to do nothing."""
 # point. Nothing about safety depended on that sentence — `_intervene` routes
 # Tier-2 to ApprovalQueue and only `confirm()` can execute it, whatever the
 # model says.
+
+# FR-8: the energy addendum extends DECIDE_SYSTEM instead of replacing it.
+# The original role, whitelist rule and JSON contract stay intact — the model
+# still chooses only from rule-generated candidates. What changes is the
+# information it must weigh and the four verdicts a *start* may receive.
+# Kept as a separate string so the base prompt can be shown to a professor
+# unchanged, with this block visibly added on top.
+ENERGY_DECISION_ADDENDUM = """
+
+ENERGY BUDGET (when the risk kind is "energy"):
+The household pre-authorised autonomous energy control by setting a monthly
+kWh budget. You still choose only from the listed candidates; you never invent
+an action. For each candidate that would START or raise the load of a device:
+  - ALLOW  — the estimated kWh fits the remaining budget.
+  - BLOCK  — the estimate would exceed the remaining budget, or the device is
+             outside autonomous authority (cooktop, oven).
+  - DELAY  — the device is not running yet and is movable (washer, dryer,
+             dishwasher) and the band is peak. Name the off-peak time.
+  - OPTIMIZE — a reversible setpoint change saves energy without stopping a plan.
+Never DELAY a device that is already running: a real appliance may not support
+pause and resume. Return the same JSON shape, with each chosen entry as an
+object: {"kind": "...", "verdict": "ALLOW|BLOCK|DELAY|OPTIMIZE",
+"reason": "one short clause", "scheduled_at": "ISO time if DELAY"}.
+A BLOCK verdict you return is honoured; it is never overridden into a start."""
 
 QUESTION_SYSTEM = """You are writing one short question for an elderly homeowner.
 The house wants to take an action that changes their plans, so it must ask
@@ -159,6 +183,11 @@ class ProactiveEngine:
         # future version could ask less often. It is OFF by default and never
         # changes what this engine executes: every Tier-2 answer still goes
         # through confirm()/decline() exactly as FR-4 requires.
+        # FR-8: pre-authorisation. Setting a monthly energy budget is the user's
+        # authorisation for the house to act inside it. ON by default for the
+        # energy scenario only; other risks keep the Tier-2 question. Turning
+        # this off restores the old "always ask" behaviour.
+        self.preauthorised = bool((cfg.get("energy") or {}).get("preauthorised", True))
         self.learn_enabled = preference.learning_enabled(cfg)
         if self.learn_enabled:
             try:
@@ -232,6 +261,12 @@ class ProactiveEngine:
         snap = self.sensors.snapshot()
         self.sensors.record(snap)
         self._last_snapshot = snap
+        # FR-8: integrate measured instantaneous draw into the monthly kWh.
+        # This is the only writer of used_kwh; a restart resumes from SQLite.
+        try:
+            budget.accrue(snap.get("total_load_w", 0.0), now=now, cfg=self.cfg)
+        except Exception as exc:
+            db.log("budget.accrue_failed", str(exc), "error")
 
         evaluated = risk.evaluate(snap, self.sensors.history, now)
         self._last_risks = evaluated            # live scores for the dashboard
@@ -301,28 +336,22 @@ class ProactiveEngine:
 
         chosen, decided_by = self._decide(r, cands, snap)
         tier1 = [c for c in chosen if policy.tier_of(c.kind) == policy.TIER1]
-        # Tier 2 is not the model's to drop, and this is measured rather than
-        # assumed. Given a candidate that switches on a heating appliance, the
-        # model leaves it off the list in 15 runs out of 15, across four
-        # framings (cooktop, oven, "the resident is standing there", cooking 5
-        # or 19 minutes away) and with the caution removed from the prompt. It
-        # is not prompt-induced avoidance this time; it is the model's own
-        # judgement that lighting a hob is not something a house should offer,
-        # and it is not wrong.
-        #
-        # But whether to *ask* is a policy question, not a model question. If
-        # the model's caution decided it, a cooking session on the calendar
-        # would be silently ignored, and the product's whole claim — the house
-        # asks before it does something that matters — would depend on the
-        # model happening to agree. So the rules decide what is put to the user
-        # and the user decides what runs; the model keeps the part where its
-        # judgement is worth having, which is which Tier-1 actions are worth
-        # doing right now. Safety does not move either way: nothing here can
-        # execute a Tier-2 action, only `confirm()` can.
-        tier2 = [c for c in cands if policy.tier_of(c.kind) == policy.TIER2]
+
+        # FR-8: the energy scenario runs under pre-authorisation. Setting the
+        # monthly budget IS the authorisation, so `pause_washer` (a former
+        # Tier-2 candidate) no longer needs a Yes. The budget gate below is the
+        # new limit; hard safety (`budget.AUTONOMY_FORBIDDEN`) still applies.
+        # Non-energy risks keep the original Tier-2 question — a hot cooktop
+        # is not made safe by a kWh budget.
+        preauthorised = r.kind == "energy" and self.preauthorised
+        energy_tier2 = [c for c in chosen if policy.tier_of(c.kind) == policy.TIER2] \
+            if preauthorised else []
+        tier2 = [c for c in cands if policy.tier_of(c.kind) == policy.TIER2] \
+            if not preauthorised else []
 
         executed = []
-        for c in tier1:
+        runnable = tier1 + energy_tier2
+        for c in runnable:
             # Algorithm 1 revalidates before *any* adapter call. `candidates()`
             # is state-gated (a hood already on is not proposed again), so a
             # candidate the fresh policy would not raise is a stale action.
@@ -334,6 +363,28 @@ class ProactiveEngine:
                                  "error": why, "blocked": True})
                 db.log("proactive.tier1_blocked", f"{r.kind}: {c.kind} -> {why}")
                 continue
+
+            # The single budget gate, before any adapter call. A rule that
+            # refuses what the model chose is recorded as rules_override —
+            # this is the third provenance value the professor asked to see.
+            verdict = budget.gate(
+                self.adapter, c.device_id, c.actions, now=now, cfg=self.cfg,
+                channel="engine", judge=decided_by)
+            if verdict["decision"] == budget.BLOCK:
+                audit.blocked(verdict["reason"],
+                              context={**ctx, "decision_source": budget.SOURCE_OVERRIDE},
+                              device_id=c.device_id)
+                executed.append({"kind": c.kind, "label": c.label, "ok": False,
+                                 "error": verdict["reason"], "blocked": True})
+                db.log("proactive.budget_blocked",
+                       f"{r.kind}: {c.kind} -> {verdict['reason']}")
+                continue
+            if verdict["decision"] == budget.DELAY:
+                self._queue_delay(c, verdict, now, decided_by)
+                executed.append({"kind": c.kind, "label": c.label, "ok": True,
+                                 "delayed": True, "at": verdict.get("scheduled_at")})
+                continue
+
             res = audit.execute(self.adapter, c.device_id, c.actions, context=ctx)
             ok = bool(res.get("ok"))
             if ok:
@@ -422,34 +473,55 @@ class ProactiveEngine:
     # ---------------------------------------------------------------- the LLM's job
 
     def _decide(self, r: risk.Risk, cands: list, snap: dict):
-        """Choose among candidates. Returns (chosen_in_order, decided_by)."""
-        if not self.llm_decide:
-            return list(cands), "rules"
+        """Choose among candidates. Returns (chosen_in_order, decided_by).
+
+        FR-8 provenance: the returned source is one of `budget.SOURCES`. A real
+        model reply is `llm`; a parse failure or an unreachable model is
+        `rules_fallback`; a rule that refuses what the model picked is
+        `rules_override`. The exact prompt, input and output are appended to the
+        decision table so "the LLM decided" can be checked, not asserted.
+        """
+        b = budget.state(cfg=self.cfg)
+        energy = r.kind == "energy"
+        system = DECIDE_SYSTEM + (ENERGY_DECISION_ADDENDUM if energy else "")
         user = (
             f"Risk: {r.headline}\n"
             f"Drivers: {json.dumps(r.drivers, ensure_ascii=False)}\n"
             f"User home: {snap['occupancy'].get('user_home')}\n\n"
-            "Candidates:\n" + "\n".join(
+            + (f"Budget: {b['used_kwh']:.3f} of {b['budget_kwh']:.1f} kWh used, "
+               f"{b['remaining_kwh']:.3f} kWh left, strict={b['strict_mode']}.\n"
+               f"Tariff band: {snap.get('tariff')}; "
+               f"instantaneous draw: {snap.get('total_load_w', 0) / 1000:.2f} kW.\n\n"
+               if energy else "")
+            + "Candidates:\n" + "\n".join(
                 f"- kind={c.kind} tier={policy.tier_of(c.kind)} "
                 f"device={c.device_name} does: {c.label} (why: {c.reason})"
                 for c in cands)
         )
+        if not self.llm_decide:
+            self._trace_decision(r, cands, budget.SOURCE_RULES, system, user,
+                                 "(model disabled)")
+            return list(cands), budget.SOURCE_RULES
         # Names, not numbers. Asking for `[1, 3]` instead of the kind names was
         # measured ~0.7 s cheaper and cost the product its whole point: over six
         # runs the model answered "hood only" every time and never proposed the
         # Tier-2 action, where the named schema asked for both. A cheaper wrong
         # decision is not cheaper. max_tokens stays a runaway guard, not a
         # latency lever.
+        raw_output = ""
         try:
             msg = llm.chat(self.cfg, [
-                {"role": "system", "content": DECIDE_SYSTEM},
+                {"role": "system", "content": system},
                 {"role": "user", "content": user},
-            ], json_mode=True, temperature=0, max_tokens=80)
-            raw = json.loads(_clean(msg.get("content") or ""))
+            ], json_mode=True, temperature=0, max_tokens=200 if energy else 80)
+            raw_output = msg.get("content") or ""
+            raw = json.loads(_clean(raw_output))
         except Exception as exc:
             db.log("proactive.decide_fallback",
                    f"{type(exc).__name__}: {exc}; took the rule default")
-            return list(cands), "rules"
+            self._trace_decision(r, cands, budget.SOURCE_FALLBACK, system, user,
+                                 raw_output or f"{type(exc).__name__}: {exc}")
+            return list(cands), budget.SOURCE_FALLBACK
 
         # A response without the key is a parse we do not trust. A response with
         # the key and an empty list is a decision — the model is saying there is
@@ -458,20 +530,27 @@ class ProactiveEngine:
         if not isinstance(raw, dict) or "chosen" not in raw:
             db.log("proactive.decide_fallback",
                    "no 'chosen' key; took the rule default")
-            return list(cands), "rules"
+            self._trace_decision(r, cands, budget.SOURCE_FALLBACK, system, user,
+                                 raw_output or "no 'chosen' key")
+            return list(cands), budget.SOURCE_FALLBACK
 
-        kinds = []
+        kinds, verdicts = [], {}
         for item in raw.get("chosen") or []:
-            # Two shapes turn up: a kind name (the contract), and {"kind": ...}
-            # from an older build. Anything else is not an answer.
+            # Two shapes: a bare kind (legacy) or an energy object with a
+            # verdict. Both are accepted; the verdict never widens authority.
             if isinstance(item, dict):
-                item = item.get("kind")
-            if isinstance(item, str):
-                kinds.append(item.strip())
+                k = item.get("kind")
+                if item.get("verdict"):
+                    verdicts[str(k)] = str(item["verdict"]).upper()
+            else:
+                k = item
+            if isinstance(k, str):
+                kinds.append(k.strip())
 
         if not kinds:
             db.log("proactive.decide", f"{r.kind}: abstained (nothing worth doing)")
-            return [], "llm"
+            self._trace_decision(r, cands, budget.SOURCE_LLM, system, user, raw_output)
+            return [], budget.SOURCE_LLM
 
         by_kind = {c.kind: c for c in cands}
         chosen, seen = [], set()
@@ -482,23 +561,45 @@ class ProactiveEngine:
                               context={"risk_kind": r.kind,
                                        "risk_score": round(r.score, 1),
                                        "action_kind": k[:64],
-                                       "decision_source": "llm",
+                                       "decision_source": budget.SOURCE_LLM,
                                        "channel": "engine"})
                 db.log("proactive.blocked",
                        f"{r.kind}: model proposed unknown action {k!r}")
                 continue
             if k in by_kind and k not in seen:
+                # A BLOCK verdict from the model is never turned into a start.
+                if verdicts.get(k) == budget.BLOCK:
+                    budget.record_decision(budget.BLOCK, budget.SOURCE_LLM,
+                                           by_kind[k].device_id,
+                                           "model voted BLOCK", channel="engine",
+                                           prompt=system, model_input=user,
+                                           model_output=raw_output)
+                    continue
                 chosen.append(by_kind[k])
                 seen.add(k)
-        if not chosen:
-            # It answered, but nothing it named is on the table. That is a wrong
-            # answer, not a decision.
+        if not chosen and kinds:
+            # Every verdict was BLOCK, or nothing matched the table. Abstention
+            # is a decision when it came from the model and said BLOCK; it is a
+            # fallback only when no candidate was recognised at all.
+            matched = any(k in by_kind for k in kinds)
+            src = budget.SOURCE_LLM if matched and verdicts else budget.SOURCE_FALLBACK
             db.log("proactive.decide_fallback",
-                   "no returned kind matched a candidate; took the rule default")
-            return list(cands), "rules"
+                   f"{r.kind}: no action chosen; source={src}")
+            self._trace_decision(r, cands, src, system, user, raw_output)
+            return [], src
         db.log("proactive.decide",
                f"{r.kind}: chose {', '.join(c.kind for c in chosen)}")
-        return chosen, "llm"
+        self._trace_decision(r, cands, budget.SOURCE_LLM, system, user, raw_output)
+        return chosen, budget.SOURCE_LLM
+
+    def _trace_decision(self, r: risk.Risk, cands: list, source: str,
+                        system: str, user: str, output: str) -> None:
+        """Append the real prompt/input/output for one decision to the ledger."""
+        for c in cands[:1]:
+            budget.record_decision(
+                "DECIDED", source, c.device_id, r.headline,
+                channel="engine", prompt=system, model_input=user,
+                model_output=output)
 
     def _phrase(self, r: risk.Risk, tier2: list, snap: dict) -> str:
         """One plain-language question for the Tier-2 request."""
@@ -524,6 +625,39 @@ class ProactiveEngine:
         except Exception:
             pass
         return fallback
+
+    # ---------------------------------------------------------------- FR-8 deferral
+
+    def _queue_delay(self, c, verdict: dict, now: datetime, source: str) -> str:
+        """Turn a DELAY verdict into a durable job. The scheduler re-checks the
+        budget when the job actually runs, so a queued job cannot spend money
+        the household used in the meantime."""
+        when = verdict.get("scheduled_at") or (
+            now.replace(hour=22, minute=0, second=0, microsecond=0).isoformat(timespec="minutes"))
+        job_id = db.add_job(
+            device_id=c.device_id,
+            device_name=c.device_name,
+            actions=c.actions,
+            rule={"type": "once", "reason": "energy budget DELAY",
+                  "decision_source": source},
+            next_run_at=when,
+            repeat_label="",
+            source_text=f"Delayed: {verdict.get('reason', '')}",
+        )
+        when_short = str(when)[11:16]
+        db.add_message(
+            "system",
+            f"⏳ I did not start {c.device_name} now — {verdict.get('reason', '')}. "
+            f"It is scheduled for {when_short}. Your budget has not been spent yet.",
+            {"energy_delay": True, "job_id": job_id, "device_id": c.device_id,
+             "decision_source": source, "scheduled_at": when},
+        )
+        events.emit("energy", "Deferred to save energy",
+                    f"{c.device_name} → {when_short}",
+                    device_id=c.device_id, job_id=job_id)
+        db.log("proactive.energy_delay",
+               f"{c.kind} -> {when}: {verdict.get('reason', '')}")
+        return job_id
 
     # ---------------------------------------------------------------- user decisions
 
@@ -814,9 +948,15 @@ class ProactiveEngine:
         return until is not None and time.monotonic() < until
 
     def state(self) -> dict:
+        try:
+            energy = budget.state(cfg=self.cfg)
+        except Exception:
+            energy = {"available": False}
         return {
             "running": bool(self._thread and self._thread.is_alive()),
             "llm_decide": self.llm_decide,
+            "preauthorised": self.preauthorised,
+            "energy": energy,
             "scenario": self._last_snapshot.get("scenario"),
             "rooms": self._last_snapshot.get("rooms"),
             "appliances": self._last_snapshot.get("appliances"),

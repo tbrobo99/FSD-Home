@@ -67,14 +67,12 @@ body {
 
 /* ---------- masthead: a console title, not a shop header ---------- */
 
+/* No sticky: the title scrolls away with the page. A console header that
+   follows every swipe covers the device list on a phone — the user asked for
+   it to leave. Solid background because there is nothing behind it to blur. */
 .masthead {
-  position: sticky;
-  top: 0;
-  z-index: 6;
   padding: 16px 2px 12px;
-  background: rgba(8, 13, 22, .92);
-  backdrop-filter: blur(14px);
-  -webkit-backdrop-filter: blur(14px);
+  background: #080d16;
   border-bottom: 1px solid var(--line);
 }
 .eyebrow {
@@ -90,6 +88,10 @@ body {
   letter-spacing: -.03em;
   color: var(--ink);
 }
+/* Masthead actions come from style.css. Quiet outline in the console palette;
+   granted alerts hide the button entirely, so no bright pill follows scroll. */
+.head-btn { background: transparent; color: var(--ink-3); border-color: var(--line); }
+.head-btn:hover { border-color: var(--accent); color: var(--accent-ink); }
 #view-home .masthead::after {
   content: "LIVE";
   padding: 5px 10px;
@@ -352,6 +354,14 @@ body {
   border-color: var(--accent);
   background: linear-gradient(160deg, #0d2e42, #101d2d 70%);
   box-shadow: 0 0 0 2px rgba(58, 212, 242, .1), var(--card-shadow);
+}
+/* Room tab strip: a console chip row, not the light-theme inversion. */
+.room-tabs button { background: #0e1724; color: var(--ink-2); border-color: var(--line-strong); font-family: var(--mono); }
+.room-tabs button:hover { border-color: var(--accent); color: var(--ink); }
+.room-tabs button[aria-selected="true"] {
+  background: var(--accent-weak);
+  border-color: var(--accent);
+  color: var(--accent-ink);
 }
 .room h3 { color: var(--ink); font-size: .84rem; }
 .room .temp { color: var(--accent-ink); font-family: var(--mono); }

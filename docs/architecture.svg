@@ -1,110 +1,108 @@
-<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1280 1030" width="1280" height="1030" font-family="Segoe UI, Malgun Gothic, Apple SD Gothic Neo, sans-serif">
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1280 740" width="1280" height="740" font-family="Segoe UI, Malgun Gothic, Apple SD Gothic Neo, sans-serif">
 <defs>
-<marker id="arr" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse">
-<path d="M1 1L9 5L1 9" fill="none" stroke="context-stroke" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/>
+<marker id="blue" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse">
+<path d="M1 1L9 5L1 9" fill="none" stroke="#2563a6" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/>
 </marker>
-<marker id="arrb" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse">
-<path d="M1 1L9 5L1 9" fill="none" stroke="#2563a6" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+<marker id="gray" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse">
+<path d="M1 1L9 5L1 9" fill="none" stroke="#888888" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/>
 </marker>
 </defs>
 
-<rect x="0" y="0" width="1280" height="1030" fill="#ffffff"/>
-<text x="55" y="52" font-size="30" font-weight="600" fill="#1a1a1a">Architecture Design</text>
-<text x="55" y="83" font-size="17" fill="#555555">Proactive Senior Care &amp; Comfort Agent — risk-graded autonomous home orchestration</text>
+<rect x="0" y="0" width="1280" height="740" fill="#ffffff"/>
+<text x="55" y="50" font-size="28" font-weight="600" fill="#111827">FSD Home — System Architecture &amp; Data Flow</text>
+<text x="55" y="78" font-size="13" fill="#4b5563">Local sensing runs every second. The LLM is called only when an event needs a decision — never on every 1 Hz tick.</text>
 
-<line x1="1010" y1="35" x2="1060" y2="35" stroke="#3a3a3a" stroke-width="2"/>
-<text x="1070" y="40" font-size="13" fill="#444444">running in the demo</text>
-<line x1="1010" y1="60" x2="1060" y2="60" stroke="#999999" stroke-width="2" stroke-dasharray="6 5"/>
-<text x="1070" y="65" font-size="13" fill="#444444">code-ready / possible extension</text>
-<line x1="1010" y1="85" x2="1060" y2="85" stroke="#2563a6" stroke-width="3"/>
-<text x="1070" y="90" font-size="13" fill="#444444">main API / data flow</text>
+<text x="55" y="115" font-size="12" font-weight="600" fill="#2563a6">1 · DATA INPUT — CONTINUOUS, LOCAL, NO LLM</text>
 
-<rect x="55" y="115" width="1170" height="95" rx="14" fill="#fafafa" stroke="#bbbbbb" stroke-width="1.5" stroke-dasharray="8 6"/>
-<text x="75" y="140" font-size="15" font-weight="600" fill="#333333">Client · phone or laptop, anywhere over HTTPS</text>
-<rect x="120" y="152" width="230" height="44" rx="9" fill="#ffffff" stroke="#888888" stroke-width="1.5"/>
-<text x="235" y="174" text-anchor="middle" dominant-baseline="central" font-size="15" fill="#222222">Phone — Chrome / Safari (PWA)</text>
-<rect x="380" y="152" width="230" height="44" rx="9" fill="#ffffff" stroke="#888888" stroke-width="1.5"/>
-<text x="495" y="174" text-anchor="middle" dominant-baseline="central" font-size="15" fill="#222222">Laptop — browser</text>
-<text x="660" y="180" font-size="13" fill="#666666">Live demo: https://fsd-home-demo.duckdns.org/?ui=v6</text>
+<rect x="55" y="135" width="320" height="110" rx="12" fill="#ffffff" stroke="#888888" stroke-width="1.6"/>
+<text x="215" y="160" text-anchor="middle" font-size="15" font-weight="600" fill="#111827">Home data sources</text>
+<text x="215" y="182" text-anchor="middle" font-size="12" fill="#374151">Simulated device states</text>
+<text x="215" y="200" text-anchor="middle" font-size="12" fill="#374151">Optional ESP32 sensors</text>
+<text x="215" y="218" text-anchor="middle" font-size="12" fill="#374151">power · temperature · humidity</text>
+<text x="215" y="236" text-anchor="middle" font-size="10" fill="#6b7280">state feedback via get_state()</text>
 
-<rect x="55" y="228" width="1170" height="510" rx="16" fill="#f6f9fd" stroke="#777777" stroke-width="1.8" stroke-dasharray="9 7"/>
-<text x="75" y="255" font-size="16" font-weight="600" fill="#222222">AWS Lightsail</text>
+<rect x="480" y="135" width="320" height="110" rx="12" fill="#eef4fb" stroke="#3b76bd" stroke-width="1.8"/>
+<text x="640" y="160" text-anchor="middle" font-size="15" font-weight="600" fill="#123a63">Sensor loop · 1 Hz</text>
+<text x="640" y="182" text-anchor="middle" font-size="12" fill="#2c5c8f">Reads rooms and appliances</text>
+<text x="640" y="200" text-anchor="middle" font-size="12" fill="#2c5c8f">Builds one current snapshot</text>
+<text x="640" y="218" text-anchor="middle" font-size="12" fill="#2c5c8f">local polling — no model call</text>
+<text x="640" y="236" text-anchor="middle" font-size="10" fill="#3b76bd">ts · temp · humidity · W · kWh · price</text>
 
-<rect x="90" y="292" width="1100" height="425" rx="12" fill="#ffffff" stroke="#aaaaaa" stroke-width="1.5"/>
+<rect x="905" y="135" width="320" height="110" rx="12" fill="#ffffff" stroke="#888888" stroke-width="1.6"/>
+<text x="1065" y="160" text-anchor="middle" font-size="15" font-weight="600" fill="#111827">Energy context</text>
+<text x="1065" y="182" text-anchor="middle" font-size="12" fill="#374151">Used / remaining kWh</text>
+<text x="1065" y="200" text-anchor="middle" font-size="12" fill="#374151">Tariff · budget · Strict Mode</text>
+<text x="1065" y="218" text-anchor="middle" font-size="12" fill="#374151">app/budget.py + SQLite</text>
+<text x="1065" y="236" text-anchor="middle" font-size="10" fill="#6b7280">energy_state · energy_decisions</text>
 
-<rect x="115" y="335" width="245" height="86" rx="10" fill="#eef4fb" stroke="#3b76bd" stroke-width="1.8"/>
-<text x="237" y="360" text-anchor="middle" font-size="15" font-weight="600" fill="#123a63">Web shell</text>
-<text x="237" y="382" text-anchor="middle" font-size="12" fill="#2c5c8f">app/web: index.html, app.js,</text>
-<text x="237" y="399" text-anchor="middle" font-size="12" fill="#2c5c8f">themes · Caddy (HTTPS) → run.py (:80)</text>
+<line x1="375" y1="190" x2="480" y2="190" stroke="#2563a6" stroke-width="2" marker-end="url(#blue)"/>
+<text x="400" y="178" font-size="11" fill="#2563a6">readings</text>
+<line x1="800" y1="190" x2="905" y2="190" stroke="#2563a6" stroke-width="2" marker-end="url(#blue)"/>
+<text x="825" y="178" font-size="11" fill="#2563a6">snapshot</text>
 
-<rect x="380" y="335" width="245" height="86" rx="10" fill="#eef4fb" stroke="#3b76bd" stroke-width="1.8"/>
-<text x="502" y="360" text-anchor="middle" font-size="15" font-weight="600" fill="#123a63">REST API</text>
-<text x="502" y="382" text-anchor="middle" font-size="12" fill="#2c5c8f">/api/snapshot · /api/chat</text>
-<text x="502" y="399" text-anchor="middle" font-size="12" fill="#2c5c8f">/api/control · /api/audit</text>
+<text x="55" y="290" font-size="12" font-weight="600" fill="#2563a6">2 · DECISION — EVENT-TRIGGERED</text>
 
-<rect x="645" y="335" width="245" height="86" rx="10" fill="#eef4fb" stroke="#3b76bd" stroke-width="1.8"/>
-<text x="767" y="360" text-anchor="middle" font-size="15" font-weight="600" fill="#123a63">Agent core</text>
-<text x="767" y="382" text-anchor="middle" font-size="12" fill="#2c5c8f">NLU · Cascade / Agent · policy</text>
-<text x="767" y="399" text-anchor="middle" font-size="12" fill="#2c5c8f">proactive loop · approval</text>
+<rect x="55" y="310" width="320" height="125" rx="12" fill="#ffffff" stroke="#888888" stroke-width="1.6"/>
+<text x="215" y="335" text-anchor="middle" font-size="15" font-weight="600" fill="#111827">Agent core</text>
+<text x="215" y="357" text-anchor="middle" font-size="12" fill="#374151">Receives a user command or risk event</text>
+<text x="215" y="375" text-anchor="middle" font-size="12" fill="#374151">Combines request + energy context</text>
+<text x="215" y="397" text-anchor="middle" font-size="11" fill="#2563a6">chat · proactive event</text>
+<text x="215" y="418" text-anchor="middle" font-size="10" fill="#6b7280">REST /api/control bypasses LLM, still checked by budget gate</text>
 
-<rect x="910" y="335" width="255" height="86" rx="10" fill="#eef4fb" stroke="#3b76bd" stroke-width="1.8"/>
-<text x="1037" y="360" text-anchor="middle" font-size="15" font-weight="600" fill="#123a63">Sensor loop · 1 Hz</text>
-<text x="1037" y="382" text-anchor="middle" font-size="12" fill="#2c5c8f">simulated rooms + appliances</text>
-<text x="1037" y="399" text-anchor="middle" font-size="12" fill="#2c5c8f">scenarios: oven / mold</text>
+<rect x="480" y="310" width="320" height="125" rx="12" fill="#fff7ed" stroke="#d97706" stroke-width="1.8" stroke-dasharray="7 5"/>
+<text x="640" y="335" text-anchor="middle" font-size="15" font-weight="600" fill="#92400e">LLM — optional</text>
+<text x="640" y="357" text-anchor="middle" font-size="12" fill="#92400e">Receives prompt + event context</text>
+<text x="640" y="375" text-anchor="middle" font-size="12" fill="#92400e">Returns one structured proposal</text>
+<text x="640" y="397" text-anchor="middle" font-size="11" fill="#b45309">ALLOW · BLOCK · DELAY · OPTIMIZE</text>
+<text x="640" y="418" text-anchor="middle" font-size="10" fill="#92400e">event-triggered · cloud config off · fallback: rules</text>
 
-<rect x="115" y="450" width="370" height="86" rx="10" fill="#f3f0fa" stroke="#7a5bb5" stroke-width="1.8"/>
-<text x="300" y="475" text-anchor="middle" font-size="15" font-weight="600" fill="#3b2a63">Audit gate — write before act</text>
-<text x="300" y="497" text-anchor="middle" font-size="12" fill="#5b4687">action.intent → adapter.apply() → outcome</text>
-<text x="300" y="514" text-anchor="middle" font-size="12" fill="#5b4687">append-only log, DB triggers</text>
+<rect x="905" y="310" width="320" height="125" rx="12" fill="#f3f0fa" stroke="#7a5bb5" stroke-width="1.8"/>
+<text x="1065" y="335" text-anchor="middle" font-size="15" font-weight="600" fill="#3b2a63">Deterministic rule validator</text>
+<text x="1065" y="357" text-anchor="middle" font-size="12" fill="#5b4687">Checks budget.can_start() · safety · time</text>
+<text x="1065" y="375" text-anchor="middle" font-size="12" fill="#5b4687">May override any model proposal</text>
+<text x="1065" y="397" text-anchor="middle" font-size="11" fill="#7a5bb5">FINAL AUTHORITY · safe fallback</text>
+<text x="1065" y="418" text-anchor="middle" font-size="10" fill="#5b4687">unknown kind rejected · BLOCK never widened</text>
 
-<rect x="510" y="450" width="370" height="86" rx="10" fill="#fdf6e8" stroke="#b98b2f" stroke-width="1.8"/>
-<text x="695" y="475" text-anchor="middle" font-size="15" font-weight="600" fill="#6b4c12">SQLite · app.db</text>
-<text x="695" y="497" text-anchor="middle" font-size="12" fill="#876520">jobs · messages · logs · audit_log</text>
-<text x="695" y="514" text-anchor="middle" font-size="12" fill="#876520">no external database</text>
+<path d="M 1065 245 L 1065 275 L 215 275 L 215 310" fill="none" stroke="#2563a6" stroke-width="2" marker-end="url(#blue)"/>
+<text x="600" y="268" text-anchor="middle" font-size="11" fill="#2563a6">only when a command or risk event occurs</text>
 
-<rect x="905" y="450" width="260" height="86" rx="10" fill="#f7f7f7" stroke="#999999" stroke-width="1.8" stroke-dasharray="7 5"/>
-<text x="1035" y="475" text-anchor="middle" font-size="15" font-weight="600" fill="#444444">LLM — optional</text>
-<text x="1035" y="497" text-anchor="middle" font-size="12" fill="#666666">glm-4-flash, decision layer only</text>
-<text x="1035" y="514" text-anchor="middle" font-size="12" fill="#666666">fallback: deterministic rules</text>
+<line x1="375" y1="360" x2="480" y2="360" stroke="#2563a6" stroke-width="2" marker-end="url(#blue)"/>
+<text x="428" y="348" text-anchor="middle" font-size="10" fill="#2563a6">prompt + context</text>
+<line x1="480" y1="395" x2="375" y2="395" stroke="#888888" stroke-width="1.6" stroke-dasharray="6 5" marker-end="url(#gray)"/>
+<text x="398" y="414" font-size="11" fill="#6b7280">JSON proposal</text>
+<line x1="800" y1="360" x2="905" y2="360" stroke="#2563a6" stroke-width="2" marker-end="url(#blue)"/>
+<text x="825" y="348" font-size="11" fill="#2563a6">validate</text>
 
-<rect x="115" y="565" width="500" height="82" rx="10" fill="#eaf5ee" stroke="#2a8f5b" stroke-width="1.8"/>
-<text x="365" y="590" text-anchor="middle" font-size="15" font-weight="600" fill="#124a2c">Device adapter interface (base.py)</text>
-<text x="365" y="612" text-anchor="middle" font-size="12" fill="#1c6540">list_devices() · get_state() · apply()</text>
-<text x="365" y="629" text-anchor="middle" font-size="12" fill="#1c6540">→ MockAdapter: 11 simulated devices — USED NOW</text>
+<text x="55" y="480" font-size="12" font-weight="600" fill="#2563a6">3 · EXECUTION &amp; FEEDBACK — CLOSED LOOP</text>
 
-<rect x="640" y="565" width="525" height="82" rx="10" fill="#f7f7f7" stroke="#999999" stroke-width="1.8" stroke-dasharray="7 5"/>
-<text x="902" y="590" text-anchor="middle" font-size="15" font-weight="600" fill="#444444">ThinQAdapter — code-ready, not enabled</text>
-<text x="902" y="612" text-anchor="middle" font-size="12" fill="#666666">LG ThinQ Open API → real LG appliances</text>
-<text x="902" y="629" text-anchor="middle" font-size="12" fill="#666666">needs PAT token + payload calibration</text>
+<rect x="55" y="495" width="320" height="120" rx="12" fill="#eaf5ee" stroke="#2a8f5b" stroke-width="1.8"/>
+<text x="215" y="520" text-anchor="middle" font-size="15" font-weight="600" fill="#124a2c">Audit execution gate</text>
+<text x="215" y="542" text-anchor="middle" font-size="12" fill="#1c6540">Writes intent before acting</text>
+<text x="215" y="560" text-anchor="middle" font-size="12" fill="#1c6540">BLOCK stops here</text>
+<text x="215" y="582" text-anchor="middle" font-size="11" fill="#2a8f5b">audit.execute() · fail closed</text>
+<text x="215" y="601" text-anchor="middle" font-size="10" fill="#1c6540">append-only audit_log</text>
 
-<line x1="235" y1="210" x2="235" y2="333" stroke="#2563a6" stroke-width="3" marker-end="url(#arrb)"/>
-<text x="250" y="300" font-size="13" fill="#2563a6">HTTPS</text>
-<line x1="495" y1="210" x2="480" y2="333" stroke="#2563a6" stroke-width="3" marker-end="url(#arrb)"/>
-<text x="505" y="300" font-size="13" fill="#2563a6">REST /api/* · 4 s poll</text>
+<rect x="480" y="495" width="320" height="120" rx="12" fill="#ffffff" stroke="#888888" stroke-width="1.6"/>
+<text x="640" y="520" text-anchor="middle" font-size="15" font-weight="600" fill="#111827">Device adapter</text>
+<text x="640" y="542" text-anchor="middle" font-size="12" fill="#374151">Mock devices now</text>
+<text x="640" y="560" text-anchor="middle" font-size="12" fill="#374151">LG ThinQ optional</text>
+<text x="640" y="582" text-anchor="middle" font-size="11" fill="#2563a6">adapter.apply()</text>
+<text x="640" y="601" text-anchor="middle" font-size="10" fill="#6b7280">dry_run · not connected</text>
 
-<line x1="360" y1="378" x2="380" y2="378" stroke="#888888" stroke-width="1.6" marker-end="url(#arr)"/>
-<line x1="625" y1="378" x2="645" y2="378" stroke="#888888" stroke-width="1.6" marker-end="url(#arr)"/>
-<line x1="910" y1="378" x2="890" y2="378" stroke="#2563a6" stroke-width="2" marker-end="url(#arrb)"/>
-<path d="M 700 421 L 700 437 L 300 437 L 300 450" fill="none" stroke="#2563a6" stroke-width="2" marker-end="url(#arrb)"/>
-<line x1="767" y1="421" x2="767" y2="450" stroke="#888888" stroke-width="1.6" marker-end="url(#arr)"/>
-<line x1="300" y1="536" x2="300" y2="565" stroke="#2563a6" stroke-width="2" marker-end="url(#arrb)"/>
-<line x1="485" y1="493" x2="510" y2="493" stroke="#888888" stroke-width="1.6" marker-end="url(#arr)"/>
-<line x1="365" y1="621" x2="640" y2="621" stroke="#999999" stroke-width="1.6" stroke-dasharray="6 5" marker-end="url(#arr)"/>
+<rect x="905" y="495" width="320" height="120" rx="12" fill="#ffffff" stroke="#888888" stroke-width="1.6"/>
+<text x="1065" y="520" text-anchor="middle" font-size="15" font-weight="600" fill="#111827">Dashboard + decision log</text>
+<text x="1065" y="542" text-anchor="middle" font-size="12" fill="#374151">Budget · reason · outcome · prompt</text>
+<text x="1065" y="560" text-anchor="middle" font-size="12" fill="#374151">Shows what happened and why</text>
+<text x="1065" y="582" text-anchor="middle" font-size="11" fill="#2563a6">/energy · append-only history</text>
+<text x="1065" y="601" text-anchor="middle" font-size="10" fill="#6b7280">source: llm / fallback / override / rules</text>
 
-<rect x="55" y="758" width="1170" height="140" rx="16" fill="#fafafa" stroke="#999999" stroke-width="1.5" stroke-dasharray="9 7"/>
-<text x="75" y="785" font-size="15" font-weight="600" fill="#333333">Appliances · simulated now, real LG optional</text>
-<rect x="120" y="800" width="300" height="66" rx="10" fill="#eaf5ee" stroke="#2a8f5b" stroke-width="1.8"/>
-<text x="270" y="824" text-anchor="middle" font-size="15" font-weight="600" fill="#124a2c">11 mock devices</text>
-<text x="270" y="846" text-anchor="middle" font-size="12" fill="#1c6540">AC · washer · dryer · fridge · oven · cooktop …</text>
-<rect x="450" y="800" width="360" height="66" rx="10" fill="#f7f7f7" stroke="#999999" stroke-width="1.8" stroke-dasharray="7 5"/>
-<text x="630" y="824" text-anchor="middle" font-size="15" font-weight="600" fill="#444444">Real LG appliances</text>
-<text x="630" y="846" text-anchor="middle" font-size="12" fill="#666666">fridge · washer — same adapter, PAT required</text>
-<rect x="840" y="800" width="330" height="66" rx="10" fill="#f7f7f7" stroke="#999999" stroke-width="1.8" stroke-dasharray="7 5"/>
-<text x="1005" y="824" text-anchor="middle" font-size="15" font-weight="600" fill="#444444">ESP32 sensor — possible extension</text>
-<text x="1005" y="846" text-anchor="middle" font-size="12" fill="#666666">temperature / humidity over Wi-Fi</text>
+<path d="M 1065 435 L 1065 452 L 215 452 L 215 495" fill="none" stroke="#2563a6" stroke-width="2" marker-end="url(#blue)"/>
+<line x1="375" y1="555" x2="480" y2="555" stroke="#2563a6" stroke-width="2" marker-end="url(#blue)"/>
+<line x1="800" y1="555" x2="905" y2="555" stroke="#2563a6" stroke-width="2" marker-end="url(#blue)"/>
 
-<line x1="365" y1="647" x2="270" y2="798" stroke="#2a8f5b" stroke-width="2" marker-end="url(#arr)"/>
-<line x1="902" y1="647" x2="640" y2="798" stroke="#999999" stroke-width="1.8" stroke-dasharray="6 5" marker-end="url(#arr)"/>
+<path d="M 640 615 L 640 655 L 35 655 L 35 190 L 55 190" fill="none" stroke="#2563a6" stroke-width="1.8" stroke-dasharray="6 5" marker-end="url(#blue)"/>
+<text x="55" y="670" font-size="11" fill="#2563a6">updated state is read on the next 1 Hz sensor tick · state feedback: get_state()</text>
 
-<text x="55" y="950" font-size="15" fill="#333333">Two paths for a message: home command → NLU / approval / audit → device; conversation → text-only reply, no device access.</text>
+<rect x="430" y="695" width="420" height="34" rx="17" fill="#eef4fb" stroke="#3b76bd" stroke-width="1.5"/>
+<text x="640" y="717" text-anchor="middle" font-size="13" font-weight="600" fill="#123a63">LLM PROPOSES · RULES + BUDGET DECIDE</text>
 </svg>

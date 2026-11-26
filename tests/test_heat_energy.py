@@ -108,27 +108,31 @@ class EnergyTest(Base):
         from app.sensors import SensorSimulator
         self.assertGreater(SensorSimulator.ac_draw_w(22), SensorSimulator.ac_draw_w(24))
 
-    def test_eco_runs_on_its_own_and_the_wash_is_asked_about(self):
+    def test_eco_runs_on_its_own_and_the_wash_is_preauthorised(self):
+        """FR-8: setting the budget pre-authorises energy actions. No Yes."""
         e = self.engine("peak")
         e.tick()
         self.assertTrue(any(a["action"] == "temperature" and a["value"] == 24
                             for dev in ("ac_living", "ac_bedroom") for a in self.applied(dev)))
-        pending = e.approvals.pending()
-        self.assertEqual([a.action_kind for a in pending], ["pause_washer"])
-        self.assertEqual(self.applied("washer"), [])   # Level 2 never runs by itself
+        # The former Tier-2 pause now runs autonomously; a budget decision is
+        # written for it instead of an approval card.
+        self.assertIn({"action": "power", "value": False}, self.applied("washer"))
+        self.assertEqual(e.approvals.pending(), [])
+        with db.conn() as c:
+            rows = c.execute(
+                "SELECT decision, source FROM energy_decisions WHERE device_id='washer'"
+            ).fetchall()
+        self.assertTrue(any(r["decision"] != "DECIDED" for r in rows), rows)
 
-    def test_yes_pauses_the_wash_and_brings_the_load_down(self):
+    def test_preauthorised_pause_brings_the_load_down(self):
+        """The safety outcome of the old confirm() test is still asserted."""
         e = self.engine("peak")
-        e.tick()
-        ap = e.approvals.pending()[0]
         before = e.sensors.snapshot()["total_load_w"]
-        res = e.confirm(ap.id)
-        self.assertTrue(res["ok"], res)
+        e.tick()
         self.assertIn({"action": "power", "value": False}, self.applied("washer"))
         snap = e.sensors.snapshot()
         self.assertEqual(snap["appliances"]["washer"]["cycle"], "paused")
         self.assertLess(snap["total_load_w"], before)
-        # A paused (not finished) wash must not start the mold index.
         self.assertNotIn("mold", self.risks(e))
 
     def test_no_pause_offered_off_peak(self):
