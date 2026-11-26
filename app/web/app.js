@@ -1029,6 +1029,10 @@ function renderEnergy(b) {
   $("#bar").className = "bar" + (b.used_pct > 100 ? " over" : b.used_pct > 80 ? " warn" : "");
   const field = $("#kwh");
   if (field && document.activeElement !== field) field.value = b.budget_kwh;
+  const cap = $("#cap");
+  if (cap) cap.textContent = b.max_kw ? b.max_kw + " kW" : "off";
+  const capField = $("#maxkw");
+  if (capField && document.activeElement !== capField) capField.value = b.max_kw || "";
 
   const rows = (b.decisions || []).slice(0, 20);
   const box = $("#decisions");
@@ -1100,6 +1104,21 @@ document.addEventListener("click", (event) => {
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ budget_kwh: kwh, strict_mode: true }),
     }).then(() => loadEnergy()).catch(() => toast("Could not set the budget"));
+    return;
+  }
+
+  if (target.closest("#saveCap")) {
+    const field = $("#maxkw");
+    const raw = field ? field.value.trim() : "";
+    fetch("/api/budget", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ max_kw: raw === "" ? null : Number(raw) }),
+    }).then((r) => r.json()).then((r) => {
+      if (r.error) toast(r.error);
+      else toast(r.max_kw ? `Limit set: ${r.max_kw} kW` : "Limit off");
+      return loadEnergy();
+    }).catch(() => toast("Could not set the limit"));
     return;
   }
 
