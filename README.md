@@ -16,11 +16,10 @@ policy.
 
 ## Motivation & differentiation
 
-Existing LG and Samsung apps already show energy information and allow schedules.
-The contribution here is not another monitoring dashboard. It is one decision
-layer that spans every control path: the proactive loop, chat commands, the raw
-REST control endpoint and the scheduler all pass through the same
-`budget.can_start()` gate before an action reaches a device.
+This project is not just a monitoring dashboard. Its main contribution is a
+unified decision layer across all device control paths. The proactive loop,
+chat commands, REST control API, and scheduler all use the same
+`budget.can_start()` gate before starting a device or increasing its power load.
 
 | Ordinary energy monitoring | FSD Home agent |
 |---|---|
@@ -71,16 +70,17 @@ trail answer both screens.
   (household power load at the peak rate). Like MRI and TOI they score 0–100 and act at 50.
 - **Savings report (FR-7):** `GET /api/savings` estimates kWh saved, kWh moved off the peak,
   money and CO₂, only from actions the audit trail records as executed (`app/savings.py`).
-- **Energy budget (FR-8):** `GET/POST /api/budget` and `app/budget.py` integrate measured
-  watts into cumulative kWh, enforce a monthly cap, and expose one `can_start()` gate used
+- **Energy budget (FR-8):** `GET/POST /api/budget` and `app/budget.py` integrate simulated
+  power consumption into cumulative kWh, enforce a monthly cap, and expose one `can_start()` gate used
   by the proactive loop, chat commands, the raw control API and the scheduler. A deferred
   start is queued in SQLite and re-checked when it runs. Decision provenance distinguishes
   a real LLM reply from a rules fallback and a rules override, and stores the actual
   prompt, input and output. All figures are simulator estimates, not meter readings.
-- **Max kW limit (FR-8):** `POST /api/budget {"max_kw": 3.0}` caps the whole-house draw. A washer,
-  dryer or dishwasher that would push the house over it is not started but booked ("Not now … booked
-  for 22:00") and checked again when due; other user-started loads are refused; cooling, the fridge
-  and air cleaning are never limited. See Scenario 4.
+- **Max kW limit (FR-8):** `POST /api/budget {"max_kw": 3.0}` limits household power demand, with
+  exemptions for essential devices and safety-related actions. A washer, dryer or dishwasher that
+  would push the house over it is not started but booked ("Not now … booked for 22:00") and
+  checked again when due; other user-started loads are refused; cooling, the fridge and air
+  cleaning are never limited. See Scenario 4.
 - **Simulated-week evaluation:** `python -m eval.week` replays one household for a week with and
   without the gate (`docs/eval/`). See the Evaluation section.
 - **Multiple web interfaces:** the Device-card Hub (`/` and `/hub/`) is the default daily-use
@@ -108,7 +108,7 @@ risk scores, Level 2 approval requests and the system log.
 The original Phase 2 risk and approval behaviour is still active for
 **non-energy safety risks**. Energy actions are different: setting the monthly
 budget is the pre-authorisation, and `budget.gate()` returns ALLOW / BLOCK /
-DELAY before execution. Energy actions do not create Tier-2 approval cards.
+DELAY before execution. Pre-authorised energy actions do not create Tier-2 approval cards.
 
 | Control policy | Energy actions | Non-energy safety actions |
 |---|---|---|
@@ -118,7 +118,8 @@ DELAY before execution. Energy actions do not create Tier-2 approval cards.
 | Hard safety rules | Required: cooktop / oven / spent budget are blocked | Required |
 
 The older loop is `sensors at 1 Hz → risk evaluation → safety policy → act or ask`.
-Two deterministic indices, both scored 0–100 and both triggering at 50.0:
+The original Phase 2 specification included two deterministic risk indices, both scored
+0–100 and triggering at 50.0:
 
 - **MRI (Mold Risk Index)** — humidity trapped in a sealed washer drum, scored
   from drum humidity, how long it has been sealed, room temperature and the
@@ -134,7 +135,7 @@ An optional language model may rank Level 1 candidates, but it cannot add an
 action outside the whitelist, approve a Level 2 action, or replace the rules —
 if the model is unavailable or returns unusable output, the rules decide.
 
-### Action whitelist (7 actions)
+### Original Phase 2 action whitelist (7 actions)
 
 | Level | Action | Device |
 |---|---|---|
@@ -213,8 +214,8 @@ Source: `docs/figures/src/architecture-v4.html`.
 
 ![System Component Architecture](docs/figures/architecture-v4.png)
 
-**LLM proposes; rules and budget decide.** The model proposes candidate actions only when an
-event — a command or a risk — needs a choice, never on the 1 Hz sensor tick. It is enabled in the
+**Rules generate candidates; the LLM selects actions; rules and budget validate execution.**
+The model is called only when a decision is needed, not on every sensor tick. It is enabled in the
 hosted config, but the deterministic rules and budget gate make every final decision. The local
 Zhipu path has been tested directly.
 
