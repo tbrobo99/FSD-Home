@@ -100,7 +100,7 @@ function energyMini() {
   const cap = e.max_kw ? ` · ${t("limit")} ${e.max_kw} kW` : "";
   return `<button class="card" type="button" data-go="energy" style="text-align:left">
     <div class="sec"><h2>${t("month")}</h2><span class="small muted"><b>${e.used_kwh ?? "–"}</b> / ${e.budget_kwh ?? "–"} kWh</span></div>
-    <div class="bar ${pct > 100 ? "over" : pct > 80 ? "warn" : ""}"><i style="width:${pct}%"></i></div>
+    <div class="bar ${(e.used_pct || 0) > 100 ? "over" : pct > 80 ? "warn" : ""}"><i style="width:${pct}%"></i></div>
     <span class="small muted">${t("now")} ${load.toFixed(1)} kW${cap} · ${band}</span></button>`;
 }
 
@@ -159,7 +159,7 @@ function viewEnergy() {
     <section class="card">
       <span class="small muted">${t("month")}</span>
       <div class="big"><b>${e.used_kwh != null ? Number(e.used_kwh).toFixed(1) : "–"}</b><span class="muted">/ ${e.budget_kwh ?? "–"} kWh</span></div>
-      <div class="bar ${pct > 100 ? "over" : pct > 80 ? "warn" : ""}"><i style="width:${pct}%"></i></div>
+      <div class="bar ${(e.used_pct || 0) > 100 ? "over" : pct > 80 ? "warn" : ""}"><i style="width:${pct}%"></i></div>
       <div class="row"><span class="muted">${t("cost")}</span><b>${sym}${Number(e.estimated_cost || 0).toLocaleString()}</b></div>
       <div class="row"><span class="muted">${t("left")}</span><b>${e.remaining_kwh ?? "–"} kWh</b></div>
     </section>
