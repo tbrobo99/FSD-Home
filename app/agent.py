@@ -218,6 +218,25 @@ class Agent:
             intent = self._retry_repaired(text, intent, devices, now,
                                           default_room, fallback)
 
+            # A hard no-action verdict is produced for explicit read-only
+            # requests and invalid setpoints.  It must return before chat,
+            # classification, deliberation and both planning tiers: those
+            # layers may improve language, but none may reinterpret a user who
+            # explicitly said not to operate the house.
+            if intent.get("no_action"):
+                result = {
+                    "reply": intent.get("clarify") or "I did not change anything.",
+                    "ok": False,
+                    "actions": [],
+                    "intent_name": "guarded",
+                    "tier": "rules",
+                    "raw_text": text,
+                }
+                db.add_message("user", text, {"intent": "guarded"})
+                db.add_message("assistant", result["reply"],
+                               {"intent": "guarded", "actions": []})
+                return result
+
             # 2b. The other door. The rules have had first say: a scene, a
             # status question, a command and an out-of-scope topic all kept
             # their own answers above. What is left is a greeting, a

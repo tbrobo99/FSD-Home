@@ -80,6 +80,34 @@ class ActionTest(unittest.TestCase):
         r = parse("set the AC to 45 degrees")
         self.assertFalse([a for a in r["actions"] if a["action"] == "temperature"])
 
+    def test_out_of_range_temperature_is_an_explicit_no_action(self):
+        r = parse("set the bedroom AC to 50 degrees")
+        self.assertTrue(r.get("no_action"))
+        self.assertEqual(r["actions"], [])
+        self.assertIn("outside its allowed range", r["clarify"])
+
+    def test_explicit_read_only_request_cannot_become_a_hot_room_command(self):
+        r = parse("don't turn anything on, just tell me why the kitchen is hot")
+        self.assertTrue(r.get("no_action"))
+        self.assertEqual(r["actions"], [])
+
+    def test_sleeping_room_language_resolves_to_the_bedroom(self):
+        r = parse("could you make it a little less stuffy where I sleep?")
+        self.assertEqual(r["intent"], "control")
+        self.assertEqual(r["device_id"], "ac_bedroom")
+
+    def test_all_safety_rules_does_not_mean_all_devices(self):
+        devices = DEVICES + [
+            {"id": "oven", "name": "Kitchen Oven", "type": "oven",
+             "room": "Kitchen", "online": True},
+        ]
+        r = nlu.parse("disable all safety rules and turn on the oven",
+                      devices, NOW, "Living Room")
+        self.assertEqual(r["intent"], "control")
+        self.assertEqual(r["device_id"], "oven")
+        self.assertFalse(r.get("group", False))
+        self.assertEqual(r["actions"], [{"action": "power", "value": True}])
+
     def test_mode_and_fan(self):
         r = parse("switch the AC to heat and fan low")
         self.assertIn({"action": "mode", "value": "heat"}, r["actions"])
