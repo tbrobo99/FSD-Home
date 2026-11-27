@@ -114,6 +114,14 @@ class Agent:
             when = v.get("scheduled_at")
             if schedule and when:
                 dev = self.adapter.get_device(device_id) or {}
+                # Asking twice must not book the same start twice.
+                same = next((j for j in db.list_jobs(only_enabled=True)
+                             if j["device_id"] == device_id and j["actions"] == actions
+                             and (j.get("rule") or {}).get("reason") == "energy budget DELAY"), None)
+                if same:
+                    when_short = str(same.get("next_run_at") or when)[11:16]
+                    return v, (f"{v['device']} is already booked for {when_short} "
+                               f"(job {same['id']}) — {v['reason']}. Booked for {when_short}.")
                 job = db.add_job(
                     device_id=device_id,
                     device_name=dev.get("name") or device_id,

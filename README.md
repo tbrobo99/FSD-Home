@@ -38,6 +38,10 @@ have no automation.
 Open the current simulator-based cloud demo: https://fsd-home-demo.duckdns.org/?ui=v6
 
 - `/?ui=v6` (default) is the Mission Console live view; `?ui=v0`–`v5` switch the other overlays.
+- `/hub/` is the device-card interface (v4, Figma page "v4 · ThinQ-style Screens"): Home with the
+  four risk scores, a room map and favourite devices; Devices by room; Energy with the budget, the max kW
+  limit and booked starts; Menu with chat and demo situations. Power buttons go through the agent, so a
+  start meets the same energy gate as a spoken command.
 - `/soft/` is the interface built from the Figma design: four risk rings, the ask sheet, the
   savings card, and a language (6) and region (13) picker.
 - `/energy` is the Energy Dashboard: monthly kWh budget, cumulative use, estimated cost,

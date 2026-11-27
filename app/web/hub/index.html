@@ -1,0 +1,77 @@
+<!doctype html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="theme-color" content="#F2F1EE">
+<title>FSD-Home</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Noto+Sans+KR:wght@400;500;700&display=swap">
+<link rel="stylesheet" href="/hub/hub.css?v=4">
+</head>
+<body>
+<svg class="sprite" aria-hidden="true">
+  <symbol id="i-home" viewBox="0 0 24 24"><path d="M4 11.5L12 4l8 7.5"/><path d="M6.5 10v9.5h11V10"/><path d="M10.5 19.5v-5h3v5"/></symbol>
+  <symbol id="i-devices" viewBox="0 0 24 24"><rect x="3.5" y="3.5" width="7" height="7" rx="2"/><rect x="13.5" y="3.5" width="7" height="7" rx="2"/><rect x="3.5" y="13.5" width="7" height="7" rx="2"/><rect x="13.5" y="13.5" width="7" height="7" rx="3.5"/></symbol>
+  <symbol id="i-activity" viewBox="0 0 24 24"><path d="M8 6h12M8 12h12M8 18h12"/><circle cx="4" cy="6" r="1"/><circle cx="4" cy="12" r="1"/><circle cx="4" cy="18" r="1"/></symbol>
+  <symbol id="i-settings" viewBox="0 0 24 24"><circle cx="12" cy="12" r="3"/><path d="M12 2.8v2.4M12 18.8v2.4M2.8 12h2.4M18.8 12h2.4M5.5 5.5l1.7 1.7M16.8 16.8l1.7 1.7M5.5 18.5l1.7-1.7M16.8 7.2l1.7-1.7"/></symbol>
+  <symbol id="i-mic" viewBox="0 0 24 24"><rect x="9" y="3" width="6" height="11" rx="3"/><path d="M5.5 11a6.5 6.5 0 0 0 13 0M12 17.5V21M9 21h6"/></symbol>
+  <symbol id="i-washer" viewBox="0 0 24 24"><rect x="3.5" y="3.5" width="17" height="17" rx="4"/><circle cx="12" cy="13.5" r="4.4"/><circle cx="7.5" cy="7.5" r="1"/></symbol>
+  <symbol id="i-dryer" viewBox="0 0 24 24"><rect x="3.5" y="3.5" width="17" height="17" rx="4"/><circle cx="12" cy="13.5" r="4.4"/><path d="M10 13.5c1-1.5 3-1.5 4 0"/><circle cx="7.5" cy="7.5" r="1"/></symbol>
+  <symbol id="i-cooktop" viewBox="0 0 24 24"><rect x="3" y="5.5" width="18" height="13" rx="3"/><circle cx="8" cy="10" r="2"/><circle cx="16" cy="10" r="2"/><path d="M8 15.5h8"/></symbol>
+  <symbol id="i-ac" viewBox="0 0 24 24"><rect x="2.5" y="5" width="19" height="9" rx="3"/><path d="M6 11h12"/><path d="M8 17v2.5M12 17v3M16 17v2.5"/></symbol>
+  <symbol id="i-purifier" viewBox="0 0 24 24"><rect x="6.5" y="2.5" width="11" height="19" rx="3.5"/><circle cx="12" cy="9" r="2.4"/><path d="M9.5 16h5"/></symbol>
+  <symbol id="i-hood" viewBox="0 0 24 24"><path d="M4 4h16l-1.5 7h-13z"/><path d="M12 11v6M8.5 20.5h7"/></symbol>
+  <symbol id="i-fridge" viewBox="0 0 24 24"><rect x="5.5" y="2.5" width="13" height="19" rx="3"/><path d="M5.5 9.5h13M8.5 5.5v2M8.5 12v3"/></symbol>
+  <symbol id="i-oven" viewBox="0 0 24 24"><rect x="3.5" y="4" width="17" height="16" rx="3"/><rect x="6.5" y="9" width="11" height="8" rx="1.5"/><path d="M7 6.5h1M11 6.5h1"/></symbol>
+  <symbol id="i-dehumid" viewBox="0 0 24 24"><rect x="5.5" y="3" width="13" height="18" rx="3.5"/><path d="M12 7.5c1.8 2.1 2.8 3.4 2.8 4.7a2.8 2.8 0 1 1-5.6 0c0-1.3 1-2.6 2.8-4.7z"/></symbol>
+  <symbol id="i-power" viewBox="0 0 24 24"><path d="M12 4.5v7"/><path d="M7.6 7.2a7 7 0 1 0 8.8 0"/></symbol>
+  <symbol id="i-temp" viewBox="0 0 24 24"><path d="M12 13.6V5a2.1 2.1 0 1 1 4.2 0v8.6a4.2 4.2 0 1 1-4.2 0z"/></symbol>
+  <symbol id="i-wind" viewBox="0 0 24 24"><path d="M3 9h11a3 3 0 1 0-3-3"/><path d="M3 15h15a3 3 0 1 1-3 3"/></symbol>
+  <symbol id="i-leaf" viewBox="0 0 24 24"><path d="M5 19c0-8 5-13 15-14-1 10-6 15-14 15M5 19l7-7"/></symbol>
+  <symbol id="i-globe" viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"/><path d="M3 12h18M12 3c2.5 2.6 3.8 5.6 3.8 9s-1.3 6.4-3.8 9c-2.5-2.6-3.8-5.6-3.8-9S9.5 5.6 12 3z"/></symbol>
+  <symbol id="i-chevron" viewBox="0 0 24 24"><path d="M9 6l6 6-6 6"/></symbol>
+  <symbol id="i-bolt" viewBox="0 0 24 24"><path d="M13 3L5 13.5h6L10 21l8-10.5h-6z"/></symbol>
+  <symbol id="i-flame" viewBox="0 0 24 24"><path d="M12 3c1 3.5 5 5.5 5 10a5 5 0 0 1-10 0c0-2.2 1-3.6 2.3-4.8.2 1.5.9 2.6 2.2 3.1C11 9.5 11 6 12 3z"/></symbol>
+  <symbol id="i-drop" viewBox="0 0 24 24"><path d="M12 3.4c3.4 3.9 5.2 6.4 5.2 8.8a5.2 5.2 0 1 1-10.4 0c0-2.4 1.8-4.9 5.2-8.8z"/></symbol>
+  <symbol id="i-lock" viewBox="0 0 24 24"><rect x="5" y="10.5" width="14" height="10" rx="3"/><path d="M8 10.5V8a4 4 0 0 1 8 0v2.5"/></symbol>
+  <symbol id="i-clock" viewBox="0 0 24 24"><circle cx="12" cy="12" r="8.5"/><path d="M12 7.5V12l3 1.8"/></symbol>
+  <symbol id="i-check" viewBox="0 0 24 24"><path d="M5 12.5l4.5 4.5L19 7.5"/></symbol>
+  <symbol id="i-x" viewBox="0 0 24 24"><path d="M6.5 6.5l11 11M17.5 6.5l-11 11"/></symbol>
+  <symbol id="i-sparkle" viewBox="0 0 24 24"><path d="M12 3v4M12 17v4M3 12h4M17 12h4M6 6l2.5 2.5M15.5 15.5L18 18M6 18l2.5-2.5M15.5 8.5L18 6"/></symbol>
+  <symbol id="i-send" viewBox="0 0 24 24"><path d="M4 12l16-7-6 16-3-6z"/></symbol>
+  <symbol id="i-speaker" viewBox="0 0 24 24"><path d="M4 9.5h3.5L12 6v12L7.5 14.5H4z"/><path d="M15 9.5a4 4 0 0 1 0 5M17.5 7a7.5 7.5 0 0 1 0 10"/></symbol>
+  <!-- Homie, the house mascot, at status-icon size. One face per mood. -->
+  <symbol id="m-house" viewBox="0 0 96 96"><rect x="63" y="20" width="9" height="16" rx="2"/><path d="M14 46 L45.5 18.5 a4 4 0 0 1 5 0 L82 46 V79 a9 9 0 0 1 -9 9 H23 a9 9 0 0 1 -9 -9 Z"/></symbol>
+  <symbol id="i-plus" viewBox="0 0 24 24"><path d="M12 5v14M5 12h14"/></symbol>
+  <symbol id="i-bell" viewBox="0 0 24 24"><path d="M6 16V11a6 6 0 1 1 12 0v5l1.5 2h-15L6 16Z"/><path d="M10 20.5a2 2 0 0 0 4 0"/></symbol>
+  <symbol id="i-dots" viewBox="0 0 24 24"><circle cx="12" cy="5.5" r="1.2"/><circle cx="12" cy="12" r="1.2"/><circle cx="12" cy="18.5" r="1.2"/></symbol>
+  <symbol id="i-down" viewBox="0 0 24 24"><path d="m7 10 5 5 5-5"/></symbol>
+  <symbol id="i-right" viewBox="0 0 24 24"><path d="m10 7 5 5-5 5"/></symbol>
+  <symbol id="i-menu" viewBox="0 0 24 24"><path d="M4 7h16M4 12h16M4 17h16"/></symbol>
+</svg>
+<div class="app">
+  <header class="top">
+    <button class="title" type="button" id="title"><span id="titleText">우리집</span><svg class="ic sm"><use href="#i-down"/></svg></button>
+    <div class="top-actions">
+      <button class="icon-btn" type="button" data-go="menu" aria-label="add"><svg class="ic"><use href="#i-plus"/></svg></button>
+      <button class="icon-btn" type="button" data-go="energy" aria-label="alerts"><svg class="ic"><use href="#i-bell"/></svg><i class="badge" id="bellBadge" hidden></i></button>
+      <button class="icon-btn" type="button" data-go="menu" aria-label="more"><svg class="ic"><use href="#i-dots"/></svg></button>
+    </div>
+  </header>
+  <div class="chips" id="roomChips" hidden></div>
+  <main id="view" aria-live="polite"></main>
+</div>
+<nav class="tabbar" aria-label="tabs">
+  <button type="button" data-tab="home" class="on"><svg class="ic"><use href="#i-home"/></svg><span data-t="tab.home">홈</span></button>
+  <button type="button" data-tab="devices"><svg class="ic"><use href="#i-devices"/></svg><span data-t="tab.devices">디바이스</span></button>
+  <button type="button" data-tab="energy"><svg class="ic"><use href="#i-bolt"/></svg><span data-t="tab.energy">에너지</span></button>
+  <button type="button" data-tab="menu"><svg class="ic"><use href="#i-menu"/></svg><span data-t="tab.menu">메뉴</span></button>
+</nav>
+<div class="scrim" id="scrim" hidden></div>
+<section class="sheet" id="sheet" role="dialog" aria-modal="true" hidden></section>
+<div class="toast" id="toast" role="status" hidden></div>
+<script src="/hub/hub.js?v=4"></script>
+</body>
+</html>

@@ -154,3 +154,38 @@ class MaxKwTest(unittest.TestCase):
 
 if __name__ == "__main__":
     unittest.main()
+
+
+class DuplicateBookingTest(unittest.TestCase):
+    """Asking twice for a start that the gate deferred books it once."""
+
+    def setUp(self):
+        from app import config
+        from app.agent import Agent
+        from app.devices import MockAdapter
+        from app.devices import mock as mock_mod
+        self._tmp = tempfile.TemporaryDirectory()
+        tmp = Path(self._tmp.name)
+        self._orig = (db.DATA_DIR, db.DB_PATH, mock_mod.STATE_PATH, budget._last_load_w)
+        self._mock = mock_mod
+        db.DATA_DIR, db.DB_PATH, mock_mod.STATE_PATH = tmp, tmp / "t.db", tmp / "mock.json"
+        db.init()
+        self.adapter = MockAdapter()
+        cfg = dict(config.DEFAULTS)
+        cfg["agent"] = {"default_room": "Living Room"}
+        self.agent = Agent(self.adapter, cfg)
+        budget.set_budget(1000)
+        budget.set_max_kw(1.0)
+        budget._last_load_w = 500.0
+
+    def tearDown(self):
+        self.adapter.stop()
+        db.DATA_DIR, db.DB_PATH, self._mock.STATE_PATH, budget._last_load_w = self._orig
+        self._tmp.cleanup()
+
+    def test_second_request_reuses_the_booking(self):
+        first = self.agent.handle("turn on the dryer")
+        second = self.agent.handle("turn on the dryer")
+        jobs = [j for j in db.list_jobs(only_enabled=True) if j["device_id"] == "dryer"]
+        self.assertEqual(len(jobs), 1, (first.get("reply"), second.get("reply")))
+        self.assertIn("already booked", second.get("reply", ""))
