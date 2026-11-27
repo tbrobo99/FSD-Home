@@ -1,0 +1,298 @@
+<!doctype html>
+<!-- Source for docs/figures/architecture-v4.png (paper Fig. 2).
+     Render: Chrome --headless --hide-scrollbars --force-device-scale-factor=2 --window-size=1700,1560 --screenshot=architecture-v4.png architecture.html -->
+<html>
+<head>
+<meta charset="utf-8">
+<title>FSD-Home architecture</title>
+<style>
+  :root { --ink:#191f28; --ink2:#4e5968; --line:#3a4350; --blue:#1b64da; --amber:#8a5200; --grey:#8b95a1; }
+  html, body { margin:0; background:#fff; }
+  body { width:1700px; height:1560px; position:relative; font-family:"Helvetica Neue", Arial, sans-serif; color:var(--ink); }
+  .title { position:absolute; left:30px; top:18px; font-size:30px; font-weight:700; }
+  .sub { position:absolute; left:30px; top:58px; font-size:17px; color:var(--ink2); }
+  .zone { position:absolute; box-sizing:border-box; border-radius:16px; }
+  .zone.ext { border:2px dashed #b0b8c1; background:#fafbfc; }
+  .zone.sys { border:3px solid var(--blue); background:#f5f8ff; }
+  .zone > .zt { position:absolute; left:14px; top:8px; font:700 14px Arial; letter-spacing:.06em; text-transform:uppercase; color:#646e7a; }
+  .zone.sys > .zt { color:var(--blue); font-size:16px; }
+  .band { position:absolute; box-sizing:border-box; border-radius:10px; border:1.5px solid #c9d3e3; background:rgba(255,255,255,.55); }
+  .band > .bt { position:absolute; left:10px; top:6px; font:700 13px Arial; letter-spacing:.06em; text-transform:uppercase; color:#5b6b85; }
+  .box { position:absolute; box-sizing:border-box; border:2px solid var(--line); border-radius:10px; background:#fff; padding:8px 11px; }
+  .box h3 { margin:0; font-size:18px; line-height:1.15; }
+  .box .f { font:600 13px/1.3 Menlo, monospace; color:var(--blue); margin-top:2px; }
+  .box p { margin:4px 0 0; font-size:14px; line-height:1.3; color:var(--ink2); }
+  .box.safety { background:#fff8ea; border-color:var(--amber); }
+  .box.store { background:#f2f4f6; }
+  .box.out { border-color:#6b7684; }
+  .box.next { border-style:dashed; border-color:var(--grey); background:#fbfbfc; }
+  .tag { display:inline-block; font:700 11px Arial; padding:2px 6px; border-radius:5px; margin-top:5px; }
+  .tag.now { background:#e3f4ec; color:#08795a; }
+  .tag.sim { background:#fff1d6; color:#8a5200; }
+  .tag.ready { background:#eceff3; color:#4e5968; }
+  .tg { position:absolute; width:24px; height:24px; border-radius:12px; background:#191f28; color:#fff; font:700 13px/24px Arial; text-align:center; z-index:2; }
+  .fmt { position:absolute; left:20px; top:1046px; width:1660px; height:432px; box-sizing:border-box; border:2px solid #d1d6db; border-radius:16px; background:#fafbfc; }
+  .fmt > .zt { position:absolute; left:16px; top:10px; font:700 16px Arial; letter-spacing:.06em; text-transform:uppercase; color:#333d4b; }
+  .fmt > .zs { position:absolute; left:250px; top:12px; font-size:14px; color:var(--ink2); }
+  .card { position:absolute; width:396px; height:186px; box-sizing:border-box; background:#fff; border:1.5px solid #d1d6db; border-radius:10px; padding:9px 11px; }
+  .card h4 { margin:0; font-size:15px; display:flex; align-items:center; gap:7px; }
+  .card h4 .tg { position:static; flex:none; }
+  .card .m { font-size:12.5px; color:var(--ink2); margin:4px 0 5px; line-height:1.3; }
+  .card pre { margin:0; font:11.5px/1.38 Menlo, monospace; color:#191f28; background:#f2f4f6; border-radius:6px; padding:6px 8px; white-space:pre; overflow:hidden; }
+  svg { position:absolute; inset:0; overflow:visible; pointer-events:none; }
+  .e { fill:none; stroke:var(--line); stroke-width:2.2; }
+  .e.d { stroke:var(--grey); stroke-dasharray:7 5; }
+  .e.s { stroke:var(--amber); stroke-width:2.8; }
+  .e.b { stroke:var(--blue); stroke-width:2.6; }
+  .lbl { font:600 13px Arial; fill:var(--ink); paint-order:stroke; stroke:#fff; stroke-width:5px; stroke-linejoin:round; }
+  .legend { position:absolute; left:30px; top:1490px; width:1640px; font-size:14px; color:var(--ink2); line-height:1.5; }
+  .legend b { color:var(--ink); }
+  .sw { display:inline-block; width:34px; height:0; vertical-align:middle; margin:0 6px 0 18px; }
+</style>
+</head>
+<body>
+<div class="title">FSD-Home — System Architecture</div>
+<div class="sub">Proactive energy &amp; environment agent. Everything inside the blue line is our code; everything outside is the environment it reads from or acts on.</div>
+
+<!-- ================= USERS (outside, top) ================= -->
+<div class="zone ext" style="left:560px;top:96px;width:600px;height:96px"><div class="zt">Users</div></div>
+<div class="box out" style="left:585px;top:122px;width:260px;height:58px"><h3>Phone (PWA)</h3><p>Chrome / Safari, voice or text</p></div>
+<div class="box out" style="left:875px;top:122px;width:260px;height:58px"><h3>Laptop browser</h3><p>same web app</p></div>
+
+<!-- ================= EXTERNAL DATA SOURCES (outside, left) ================= -->
+<div class="zone ext" style="left:20px;top:228px;width:290px;height:560px"><div class="zt">External data sources</div></div>
+<div id="s1" class="box out" style="left:36px;top:262px;width:258px;height:134px">
+  <h3>Home sensors</h3>
+  <p>temperature, humidity, occupancy, power draw; peak / off-peak price band</p>
+  <span class="tag sim">DEMO: SIMULATED</span> <span class="tag ready">NEXT: ESP32</span>
+</div>
+<div id="s3" class="box out" style="left:36px;top:456px;width:258px;height:84px">
+  <h3>Calendar</h3>
+  <p>cooking, sleep, away, guests</p>
+  <span class="tag now">calendar.json</span>
+</div>
+<div id="s4" class="box out" style="left:36px;top:652px;width:258px;height:120px">
+  <h3>Tariff &amp; CO₂ data</h3>
+  <p>KEPCO, EIA, Ofgem, BDEW, CRE, ARERA; national grid factors</p>
+  <span class="tag ready">COPIED INTO PRESETS</span>
+</div>
+
+<!-- ================= RIGHT: LLM + APPLIANCES (outside) ================= -->
+<div class="zone ext" style="left:1390px;top:228px;width:290px;height:176px"><div class="zt">External service</div></div>
+<div id="llm" class="box next" style="left:1406px;top:262px;width:258px;height:130px">
+  <h3>LLM API (optional)</h3>
+  <p>glm-4-flash; reads requests, ranks Level 1 options, small talk. Code checks its output; rules decide if it fails.</p>
+</div>
+
+<div class="zone ext" style="left:1390px;top:560px;width:290px;height:300px"><div class="zt">Home appliances</div></div>
+<div id="a1" class="box out" style="left:1406px;top:594px;width:258px;height:112px">
+  <h3>Simulated appliances ×11</h3>
+  <p>AC, washer, dryer, fridge, oven, cooktop, dehumidifier…</p>
+  <span class="tag now">RUNNING IN DEMO</span>
+</div>
+<div id="a2" class="box next" style="left:1406px;top:722px;width:258px;height:124px">
+  <h3>LG ThinQ cloud</h3>
+  <p>real LG appliances, e.g. built-in washer FY9WTB</p>
+  <span class="tag ready">CODE-READY (DRY RUN)</span>
+</div>
+
+<!-- ================= SYSTEM BOUNDARY ================= -->
+<div class="zone sys" style="left:340px;top:228px;width:1020px;height:800px"><div class="zt">FSD-Home server — our code · Python on AWS Lightsail</div></div>
+
+<!-- Interface layer -->
+<div class="band" style="left:358px;top:262px;width:984px;height:116px"><div class="bt">① Interface</div></div>
+<div id="ui" class="box" style="left:374px;top:288px;width:290px;height:78px"><h3>Web UI</h3><div class="f">app/web/</div><p>Home · Schedule · Assistant · Energy</p></div>
+<div id="api" class="box" style="left:690px;top:288px;width:330px;height:78px"><h3>REST API + live alerts</h3><div class="f">server.py · events.py (SSE)</div><p>/api/snapshot · chat · control · budget</p></div>
+<div id="auth" class="box safety" style="left:1046px;top:288px;width:280px;height:78px"><h3>Login gate</h3><div class="f">auth.py</div><p>demo password, 24 h cookie</p></div>
+
+<!-- Input layer -->
+<div class="band" style="left:358px;top:394px;width:236px;height:470px"><div class="bt">② Input</div></div>
+<div id="in1" class="box" style="left:372px;top:420px;width:208px;height:150px">
+  <h3>Sensor &amp; state reader</h3><div class="f">sensors.py</div>
+  <p>reads every source once a second (1 Hz), keeps 5 min of history</p>
+</div>
+<div id="in2" class="box" style="left:372px;top:660px;width:208px;height:126px">
+  <h3>Region presets</h3><div class="f">regions.py</div>
+  <p>price, peak hours, CO₂ per kWh, language; used by savings and budget</p>
+</div>
+
+<!-- Decision layer -->
+<div class="band" style="left:610px;top:394px;width:480px;height:470px"><div class="bt">③ Decision</div></div>
+<div id="risk" class="box" style="left:624px;top:420px;width:214px;height:92px">
+  <h3>Risk engine</h3><div class="f">risk.py</div><p>MRI · TOI · HSI · PLI, 0–100, looks 30 min ahead</p>
+</div>
+<div id="nlu" class="box" style="left:862px;top:420px;width:214px;height:92px">
+  <h3>Command reader</h3><div class="f">nlu.py · agent.py · classifier.py · scheduler.py</div>
+</div>
+<div id="pro" class="box" style="left:624px;top:540px;width:214px;height:92px">
+  <h3>Proactive engine</h3><div class="f">proactive.py</div><p>every second: decide, act</p>
+</div>
+<div id="sav" class="box" style="left:862px;top:540px;width:160px;height:92px">
+  <h3>Savings report</h3><div class="f">savings.py</div><p>from audit_log</p>
+</div>
+<div id="pol" class="box safety" style="left:624px;top:660px;width:420px;height:72px">
+  <h3>Safety policy</h3><div class="f">policy.py</div>
+  <p style="position:absolute;left:150px;top:6px;width:262px">proactive actions; L1 = do it, L2 = ask first; energy risk pre-authorised by the budget</p>
+</div>
+<div id="apr" class="box safety" style="left:624px;top:760px;width:214px;height:90px">
+  <h3>Approval queue</h3><div class="f">approval.py</div><p>ask → recheck → do</p>
+</div>
+<div id="pref" class="box next" style="left:862px;top:760px;width:214px;height:90px">
+  <h3>Preference learning</h3><div class="f">preference.py</div><p>opt-in, off by default</p>
+</div>
+
+<!-- Execution layer -->
+<div class="band" style="left:1106px;top:394px;width:236px;height:470px"><div class="bt">④ Execution</div></div>
+<div id="bud" class="box safety" style="left:1120px;top:580px;width:172px;height:136px">
+  <h3>Energy budget gate</h3><div class="f">budget.py</div><p>ALLOW · BLOCK · DELAY; kWh + max kW; fails closed</p>
+</div>
+<div id="aud" class="box safety" style="left:1120px;top:738px;width:172px;height:82px">
+  <h3>Audit gate</h3><div class="f">audit.py</div><p>intent → act → result</p>
+</div>
+<div id="dev" class="box" style="left:1120px;top:420px;width:208px;height:138px">
+  <h3>Device adapter</h3><div class="f">devices/base.py</div>
+  <p>one interface: list · get_state · apply</p>
+  <span class="tag now">Mock</span> <span class="tag ready">ThinQ</span>
+</div>
+
+<!-- Storage layer -->
+<div class="band" style="left:358px;top:880px;width:984px;height:132px"><div class="bt">⑤ Storage</div></div>
+<div id="db" class="box store" style="left:374px;top:906px;width:952px;height:92px">
+  <h3>SQLite · app.db <span style="font:600 13px Menlo,monospace;color:var(--blue)">db.py</span></h3>
+  <p>audit_log and energy_decisions (append-only; triggers block edit and delete) · energy_state · energy_settings · messages · logs · jobs · preferences — one file</p>
+</div>
+
+
+<!-- data-format tags on the arrows -->
+<div class="tg" style="left:298px;top:310px">A</div>
+<div class="tg" style="left:304px;top:470px">B</div>
+<div class="tg" style="left:318px;top:720px">C</div>
+<div class="tg" style="left:930px;top:200px">D</div>
+<div class="tg" style="left:1368px;top:330px">E</div>
+<div class="tg" style="left:1360px;top:540px">F</div>
+<div class="tg" style="left:1172px;top:848px">G</div>
+
+<div class="fmt"><div class="zt">Data formats</div><div class="zs">What actually travels on each lettered arrow (field names as in the code)</div>
+  <div class="card" style="left:16px;top:40px"><h4><span class="tg">A</span>Home sensors → Sensor reader</h4>
+    <div class="m">JSON snapshot every 1 s, appended to <b>readings.jsonl</b>; <b>latest.csv</b> = ts, source, metric, value</div>
+<pre>{"ts":"2026-11-26T18:05:01","tariff":"peak",
+ "rooms":{"Kitchen":{"temp":31.5,"humidity":48.0}},
+ "appliances":{"washer":{"cycle":"done",
+   "door_closed":true,"drum_humidity":90.0}},
+ "occupancy":{"user_home":false},
+ "total_load_w":3120}</pre></div>
+  <div class="card" style="left:424px;top:40px"><h4><span class="tg">B</span>Calendar → Sensor reader</h4>
+    <div class="m"><b>calendar.json</b>: JSON array, ISO 8601 times; read at start and on reload</div>
+<pre>[{"title":"Dinner bake",
+  "start":"2026-11-26T18:30",
+  "end":"2026-11-26T19:30"}]</pre></div>
+  <div class="card" style="left:832px;top:40px"><h4><span class="tg">C</span>Tariff &amp; CO₂ data → Region presets</h4>
+    <div class="m">Copied by hand from the publisher into a Python dict in <b>regions.py</b>, with the source named</div>
+<pre>"KR": {"currency":"KRW","price":214.6,
+  "peak":220.5,"offpeak":138.7,
+  "peak_hours":"16-22",
+  "co2_kg_per_kwh":0.4173,
+  "tariff_source":"KEPCO","co2_source":"MCEE 2023"}</pre></div>
+  <div class="card" style="left:1240px;top:40px"><h4><span class="tg">D</span>Users ↔ REST API</h4>
+    <div class="m">HTTPS + JSON. Screen polls every 4 s; alerts pushed as Server-Sent Events</div>
+<pre>POST /api/chat  {"text":"turn off the bedroom AC"}
+GET  /api/snapshot           (every 4 s)
+POST /api/approvals/&lt;id&gt;/confirm | decline
+GET  /api/events   (SSE)
+data: {"kind":"approval","title":"Your home
+       needs an answer","body":"..."}</pre></div>
+  <div class="card" style="left:16px;top:236px"><h4><span class="tg">E</span>Server ↔ LLM API</h4>
+    <div class="m">OpenAI-compatible POST <b>/chat/completions</b>; the reply is a tool call that code validates before use</div>
+<pre>{"model":"glm-4-flash","temperature":0,
+ "messages":[{"role":"system","content":"..."},
+             {"role":"user","content":"..."}],
+ "tools":[...],"tool_choice":"auto"}</pre></div>
+  <div class="card" style="left:424px;top:236px"><h4><span class="tg">F</span>Device adapter ↔ Appliances</h4>
+    <div class="m">Inside: one action format for every device. ThinQ turns it into LG's JSON payload</div>
+<pre>apply("washer",
+      [{"action":"ventilate","value":true}])
+→ {"ok":true,"applied":[...],"error":null}
+
+ThinQ: {"operation":{"airConOperation":
+         {"power":"POWER_OFF"}}}</pre></div>
+  <div class="card" style="left:832px;top:236px"><h4><span class="tg">G</span>Audit gate → SQLite audit_log</h4>
+    <div class="m">Two rows per action: <b>action.intent</b> before, <b>action.executed / failed</b> after. Rows cannot be edited or deleted</div>
+<pre>ts, event_type="action.intent", risk_kind="mold",
+risk_score=78, action_kind, tier="tier1",
+approval_id, execution_status="pending",
+decision_source, channel, device_id, detail</pre></div>
+  <div class="card" style="left:1240px;top:236px"><h4><span class="tg" style="background:#1b64da">·</span>Inside: budget verdict</h4>
+    <div class="m">budget.can_start() on every path; a DELAY becomes a scheduled job, re-checked when due</div>
+<pre>{"decision":"DELAY","limit":"max_kw",
+ "device":"Balcony Dryer","load_kw":1.8,
+ "after_kw":3.2,"max_kw":3.0,"band":"peak",
+ "scheduled_at":"2026-11-27T22:00",
+ "remaining_kwh":96.4}</pre></div>
+</div>
+
+<svg width="1700" height="1560">
+  <defs>
+    <marker id="a" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0,0 L10,5 L0,10 z" fill="#3a4350"/></marker>
+    <marker id="g" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0,0 L10,5 L0,10 z" fill="#8b95a1"/></marker>
+    <marker id="s" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0,0 L10,5 L0,10 z" fill="#8a5200"/></marker>
+    <marker id="b" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0,0 L10,5 L0,10 z" fill="#1b64da"/></marker>
+  </defs>
+
+  <!-- users <-> interface -->
+  <path class="e b" d="M975,194 L975,286" marker-start="url(#b)" marker-end="url(#b)"/>
+  <text class="lbl" x="985" y="250">HTTPS</text>
+
+  <!-- external sources -> input -->
+  <path class="e" d="M294,337 L330,337 L330,450 L370,450" marker-end="url(#a)"/>
+  <path class="e" d="M294,498 L370,498" marker-end="url(#a)"/>
+  <path class="e d" d="M294,712 L370,712" marker-end="url(#g)"/>
+  <text class="lbl" x="304" y="704">manual</text>
+
+  <!-- input -> decision -->
+  <path class="e b" d="M580,466 L622,466" marker-end="url(#b)"/>
+
+  <!-- interface <-> decision -->
+  <path class="e" d="M940,366 L940,418" marker-end="url(#a)"/>
+  <text class="lbl" x="948" y="392">commands</text>
+  <path class="e b" d="M838,586 L850,586 L850,402 L760,402 L760,368" marker-end="url(#b)"/>
+  <text class="lbl" x="640" y="390">alerts (SSE)</text>
+
+  <!-- decision internal -->
+  <path class="e b" d="M731,512 L731,538" marker-end="url(#b)"/>
+  <path class="e b" d="M731,632 L731,658" marker-end="url(#b)"/>
+  <path class="e" d="M1076,480 L1092,480 L1092,602 L1118,602" marker-end="url(#a)"/>
+  <path class="e s" d="M731,732 L731,758" marker-end="url(#s)"/>
+  <text class="lbl" x="740" y="751">Level 2</text>
+  <path class="e d" d="M838,805 L860,805" marker-end="url(#g)"/>
+
+  <!-- decision -> execution -->
+  <path class="e s" d="M1044,640 L1118,640" marker-end="url(#s)"/>
+  <text class="lbl" x="1052" y="632">L1</text>
+  <text class="lbl" x="1088" y="592" text-anchor="end">command</text>
+  <path class="e s" d="M731,850 L731,872 L1100,872 L1100,672 L1118,672" marker-end="url(#s)"/>
+  <text class="lbl" x="900" y="866">approved by user</text>
+  <path class="e s" d="M1206,716 L1206,736" marker-end="url(#s)"/>
+  <text class="lbl" x="1214" y="732">ALLOW</text>
+  <path class="e s" d="M1292,780 L1312,780 L1312,560" marker-end="url(#s)"/>
+  <text class="lbl" x="1298" y="600" transform="rotate(-90 1306 600)">apply()</text>
+  <path class="e" d="M1206,820 L1206,904" marker-end="url(#a)"/>
+  <text class="lbl" x="1214" y="860">logged</text>
+
+  <!-- execution <-> appliances -->
+  <path class="e" d="M1328,470 L1372,470 L1372,650 L1404,650" marker-start="url(#a)" marker-end="url(#a)"/>
+  <path class="e d" d="M1372,650 L1372,784 L1404,784" marker-end="url(#g)"/>
+  <text class="lbl" x="1300" y="458">commands / state</text>
+
+  <!-- decision <-> LLM -->
+  <path class="e d" d="M1076,438 L1096,438 L1096,386 L1380,386 L1380,314 L1404,314" marker-start="url(#g)" marker-end="url(#g)"/>
+</svg>
+
+<div class="legend">
+  <span class="sw" style="border-top:3px solid #1b64da;margin-left:0"></span>main data flow
+  <span class="sw" style="border-top:3px solid #8a5200"></span>safety path (policy → approval → budget gate → audit → device)
+  <span class="sw" style="border-top:2px solid #3a4350"></span>running in the demo
+  <span class="sw" style="border-top:2px dashed #8b95a1"></span>optional / code-ready
+  <br><b>Demo note:</b> the house is simulated — sensor values and appliance state come from a simulator that plays the part of the external sources; the system reads them only through the Input layer and the Device adapter, so a real ESP32 or LG ThinQ swaps in without changing layers ②–⑤.
+</div>
+</body>
+</html>

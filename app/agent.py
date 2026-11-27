@@ -124,6 +124,14 @@ class Agent:
                     source_text="peak tariff / budget deferral",
                 )
                 when_short = str(when)[11:16]
+                if v.get("limit") == "max_kw":
+                    # The strict answer the cap exists for: not now, and here
+                    # is exactly when instead — no extra question to answer.
+                    return v, (f"Not now. The house is drawing {v['load_kw']:.1f} kW and "
+                               f"{v['device']} would take it to {v['after_kw']:.1f} kW, "
+                               f"over your {v['max_kw']:g} kW limit. Booked for "
+                               f"{when_short}; it will start by itself then if it "
+                               f"fits (job {job}).")
                 return v, (f"I did not start {v['device']} now — {v['reason']}. "
                            f"Booked for {when_short} (job {job}).")
             return v, (f"I did not start {v['device']} now — {v['reason']}. "

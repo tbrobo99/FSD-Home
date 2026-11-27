@@ -992,7 +992,7 @@ button:active { opacity: .92; }
 .energy-body label { display: block; font-size: .85rem; color: var(--ink-2); margin: 12px 0 6px; }
 .energy-body input[type=number] { width: 100%; padding: 12px; font-size: 1rem;
   border: 1px solid var(--line-strong); border-radius: 10px; box-sizing: border-box; }
-.energy-body #save, .energy-body #alerts { margin-top: 12px; width: 100%; padding: 14px;
+.energy-body #save, .energy-body #saveCap, .energy-body #alerts { margin-top: 12px; width: 100%; padding: 14px;
   font-size: 1rem; font-weight: 600; color: #fff; background: var(--accent);
   border: 0; border-radius: 10px; cursor: pointer; }
 .energy-body .note { font-size: .82rem; color: var(--ink-2); line-height: 1.6; }

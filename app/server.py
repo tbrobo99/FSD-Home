@@ -273,6 +273,19 @@ class Handler(BaseHTTPRequestHandler):
         if path == "/api/budget":
             # Setting the budget is the pre-authorisation act. Record it in
             # the audit trail as a deliberate policy change.
+            if "max_kw" in body:
+                # The instantaneous cap (kW) is separate from the monthly
+                # budget (kWh). null or 0 turns it off.
+                raw = body.get("max_kw")
+                try:
+                    cap = budget.set_max_kw(float(raw) if raw not in (None, "") else None)
+                except (TypeError, ValueError) as exc:
+                    return self._json({"error": f"max_kw: {exc}"}, 400)
+                db.audit_write("energy.max_kw_set", execution_status="configured",
+                               detail=f"max kW cap {cap if cap else 'off'}")
+                db.log("budget.max_kw", f"{cap}")
+                if "budget_kwh" not in body:
+                    return self._json({"ok": True, **budget.state(cfg=self.agent_ref.cfg)})
             try:
                 kwh = float(body.get("budget_kwh"))
             except (TypeError, ValueError):

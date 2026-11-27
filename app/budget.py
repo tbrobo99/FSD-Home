@@ -45,6 +45,18 @@ NOMINAL_HOURS = {
     "air_purifier": 1.0, "range_hood": 0.25,
 }
 
+# Max kW cap (instantaneous draw, not kWh). The cap moves chores; it never
+# touches cooling, food or air, and it never blocks the proactive engine's
+# own risk responses. Off until the user sets a limit.
+CAP_EXEMPT = frozenset({"refrigerator", "air_conditioner", "air_purifier", "range_hood"})
+CAP_RETRY_MINUTES = 30
+CAP_MAX_RETRIES = 12          # 12 × 30 min = give up after 6 hours
+MAX_KW_RANGE = (0.5, 50.0)
+
+# Latest whole-house draw seen by accrue(), in watts. The 1 Hz loop updates it,
+# so a start can be checked against the load the house has right now.
+_last_load_w: float | None = None
+
 ALLOW, BLOCK, DELAY = "ALLOW", "BLOCK", "DELAY"
 
 # Decision provenance. Only an actual model reply gets SOURCE_LLM.
@@ -102,7 +114,9 @@ def accrue(total_load_w: float, now: datetime | None = None,
     count means a paused or throttled process does not under-count, and a call
     made twice in the same second adds nothing.
     """
+    global _last_load_w
     now = now or datetime.now()
+    _last_load_w = max(0.0, float(total_load_w or 0.0))
     key = period_key(now)
     row = _ensure_period(now, cfg)
     last = _parse(row.get("last_accrual_ts"))
@@ -144,7 +158,49 @@ def state(now: datetime | None = None, cfg: dict | None = None,
         "currency": R["currency"], "symbol": R["symbol"], "decimals": R["decimals"],
         "estimated_cost": round(used * R["price"], R["decimals"]),
         "updated_at": row.get("updated_at"),
+        "max_kw": max_kw(cfg),
+        "load_kw": None if _last_load_w is None else round(_last_load_w / 1000.0, 2),
     }
+
+
+def max_kw(cfg: dict | None = None) -> float | None:
+    """The household's instantaneous cap in kW, or None when it is off.
+
+    A value the user set (stored in SQLite) wins over config.json.
+    """
+    raw = None
+    try:
+        with db.conn() as c:
+            row = c.execute("SELECT value FROM energy_settings WHERE key='max_kw'").fetchone()
+        if row is not None:
+            raw = row["value"]
+        else:
+            raw = ((cfg or {}).get("energy") or {}).get("max_kw")
+    except Exception:
+        raw = ((cfg or {}).get("energy") or {}).get("max_kw")
+    try:
+        v = float(raw) if raw not in (None, "") else 0.0
+    except (TypeError, ValueError):
+        return None
+    return v if v > 0 else None
+
+
+def set_max_kw(kw: float | None, now: datetime | None = None) -> float | None:
+    """Set (or clear, with None / 0) the max kW cap. Returns the stored value."""
+    now = now or datetime.now()
+    value = None
+    if kw:
+        value = float(kw)
+        lo, hi = MAX_KW_RANGE
+        if not lo <= value <= hi:
+            raise ValueError(f"max_kw must be between {lo:g} and {hi:g}")
+    with db.conn() as c:
+        c.execute(
+            "INSERT INTO energy_settings (key, value, updated_at) VALUES ('max_kw', ?, ?)"
+            " ON CONFLICT(key) DO UPDATE SET value=excluded.value, updated_at=excluded.updated_at",
+            ("" if value is None else str(value), now.isoformat(timespec="seconds")),
+        )
+    return value
 
 
 def set_budget(kwh: float, strict_mode: bool | None = None,
@@ -223,7 +279,8 @@ def _offpeak_time(now: datetime, region: dict) -> datetime:
 
 def can_start(adapter, device_id: str, actions: list[dict], *,
               now: datetime | None = None, cfg: dict | None = None,
-              region: str | None = None) -> dict:
+              region: str | None = None, load_w: float | None = None,
+              channel: str = "") -> dict:
     """The single ALLOW / BLOCK / DELAY decision used by all four paths.
 
     `autonomous=True` means no human is in the loop; the hard safety set still
@@ -273,6 +330,26 @@ def can_start(adapter, device_id: str, actions: list[dict], *,
                 "reason": (f"estimated {est:.2f} kWh exceeds "
                            f"{s['remaining_kwh']:.2f} kWh remaining this month")}
 
+    # Max kW cap: would this start push the whole house over the user's limit?
+    cap = max_kw(cfg)
+    load = _last_load_w if load_w is None else float(load_w)
+    if (s["strict_mode"] and cap and starts and load is not None
+            and not _is_running(dev) and dev.get("type") not in CAP_EXEMPT):
+        after_kw = (load + power_w(dev, actions or [])) / 1000.0
+        if after_kw > cap:
+            over = {**base, "limit": "max_kw", "max_kw": cap,
+                    "load_kw": round(load / 1000.0, 2), "after_kw": round(after_kw, 2)}
+            why = (f"starting it would take the house to {after_kw:.1f} kW, "
+                   f"over your {cap:g} kW limit")
+            if dev.get("type") in DELAYABLE:
+                when = (_offpeak_time(now, R) if band == "peak"
+                        else _next_slot(now, CAP_RETRY_MINUTES))
+                return {**over, "decision": DELAY, "reason": why,
+                        "scheduled_at": when.isoformat(timespec="minutes")}
+            if channel != "engine":
+                return {**over, "decision": BLOCK,
+                        "reason": why + "; switch something off first or raise the limit"}
+
     # DELAY only for a not-yet-running, movable load during the peak band.
     if (band == "peak" and dev.get("type") in DELAYABLE and starts
             and not _is_running(dev)):
@@ -282,6 +359,15 @@ def can_start(adapter, device_id: str, actions: list[dict], *,
                 "scheduled_at": when.isoformat(timespec="minutes")}
 
     return {**base, "decision": ALLOW, "reason": "within budget"}
+
+
+def _next_slot(now: datetime, minutes: int) -> datetime:
+    """`minutes` from now, rounded up to the next half hour."""
+    t = now + timedelta(minutes=minutes)
+    t = t.replace(second=0, microsecond=0)
+    if t.minute not in (0, 30):
+        t += timedelta(minutes=(30 - t.minute % 30))
+    return t
 
 
 def _in_peak(now: datetime, region: dict) -> bool:
@@ -313,7 +399,8 @@ def gate(adapter, device_id: str, actions: list[dict], *,
     holds for everything that actually reaches an adapter.
     """
     now = now or datetime.now()
-    v = can_start(adapter, device_id, actions, now=now, cfg=cfg, region=region)
+    v = can_start(adapter, device_id, actions, now=now, cfg=cfg, region=region,
+                  channel=channel)
     record_decision(
         v["decision"], judge, device_id, v["reason"],
         estimated_kwh=v.get("estimated_kwh"), remaining_kwh=v.get("remaining_kwh"),

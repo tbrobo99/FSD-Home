@@ -200,6 +200,7 @@
         <div class="row"><span class="muted">Remaining</span><span id="remaining">—</span></div>
         <div class="row"><span class="muted">Estimated cost</span><span id="cost">—</span></div>
         <div class="row"><span class="muted">Instantaneous draw</span><span id="power">—</span></div>
+        <div class="row"><span class="muted">Max kW limit</span><span id="cap">—</span></div>
         <div class="row"><span class="muted">Mode</span><span id="mode">—</span></div>
       </div>
 
@@ -213,6 +214,18 @@
         <label for="kwh">Monthly limit (kWh)</label>
         <input id="kwh" type="number" min="1" max="100000" step="1" value="100">
         <button id="save" type="button">Set budget</button>
+      </div>
+
+      <div class="card">
+        <h2>Max kW limit</h2>
+        <p class="note">The whole house may not draw more than this at once. A washer,
+          dryer or dishwasher that would push it over is not started: it is booked
+          for later (off-peak, or at least 30 minutes on) and checked again then.
+          Other loads are refused until something is switched off. Cooling, the
+          fridge and air cleaning are never limited. Leave empty to turn it off.</p>
+        <label for="maxkw">Limit (kW)</label>
+        <input id="maxkw" type="number" min="0.5" max="50" step="0.1" placeholder="off">
+        <button id="saveCap" type="button">Set limit</button>
       </div>
 
       <div class="card">
