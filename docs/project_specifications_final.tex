@@ -13,8 +13,7 @@
 
 \begin{document}
 
-\title{Proactive Comfort Agent: Full Self-Driving Home Orchestration\\
-\large Specification, Design and Implementation (Phase 2 -- Deliverables A--D, revised for C and D)}
+\title{Proactive Comfort Agent: Full Self-Driving Home Orchestration}
 
 \author{
 \IEEEauthorblockN{Ha Yun Kim}
@@ -45,7 +44,7 @@ tbrobo99@outlook.com}
 \maketitle
 
 \begin{abstract}
-Modern smart homes present usability and sustainability barriers when users must manage disconnected appliance apps, monitor indoor environmental hazards, and coordinate high-wattage operations. We propose \textbf{FSD-Home (Full Self-Driving Home Orchestration)}, a proactive orchestration system designed for inclusive, zero-labor, and energy-conscious living. By evaluating real-time IoT telemetry streams (ambient temperature, humidity decay, appliance power draw, and compressor duty cycles) alongside household schedules, FSD-Home predicts indoor environmental and energy risks---such as post-wash mold buildup, kitchen thermal spikes, and peak electricity surges---before they escalate. To ensure safety, sustainability, and user autonomy, the system introduces a Tesla-inspired Risk-Graded Framework: Level 1 eco-efficiency and environmental adjustments run automatically with plain-language updates, while Level 2 high-load or schedule-altering operations require explicit, per-action user approval via a touch-first, accessible interface overlay backed by an append-only audit trail. Since the specification milestone the system has also become an energy-budget agent: the household sets a monthly energy budget (kWh) and, optionally, a maximum instantaneous load (kW) once, and inside these limits the agent controls energy loads on its own. One gate returns ALLOW, BLOCK or DELAY for every path that can start an appliance --- the proactive loop, chat and voice commands, the language-model tool loop, the raw control API and the scheduler --- and a movable load that does not fit now is booked for later instead of refused. In a one-week simulation, shifting chores out of the peak band cut the time-of-use cost by 8\%, and the 3~kW limit removed every overload that a movable load caused.
+Modern smart homes present usability and sustainability barriers when users must manage disconnected appliance apps, monitor indoor environmental hazards, and coordinate high-wattage operations. We propose \textbf{FSD-Home (Full Self-Driving Home Orchestration)}, a proactive orchestration system designed for inclusive, zero-labor, and energy-conscious living. By evaluating real-time IoT telemetry streams (ambient temperature, humidity decay, appliance power draw, and compressor duty cycles) alongside household schedules, FSD-Home predicts indoor environmental and energy risks---such as post-wash mold buildup, kitchen thermal spikes, and peak electricity surges---before they escalate. To ensure safety, sustainability, and user autonomy, the system introduces a Tesla-inspired Risk-Graded Framework: Level 1 eco-efficiency and environmental adjustments run automatically with plain-language updates, while Level 2 high-load or schedule-altering operations require explicit, per-action user approval via a touch-first, accessible interface overlay backed by an append-only audit trail. Since the specification milestone the system has also become an energy-budget agent: the household sets a monthly energy budget (kWh) and, optionally, a maximum instantaneous load (kW) once, and inside these limits the agent controls energy loads on its own. One gate returns ALLOW, BLOCK or DELAY for every path that can start an appliance --- the proactive loop, chat and voice commands, the language-model tool loop, the raw control API and the scheduler --- and a movable load that does not fit now is booked for later instead of refused. In a one-week simulation, shifting chores out of the peak band cut the time-of-use cost by 8 percent, and the 3~kW limit removed every overload that a movable load caused.
 \end{abstract}
 
 \begin{IEEEkeywords}
@@ -109,7 +108,7 @@ The system decouples real-time physical risk perception from LLM decision reason
 \end{itemize}
 
 \subsection{Cost Estimation}
-\begin{table}[htbp]
+\begin{table}[!t]
 \caption{Cost Estimation}
 \begin{center}
 \footnotesize
@@ -130,7 +129,7 @@ Cloud hosting & AWS Lightsail instance, Caddy HTTPS, DuckDNS name & \textcolor{r
 \end{table}
 
 \subsection{Task Distribution}
-\begin{table}[htbp]
+\begin{table}[!t]
 \caption{Role Assignments}
 \begin{center}
 \footnotesize
@@ -152,7 +151,7 @@ Development Manager & Ha Yun Kim & System architecture design, LaTeX document fo
 \subsection{System Architecture Overview}
 Fig.~\ref{fig:arch} illustrates the decoupled FSD-Home pipeline, separating 1~Hz deterministic telemetry evaluation and safety whitelisting from asynchronous cloud LLM ranking, per-action Level 2 approval modals, and append-only audit logging.
 
-\begin{figure}[htbp]
+\begin{figure}[!t]
 \centering
 \fbox{\parbox{0.95\columnwidth}{\scriptsize\ttfamily
 [1 Hz Telemetry Stream: app/sensors.py]\\
@@ -209,7 +208,7 @@ The local rule engine (\texttt{app/policy.py}) strictly enforces a 10-action whi
     \item \textbf{Energy Pre-Authorisation:} For the power-load risk the monthly budget of FR-8 is the authorisation: \texttt{pause\_washer} runs without a question, but only after the energy gate allows it. Kitchen overload keeps its question, because a hot cooktop is not made safe by a kWh budget.
 \end{itemize}
 
-\begin{table}[htbp]
+\begin{table}[!t]
 \caption{Proposed Whitelist}
 \label{tab:whitelist}
 \begin{center}
@@ -267,33 +266,35 @@ Table~\ref{tab:savings} lists the assumptions and their sources; they are consta
 
 \textbf{Regional presets.} Prices and the grid emission factor depend on where the household lives, so they are not constants of the estimate but a per-region preset (\texttt{app/regions.py}, Table~\ref{tab:regions}). They vary widely even inside one country: a residential kWh costs about twice as much in California as in Washington, and Washington's grid emits a third of Florida's CO$_2$ per kWh \cite{eia2026,egrid2023}. The United States is therefore offered on average and for six states, next to Korea and five European countries. Choosing a region in \emph{Settings} switches the interface language, the currency, the prices and the emission factor together; the energy figures, which come from the appliances, do not change. The peak/off-peak pair is a common residential time-of-use plan of that region, and only its difference is used, as the value of moving a load out of the peak. Where no such plan is in common use (the U.S.\ average, Texas, Washington, the United Kingdom, Germany and Italy) a moved load is still counted in kWh but earns no money, and the interface says so. Each value is the most recent official figure we could verify; prices are per kWh only, without fixed or standing charges, and are taxed (Europe) or untaxed (Korea, U.S.) as published. Adding a region is one entry in the preset table and its name in the interface.
 
-\begin{table*}[htbp]
-\caption{Regional Presets for the Savings Estimate (price per kWh only)}
+\begin{table}[!t]
+\caption{Regional Presets for the Savings Estimate}
 \label{tab:regions}
 \centering
-\footnotesize
-\begin{tabular}{p{2.4cm}p{1.3cm}p{1.9cm}p{5.2cm}p{1.5cm}p{3.0cm}}
+\scriptsize
+\setlength{\tabcolsep}{3pt}
+\begin{tabular}{@{}L{1.7cm}L{1.15cm}L{2.45cm}L{0.8cm}L{1.6cm}@{}}
 \toprule
-\textbf{Region} & \textbf{Language} & \textbf{Price / kWh} & \textbf{Peak / off-peak (plan, peak hours)} & \textbf{kg CO$_2$/kWh} & \textbf{Sources} \\
+\textbf{Region} & \textbf{kWh price} & \textbf{Peak / off-peak (hours)} & \textbf{kg CO$_2$/kWh} & \textbf{Sources} \\
 \midrule
-Korea & Korean & KRW 214.6 & 220.5 / 138.7 (KEPCO Jeju TOU, 16--22~h) & 0.4173 & \cite{kepco2023,mcee2025} \\
-United States (avg.) & English & \$0.1816 & none (no national plan) & 0.3497 & \cite{eia2026,egrid2023} \\
-\quad Arizona & English & \$0.1505 & 0.1423 / 0.0594 (APS TOU, 16--19~h) & 0.3126 & \cite{eia2026,aps2026,egrid2023} \\
-\quad California & English & \$0.2975 & 0.44 / 0.32 (PG\&E E-TOU-C, 16--21~h) & 0.1791 & \cite{eia2026,pge2026,egrid2023} \\
-\quad Florida & English & \$0.1499 & 0.2689 / 0.0600 (FPL RTR-1, 12--21~h) & 0.3579 & \cite{eia2026,fpl2026,egrid2023} \\
-\quad New York & English & \$0.2865 & 0.2786 / 0.0522 (Con Edison TOU delivery, 8--24~h) & 0.2116 & \cite{eia2026,coned2026,egrid2023} \\
-\quad Texas & English & \$0.1591 & none (retail choice) & 0.3498 & \cite{eia2026,egrid2023} \\
-\quad Washington & English & \$0.1463 & none & 0.1209 & \cite{eia2026,egrid2023} \\
-United Kingdom & English & \pounds0.2632 & none (supplier ToU tariffs vary) & 0.131 & \cite{ofgem2026,desnz2026} \\
-Germany & German & \texteuro{}0.373 & none (depends on grid operator) & 0.344 & \cite{bdew2026,uba2026} \\
-France & French & \texteuro{}0.2001 & 0.2142 / 0.1589 (Tarif Bleu HP/HC, HC about 22--6~h) & 0.0196 & \cite{cre2026,rte2026} \\
-Spain & Spanish & \texteuro{}0.185 & 0.2555 / 0.1497 (PVPC 2.0TD punta/valle, 10--14 and 18--22~h) & 0.107 & \cite{facua2025,cnmc2025} \\
-Italy & Italian & \texteuro{}0.3163 & none modelled & 0.2563 & \cite{arera2026,ispra2025} \\
+Korea & KRW 214.6 & 220.5 / 138.7 (16--22) & 0.4173 & \cite{kepco2023,mcee2025} \\
+U.S.\ average & \$0.1816 & none & 0.3497 & \cite{eia2026,egrid2023} \\
+\quad Arizona & \$0.1505 & 0.1423 / 0.0594 (16--19) & 0.3126 & \cite{eia2026,aps2026,egrid2023} \\
+\quad California & \$0.2975 & 0.44 / 0.32 (16--21) & 0.1791 & \cite{eia2026,pge2026,egrid2023} \\
+\quad Florida & \$0.1499 & 0.2689 / 0.0600 (12--21) & 0.3579 & \cite{eia2026,fpl2026,egrid2023} \\
+\quad New York & \$0.2865 & 0.2786 / 0.0522 (8--24) & 0.2116 & \cite{eia2026,coned2026,egrid2023} \\
+\quad Texas & \$0.1591 & none & 0.3498 & \cite{eia2026,egrid2023} \\
+\quad Washington & \$0.1463 & none & 0.1209 & \cite{eia2026,egrid2023} \\
+United Kingdom & \pounds0.2632 & none & 0.131 & \cite{ofgem2026,desnz2026} \\
+Germany & \texteuro{}0.373 & none & 0.344 & \cite{bdew2026,uba2026} \\
+France & \texteuro{}0.2001 & 0.2142 / 0.1589 (6--22) & 0.0196 & \cite{cre2026,rte2026} \\
+Spain & \texteuro{}0.185 & 0.2555 / 0.1497 (10--14, 18--22) & 0.107 & \cite{facua2025,cnmc2025} \\
+Italy & \texteuro{}0.3163 & none & 0.2563 & \cite{arera2026,ispra2025} \\
 \bottomrule
+\multicolumn{5}{@{}L{8.2cm}@{}}{\vspace{1pt}Plans: KEPCO Jeju TOU; APS TOU 4--7\,pm; PG\&E E-TOU-C; FPL RTR-1; Con Edison TOU (delivery only); Tarif Bleu HP/HC; PVPC 2.0TD punta/valle. Interface languages: Korean (Korea), German, French, Spanish, Italian, English elsewhere.}
 \end{tabular}
-\end{table*}
+\end{table}
 
-\begin{table}[htbp]
+\begin{table}[!t]
 \caption{Assumptions of the Savings Estimate (FR-7)}
 \label{tab:savings}
 \centering
@@ -324,7 +325,7 @@ Sampling by elapsed time rather than by tick count means a paused process does n
 
 \textbf{Decision.} \texttt{can\_start(device, actions)} is the single decision (Algorithm~\ref{alg:canstart}). It is called by the proactive loop, the chat command path, the model's tool loop, the raw control API and the scheduler. The estimate of a start is the appliance's rated draw $P_d$ (the same LG figures as the simulator) times a nominal run time, and it is always labelled an estimate. A start is checked against the remaining budget $B - E_{\text{month}}$ and, if the household set one, against the load limit $L_{\max}$: $L + P_d > L_{\max}$. Table~\ref{tab:verdicts} summarises the outcome per kind of load. A DELAY becomes a real job in the SQLite scheduler, and the chat reply says why and when, e.g.\ ``Not now. The house is drawing 1.8~kW and Balcony Dryer would take it to 3.2~kW, over your 3~kW limit. Booked for 22:00; it will start by itself then if it fits.''
 
-\begin{algorithm}[htbp]
+\begin{algorithm}[!t]
 \caption{Energy Gate: \textsc{can\_start} and the Due-Job Re-Check}
 \label{alg:canstart}
 \begin{algorithmic}[1]
@@ -348,7 +349,7 @@ Sampling by elapsed time rather than by tick count means a paused process does n
 \end{algorithmic}
 \end{algorithm}
 
-\begin{table}[htbp]
+\begin{table}[!t]
 \caption{Gate Verdicts by Kind of Load (Strict Mode)}
 \label{tab:verdicts}
 \centering
@@ -370,12 +371,10 @@ Proactive risk response & BLOCK & not refused by the limit \\
 
 \subsection{LLM Decision Layer and Prompt Design}
 \label{sec:prompt}
-The language model is called only when an event needs a choice --- a risk with rule-generated candidates, or a message the rules cannot read --- and never on the 1~Hz tick (NFR-1). \texttt{ProactiveEngine.\_decide()} sends the system prompt of Fig.~\ref{fig:prompt}, adds the energy addendum only when the risk is the power load, and appends an input block built from the risk, its drivers, presence, the budget state, the tariff band and the candidate list. The prompt states what the model may do (choose, reorder or take none of the listed candidates) and, as deliberately, what it cannot do: execute anything, add an action, or override a BLOCK. An earlier version told the model that Level~2 choices would be put to the user; in repeated runs the model then left every Level~2 candidate off its list, so that sentence was removed and the tier decision stays entirely in code.
+The language model is called only when an event needs a choice --- a risk with rule-generated candidates, or a message the rules cannot read --- and never on the 1~Hz tick (NFR-1). \texttt{ProactiveEngine.\_decide()} sends the system prompt of Fig.~\ref{fig:prompt}, adds the energy addendum of Fig.~\ref{fig:prompt2} only when the risk is the power load, and appends an input block built from the risk, its drivers, presence, the budget state, the tariff band and the candidate list. The prompt states what the model may do (choose, reorder or take none of the listed candidates) and, as deliberately, what it cannot do: execute anything, add an action, or override a BLOCK. An earlier version told the model that Level~2 choices would be put to the user; in repeated runs the model then left every Level~2 candidate off its list, so that sentence was removed and the tier decision stays entirely in code.
 
-\begin{figure*}[t]
-\centering
+\begin{figure}[!t]
 \scriptsize
-\begin{minipage}[b]{0.485\textwidth}
 \textbf{System prompt} (\texttt{DECIDE\_SYSTEM}, \texttt{app/proactive.py})
 \begin{verbatim}
 You are the decision layer of a proactive smart-home
@@ -412,8 +411,13 @@ Candidates:
 - kind=eco_ac tier=1 device=Living Room AC ...
 - kind=pause_washer tier=2 device=Balcony Washer ...
 \end{verbatim}
-\end{minipage}\hfill
-\begin{minipage}[b]{0.485\textwidth}
+\vspace{-4pt}
+\caption{The system prompt as it is sent and the input block built for one call. Line breaks are re-wrapped for print; the text is otherwise verbatim.}
+\label{fig:prompt}
+\end{figure}
+
+\begin{figure}[!t]
+\scriptsize
 \textbf{Energy addendum} (appended when the risk is the power load)
 \begin{verbatim}
 ENERGY BUDGET (when the risk kind is "energy"):
@@ -450,16 +454,15 @@ overridden into a start.
 4. every start  -> budget.can_start()   (Alg. 2)
 5. source + prompt/input/output -> energy_decisions
 \end{verbatim}
-\end{minipage}
-\par\vspace{8pt}
-\caption{The prompt as it is sent, the per-call input, and the checks applied to the model's reply. Line breaks are re-wrapped for print; the text is otherwise verbatim.}
-\label{fig:prompt}
-\end{figure*}
+\vspace{-4pt}
+\caption{The energy addendum and the checks applied to the model's reply.}
+\label{fig:prompt2}
+\end{figure}
 
 \subsection{Control Flow and Algorithmic Execution}
 Algorithm~\ref{alg:control} defines the 1~Hz orchestration loop, per-action Level 2 approval queuing, and pre-execution revalidation.
 
-\begin{algorithm}[htbp]
+\begin{algorithm}[!t]
 \caption{1~Hz Proactive Orchestration and Per-Action Approval}
 \label{alg:control}
 \begin{algorithmic}[1]
@@ -507,7 +510,7 @@ Inside, the components sit in five layers: \emph{Interface} (web UI, REST API wi
 
 The architecture keeps three properties that the requirements depend on. First, \emph{perception is deterministic}: the Sensor Simulator and the Risk Engine run on every 1~Hz tick without the language model in the path (NFR-1). Second, \emph{the model ranks but never authorizes}: the LLM Client only orders Level~1 candidates that the policy already produced, and any failure falls back to the rules (FR-3). Third, \emph{there is one door to the devices}: \texttt{audit.execute()} is the only function that calls \texttt{DeviceAdapter.apply()} on the action path, so intent and outcome are always recorded on either side of a device write (FR-6). Fourth, \emph{there is one energy decision}: \texttt{budget.can\_start()} is called on every path that can start a load, so the budget and the kW limit cannot be bypassed by choosing a different way to ask (FR-8).
 
-\begin{figure*}[t]
+\begin{figure*}[!t]
 \centering
 \includegraphics[width=\textwidth]{figures/architecture-v4.png}
 \caption{Implemented FSD-Home architecture. Inside the blue boundary: our code in five layers; outside: data sources, users, the optional language model and the appliances. Boxes are components (title, source files, responsibility); edges are labelled with what crosses them. Amber marks the safety path: whitelist, per-action approval, energy budget gate and the write-before-act audit gate. The panel below gives the data format on each lettered edge, with field names as in the code.}
@@ -517,38 +520,39 @@ The architecture keeps three properties that the requirements depend on. First, 
 \subsection{Directory Organization}
 Table~\ref{tab:dirs} lists the source tree. The core runtime uses only the Python standard library; the optional LG ThinQ adapter needs the \texttt{thinqconnect} SDK, and the optional language model is reached over an OpenAI-compatible HTTP API.
 
-\begin{table*}[t]
+\begin{table}[!t]
 \caption{Directory Organization and Source Files}
 \label{tab:dirs}
 \centering
-\footnotesize
-\begin{tabular}{p{1.9cm}p{4.4cm}p{3.1cm}p{5.6cm}}
+\scriptsize
+\begin{tabular}{@{}L{3.35cm}L{4.95cm}@{}}
 \toprule
-\textbf{Directory} & \textbf{File names} & \textbf{Module (component)} & \textbf{Notes} \\
+\textbf{Directory / files} & \textbf{Component: main classes and role} \\
 \midrule
-\texttt{/} & \texttt{run.py}, \texttt{start.bat} & Entry point & Starts adapter, proactive engine, scheduler and web server; \texttt{--scenario}, \texttt{--port}, \texttt{--lan} \\
-\texttt{app/} & \texttt{sensors.py} & Sensor Simulator & \texttt{SensorSimulator}: 1~Hz rooms, appliances, calendar, scenarios \\
-\texttt{app/} & \texttt{risk.py} & Risk Engine & \texttt{Risk}, MRI/TOI/HSI/PLI functions, \texttt{apparent\_temp()}, \texttt{evaluate()} \\
-\texttt{app/} & \texttt{policy.py} & Safety Policy & \texttt{Candidate}, \texttt{ACTION\_TIERS}, \texttt{candidates()}, \texttt{tier\_of()} \\
-\texttt{app/} & \texttt{proactive.py} & Proactive Engine & \texttt{ProactiveEngine}: loop, revalidation, cooktop interlock, dryer reminder \\
-\texttt{app/} & \texttt{approval.py} & Approval Queue & \texttt{Approval}, \texttt{ApprovalQueue}: per-action requests, 300~s expiry \\
-\texttt{app/} & \texttt{savings.py}, \texttt{regions.py} & Savings Report & \texttt{summarize()}, \texttt{report()}: kWh, money and CO$_2$ estimated from executed actions (FR-7); per-region (13 presets) language, currency, prices and emission factor \\
-\texttt{app/} & \texttt{budget.py} & Energy Budget Gate & \texttt{accrue()}, \texttt{can\_start()}, \texttt{gate()}, \texttt{set\_budget()}, \texttt{set\_max\_kw()}: kWh budget, kW limit, ALLOW/BLOCK/DELAY, provenance (FR-8) \\
-\texttt{app/} & \texttt{audit.py}, \texttt{db.py} & Audit Gate, Persistence & \texttt{execute()}, \texttt{record()}, \texttt{blocked()}; SQLite schema with append-only triggers (\texttt{audit\_log}, \texttt{energy\_decisions}) \\
-\texttt{app/} & \texttt{auth.py}, \texttt{events.py} & Login Gate, Live Alerts & Demo password and signed 24~h cookie; Server-Sent Event bus (NFR-3) \\
-\texttt{app/} & \texttt{preference.py} & Preference Learning & Opt-in record of repeated approvals; off by default \\
-\texttt{app/} & \texttt{llm.py} & LLM Client & OpenAI-compatible \texttt{chat()}; used for ranking and conversation \\
-\texttt{app/} & \texttt{server.py} & HTTP Server & \texttt{Handler}: REST API and static files \\
-\texttt{app/} & \texttt{agent.py}, \texttt{chat.py}, \texttt{nlu.py}, \texttt{ko.py}, \texttt{classifier.py}, \texttt{tools.py}, \texttt{scheduler.py}, \texttt{agent\_loop.py}, \texttt{scenes.py}, \texttt{food.py} & Conversational Agent & Voice/text commands (Korean input via \texttt{ko.py}), long-tail intent classifier, schedules and conversation; starts pass the energy gate, device writes the Audit Gate \\
-\texttt{app/} & \texttt{config.py}, \texttt{build.py} & Configuration & Defaults, \texttt{config.json}, build stamp \\
-\texttt{app/devices/} & \texttt{base.py}, \texttt{mock.py}, \texttt{thinq.py} & Device Adapters & \texttt{DeviceAdapter}, \texttt{MockAdapter} (11 simulated appliances), \texttt{ThinQAdapter} (dry-run by default) \\
-\texttt{app/web/} & \texttt{index.html}, \texttt{app.js}, \texttt{style.css}, \texttt{sw.js}, \texttt{login.html}, \texttt{soft/} & Web UI & Console (Home, Schedule, Assistant, Energy) and the Figma-designed \texttt{/soft/} interface; six languages; no build step \\
-\texttt{tests/} & \texttt{test\_phase2.py}, \texttt{test\_fr456.py}, \texttt{test\_budget.py}, \texttt{test\_max\_kw.py}, \ldots & Unit tests & 434 tests; run on Windows and Linux (Python 3.10, 3.12, 3.13) in GitHub Actions \\
-\texttt{eval/} & \texttt{run.py}, \texttt{latency.py}, \texttt{week.py}, \texttt{dataset.jsonl} & Benchmarks & Intent-parser regression, latency, and the simulated-week evaluation of FR-8 (\texttt{docs/eval/}) \\
-\texttt{docs/} & \texttt{*.tex}, \texttt{figures/} & Documentation & This paper, figures and screenshots \\
+\texttt{run.py}, \texttt{start.bat} & Entry point: starts adapter, engine, scheduler, web server \\
+\texttt{app/sensors.py} & Sensor Simulator: \texttt{SensorSimulator}, 1~Hz rooms, appliances, calendar \\
+\texttt{app/risk.py} & Risk Engine: \texttt{Risk}, MRI/TOI/HSI/PLI, \texttt{evaluate()} \\
+\texttt{app/policy.py} & Safety Policy: \texttt{Candidate}, \texttt{ACTION\_TIERS}, \texttt{candidates()} \\
+\texttt{app/proactive.py} & Proactive Engine: loop, revalidation, interlocks, prompt \\
+\texttt{app/approval.py} & Approval Queue: per-action requests, 300~s expiry \\
+\texttt{app/budget.py} & Energy Budget Gate: \texttt{accrue()}, \texttt{can\_start()}, \texttt{gate()} (FR-8) \\
+\texttt{app/savings.py}, \texttt{regions.py} & Savings Report and 13 regional presets (FR-7) \\
+\texttt{app/audit.py}, \texttt{db.py} & Audit Gate and SQLite with append-only triggers \\
+\texttt{app/auth.py}, \texttt{events.py} & Login gate; Server-Sent Event bus (NFR-3) \\
+\texttt{app/preference.py} & Opt-in preference learning, off by default \\
+\texttt{app/llm.py}, \texttt{classifier.py} & LLM client; JSON-only intent classifier \\
+\texttt{app/server.py} & HTTP server: REST API and static files \\
+\texttt{app/agent.py}, \texttt{nlu.py}, \texttt{ko.py}, \texttt{chat.py}, \texttt{tools.py}, \texttt{agent\_loop.py}, \texttt{scheduler.py} & Conversational agent: commands, schedules, conversation \\
+\texttt{app/config.py}, \texttt{build.py} & Defaults, \texttt{config.json}, build stamp \\
+\texttt{app/devices/} & \texttt{DeviceAdapter}, \texttt{MockAdapter} (11 appliances), \texttt{ThinQAdapter} (dry run) \\
+\texttt{app/web/hub/} & Default interface: Home, Devices, Energy, Menu \\
+\texttt{app/web/soft/}, \texttt{index.html} & Figma v3 interface (Activity, languages, regions); console \\
+\texttt{tests/} & 435 unit tests (Windows and Linux, Python 3.10--3.13) \\
+\texttt{eval/} & Intent-parser regression, latency, simulated week (FR-8) \\
+\texttt{docs/} & This paper, figures, screenshots \\
 \bottomrule
 \end{tabular}
-\end{table*}
+\end{table}
 
 \subsection{Sensor Simulator (\texttt{app/sensors.py})}
 \textbf{Purpose.} Provide the telemetry FR-1 asks for without physical appliances (NFR-2).
@@ -590,7 +594,7 @@ Every action it runs on its own first passes \texttt{budget.gate()}; a DELAY bec
 
 \subsection{HTTP Server and Web UI (\texttt{app/server.py}, \texttt{app/web/})}
 \textbf{Purpose.} Give the household one accessible screen (FR-4).
-\textbf{Functionality.} \texttt{Handler} serves the static interface and a small REST API: \texttt{GET /api/proactive}, \texttt{/api/approvals}, \texttt{/api/audit}, \texttt{/api/savings}, \texttt{/api/regions}, \texttt{/api/snapshot}; \texttt{POST /api/approvals/<id>/confirm} and \texttt{/decline} (the only route into Level~2 execution), \texttt{/api/control}, \texttt{/api/chat} and \texttt{/api/scenario} for demonstrations; \texttt{GET/POST /api/budget} for the energy budget and kW limit, \texttt{GET /api/events} for live alerts, and \texttt{/login} when a password is set. The default console at \texttt{/} has four tabs --- Home, Schedule, Assistant and \emph{Energy} --- and the Figma-designed interface described next is served at \texttt{/soft/}. The interface is vanilla HTML, CSS and JavaScript with no build step, designed first in Figma (Section~VI shows it). It has four tabs that each fit one phone screen: \emph{Home} (a one-sentence status from a small house mascot, four risk rings with the threshold at 50, quick actions and a one-line savings summary), \emph{Devices}, \emph{Activity} (the savings estimate and the audit trail in plain language) and \emph{Settings}; talking is the button in the middle of the tab bar. Level~2 questions open a bottom sheet by themselves: the reason once, then one card per action with its own Yes~/~No and a shared countdown. A language picker on Home (Korean, English, German, French, Spanish, Italian) switches the whole interface, speech recognition and read-aloud; Korean is the default. A \emph{Country / region} setting (Korea; the United States on average or one of six states; the United Kingdom, Germany, France, Spain, Italy) sets the language together with the currency, electricity prices and emission factor of the savings report. Both are native selects, so a phone shows its own large picker. Text and signal colours meet WCAG~2.2 AA contrast ($\geq 4.5{:}1$), controls show a visible keyboard focus, touch targets are 44--56~px, and the status line, banner and notifications are ARIA live regions \cite{wcag2023}.
+\textbf{Functionality.} \texttt{Handler} serves the static interface and a small REST API: \texttt{GET /api/proactive}, \texttt{/api/approvals}, \texttt{/api/audit}, \texttt{/api/savings}, \texttt{/api/regions}, \texttt{/api/snapshot}; \texttt{POST /api/approvals/<id>/confirm} and \texttt{/decline} (the only route into Level~2 execution), \texttt{/api/control}, \texttt{/api/chat} and \texttt{/api/scenario} for demonstrations; \texttt{GET/POST /api/budget} for the energy budget and kW limit, \texttt{GET /api/events} for live alerts, and \texttt{/login} when a password is set. All interfaces are vanilla HTML, CSS and JavaScript with no build step, each designed first in Figma. The default, served at \texttt{/} (\texttt{app/web/hub/}), follows the device-card layout of current smart-home apps: a warm grey canvas, white rounded cards, room chips and round power buttons. It has four tabs: \emph{Home} (the house status with the four risk scores, a room map whose pins show which appliances are on, favourite devices, and this month's energy against the budget), \emph{Devices} (two-column device cards filtered by room), \emph{Energy} (the month's kWh and cost, the kW limit with the live load, booked starts, the week's savings and the latest gate decisions with their source) and \emph{Menu} (talking to the house and the demonstration situations). A power button sends the same command a user could say, so a start meets the energy gate and may be booked for later. The earlier Figma interface remains at \texttt{/soft/} for the features the new one does not yet repeat: \emph{Activity} (the savings estimate and the audit trail in plain language) and \emph{Settings} (language and region). Level~2 questions open a bottom sheet by themselves: the reason once, then one card per action with its own Yes~/~No and a shared countdown. A language picker on Home (Korean, English, German, French, Spanish, Italian) switches the whole interface, speech recognition and read-aloud; Korean is the default. A \emph{Country / region} setting (Korea; the United States on average or one of six states; the United Kingdom, Germany, France, Spain, Italy) sets the language together with the currency, electricity prices and emission factor of the savings report. Both are native selects, so a phone shows its own large picker. Text and signal colours meet WCAG~2.2 AA contrast ($\geq 4.5{:}1$), controls show a visible keyboard focus, touch targets are 44--56~px, and the status line, banner and notifications are ARIA live regions \cite{wcag2023}.
 
 \subsection{Conversational Agent (\texttt{app/agent.py} and related)}
 \textbf{Purpose.} Keep the Phase~1 voice and text assistant working on the same safety path.
@@ -602,20 +606,20 @@ Every action it runs on its own first passes \texttt{budget.gate()}; a DELAY bec
 
 % ======================================================================
 \section{Use Cases}
-All use cases run on a laptop with \texttt{python run.py}. Screenshots were taken from the running app at phone size with the language model disabled, so every decision shown was made by the rules. Each scenario can be loaded from \emph{Settings} $\rightarrow$ \emph{Demo}, or with \texttt{python run.py --scenario <name>}. The interface opens in Korean; the screenshots use the English setting except Use Case~9. Use Cases~1--11 use the \texttt{/soft/} interface; Use Cases~12--14 use the console at \texttt{/}, whose \emph{Energy} tab holds the budget and the kW limit.
+All use cases run on a laptop with \texttt{python run.py}. Screenshots were taken from the running app at phone size with the language model disabled, so every decision shown was made by the rules. Each scenario can be loaded from \emph{Menu} $\rightarrow$ \emph{Demo situations}, or with \texttt{python run.py --scenario <name>}. Use Cases~1--3, 7 and 12--14 are shown in the default interface at \texttt{/}. Use Cases~4, 6, 8, 9 and 11 show the \texttt{/soft/} interface, which keeps the Activity tab, the savings detail and the language and region settings.
 
 \subsection{Use Case 1: Mold Risk Handled Automatically}
 \textbf{Satisfies:} FR-1, FR-2 (MRI), FR-3 (Level~1), FR-4.
 \begin{enumerate}
-    \item Choose \emph{Demo} $\rightarrow$ \emph{Wet washer}: a wash finished two hours ago with the door shut and nobody at home.
+    \item Choose \emph{Demo situations} $\rightarrow$ \emph{Wet washer}: a wash finished two hours ago with the door shut and nobody at home.
     \item Within one tick MRI reaches about 81 (drum 90\% humid, sealed 2~h).
     \item The house runs the Level~1 actions on its own --- drum ventilation, dehumidifier, air purifier --- and asks nothing.
-    \item Home says ``Airing the washer for you''; the washer ring shows \emph{On it}, and \emph{Just now} lists what was switched on (Fig.~\ref{fig:uc1}). The heat-stress tile reads ``Nobody home'' because HSI only counts while someone is at home.
+    \item Home says ``The house is handling it --- the washer is trapping moisture'', the mold score shows 81 in red, and the room map lights the purifier and the dehumidifier (Fig.~\ref{fig:uc1}). Heat stays at 0 because HSI only counts while someone is at home.
 \end{enumerate}
 
-\begin{figure}[htbp]
+\begin{figure}[!t]
 \centering
-\includegraphics[width=0.58\columnwidth]{figures/v3-uc1-mold.png}
+\includegraphics[width=0.58\columnwidth]{figures/v5-uc1-mold.png}
 \caption{Use Case 1: MRI above 50 triggers Level~1 actions without asking.}
 \label{fig:uc1}
 \end{figure}
@@ -623,14 +627,14 @@ All use cases run on a laptop with \texttt{python run.py}. Screenshots were take
 \subsection{Use Case 2: Per-Action Approval for Kitchen Overload}
 \textbf{Satisfies:} FR-2 (TOI), FR-3 (Level~2), FR-4.
 \begin{enumerate}
-    \item Choose \emph{Demo} $\rightarrow$ \emph{Dryer + dinner soon}: the dryer runs, the kitchen is at 31.5~$^\circ$C, the refrigerator compressor runs at 80\%, and dinner starts in 20 minutes.
+    \item Choose \emph{Demo situations} $\rightarrow$ \emph{Dryer + dinner soon}: the dryer runs, the kitchen is at 31.5~$^\circ$C, the refrigerator compressor runs at 80\%, and dinner starts in 20 minutes.
     \item TOI reaches 100. The range hood and kitchen pre-cooling run on their own (Level~1).
-    \item A bottom sheet opens by itself (Fig.~\ref{fig:uc2}). It states the reason once as tags, then shows \emph{one card per Level~2 action} --- ``Stop the dryer now?'' and ``Preheat the cooktop?'' --- each with its own Yes~/~No, a shared countdown and ``No answer? Nothing changes.'' The questions are read aloud once, together.
+    \item A bottom sheet opens by itself (Fig.~\ref{fig:uc2}): ``The kitchen is getting too hot'', the reason once as tags (kitchen temperature, dryer running, cooking in 20~min), then \emph{one card per Level~2 action} --- ``Stop the dryer now?'' and ``Preheat the cooktop?'' --- each with its own Yes~/~No, and a shared countdown: ``No answer in 4:52? Nothing changes.''
 \end{enumerate}
 
-\begin{figure}[htbp]
+\begin{figure}[!t]
 \centering
-\includegraphics[width=0.58\columnwidth]{figures/v3-uc2-ask.png}
+\includegraphics[width=0.58\columnwidth]{figures/v5-uc2-ask.png}
 \caption{Use Case 2: the reason once, then one short question per Level~2 action.}
 \label{fig:uc2}
 \end{figure}
@@ -641,13 +645,13 @@ All use cases run on a laptop with \texttt{python run.py}. Screenshots were take
     \item Press \emph{Yes} on the dryer card. The engine revalidates (still valid, overload still active, dryer still on), records the intent, stops the dryer and records the outcome.
     \item Removing the dryer's 1.4~kW clears the overload; the house sends one reminder that the dryer can be restarted by hand and never restarts it itself.
     \item Press \emph{Yes} on the cooktop card. It is revalidated against the meal --- someone at home, cooking still scheduled, cooktop still off --- and switches on.
-    \item Home now says ``Watching the cooktop'': it turns off by itself if no cooking starts after the scheduled time, and after 30 minutes at most (Fig.~\ref{fig:uc3}). The cooktop's own load raises TOI again, which the kitchen ring reports truthfully.
+    \item On the room map the cooktop is now on and the balcony dryer off (Fig.~\ref{fig:uc3}). The interlock turns the cooktop off by itself if no cooking starts after the scheduled time, and after 30 minutes at most. The cooktop's own load keeps TOI high, which the kitchen score reports truthfully.
 \end{enumerate}
 
-\begin{figure}[htbp]
+\begin{figure}[!t]
 \centering
-\includegraphics[width=0.58\columnwidth]{figures/v3-uc3-watch.png}
-\caption{Use Case 3: after both answers the cooktop is on and watched by the interlock.}
+\includegraphics[width=0.58\columnwidth]{figures/v5-uc3-after.png}
+\caption{Use Case 3: after both answers the cooktop is on (watched by the interlock) and the dryer is off.}
 \label{fig:uc3}
 \end{figure}
 
@@ -659,10 +663,10 @@ All use cases run on a laptop with \texttt{python run.py}. Screenshots were take
     \item The kitchen ring shows ``Quiet for 30 min'': the house will not ask again about this risk for 30 minutes, and the live score stays visible meanwhile (Fig.~\ref{fig:uc4}). A late answer is treated exactly like no answer.
 \end{enumerate}
 
-\begin{figure}[htbp]
+\begin{figure}[!t]
 \centering
 \includegraphics[width=0.58\columnwidth]{figures/v3-uc4-quiet.png}
-\caption{Use Case 4: after a decline nothing changes and the quiet period is shown.}
+\caption{Use Case 4: after a decline nothing changes and the quiet period is shown (\texttt{/soft/} interface).}
 \label{fig:uc4}
 \end{figure}
 
@@ -683,24 +687,24 @@ These paths are exercised by unit tests in \texttt{tests/test\_fr456.py}.
     \item The log cannot be edited: an \texttt{UPDATE} or \texttt{DELETE} on \texttt{audit\_log} is aborted by the database triggers.
 \end{enumerate}
 
-\begin{figure}[htbp]
+\begin{figure}[!t]
 \centering
 \includegraphics[width=0.58\columnwidth]{figures/v3-uc6-activity.png}
-\caption{Use Case 6: the Activity tab is the append-only audit trail in plain language.}
+\caption{Use Case 6: the Activity tab is the append-only audit trail in plain language (\texttt{/soft/} interface).}
 \label{fig:uc6}
 \end{figure}
 
 \subsection{Use Case 7: Heat Stress on a Hot Night}
 \textbf{Satisfies:} FR-2 (HSI), FR-3 (Level~1).
 \begin{enumerate}
-    \item Choose \emph{Demo} $\rightarrow$ \emph{Hot night}: the bedroom is 31.5~$^\circ$C at 70\% humidity with the resident at home and the AC off.
+    \item Choose \emph{Demo situations} $\rightarrow$ \emph{Hot night}: the bedroom is 31.5~$^\circ$C at 70\% humidity with the resident at home and the AC off.
     \item The apparent temperature is about 38~$^\circ$C, so HSI exceeds 50.
-    \item The house turns the bedroom AC on to cool \emph{gently} to 26~$^\circ$C --- cool, not cold, for an older resident --- and says so on Home (Fig.~\ref{fig:uc7}). No question is needed: the action is protective and reversible.
+    \item The house turns the bedroom AC on to cool \emph{gently} to 26~$^\circ$C --- cool, not cold, for an older resident --- and Home shows Heat at 52 with the bedroom AC lit on the room map (Fig.~\ref{fig:uc7}). No question is needed: the action is protective and reversible.
 \end{enumerate}
 
-\begin{figure}[htbp]
+\begin{figure}[!t]
 \centering
-\includegraphics[width=0.58\columnwidth]{figures/v3-uc7-heat.png}
+\includegraphics[width=0.58\columnwidth]{figures/v5-uc7-heat.png}
 \caption{Use Case 7: a hot, humid bedroom is cooled gently without asking.}
 \label{fig:uc7}
 \end{figure}
@@ -708,16 +712,16 @@ These paths are exercised by unit tests in \texttt{tests/test\_fr456.py}.
 \subsection{Use Case 8: Power Load at the Peak Rate}
 \textbf{Satisfies:} FR-2 (PLI), FR-3 (Level~1 and energy pre-authorisation), FR-8, FR-4.
 \begin{enumerate}
-    \item Choose \emph{Demo} $\rightarrow$ \emph{Peak rate}: evening peak band, two air conditioners set to 22~$^\circ$C and a wash running --- about 2.4~kW against a 2.5~kW peak budget (PLI~57).
+    \item Choose \emph{Demo situations} $\rightarrow$ \emph{Peak rate}: evening peak band, two air conditioners set to 22~$^\circ$C and a wash running --- about 2.4~kW against a 2.5~kW peak budget (PLI~57).
     \item PLI exceeds 50. The house raises the coldest AC by 2~$^\circ$C (Level~1); the energy gate allows it (within budget).
     \item Because the household set a monthly budget, the power-load risk is pre-authorised: the house also pauses the wash \emph{without asking} --- the gate allows it, since pausing starts nothing --- and says so: ``Wash paused --- restart it after the peak'' (Fig.~\ref{fig:uc8}). The load drops to about 1.8~kW and PLI to about 43 (\emph{Watching}). In the Phase~2 specification this step was a question; with the budget turned off (\texttt{energy.preauthorised = false}) it is a question again.
     \item The paused wash does not count as finished, so the mold index does not start. \texttt{GET /api/audit} shows, in order, the \texttt{energy.decision} (ALLOW), \texttt{action.intent} and \texttt{action.executed} rows of each action.
 \end{enumerate}
 
-\begin{figure}[htbp]
+\begin{figure}[!t]
 \centering
 \includegraphics[width=0.58\columnwidth]{figures/v4-uc8-peak.png}
-\caption{Use Case 8: at the peak rate the house raised the AC setpoint and paused the wash on its own, inside the pre-authorised budget.}
+\caption{Use Case 8: at the peak rate the house raised the AC setpoint and paused the wash on its own, inside the pre-authorised budget (\texttt{/soft/} interface).}
 \label{fig:uc8}
 \end{figure}
 
@@ -730,14 +734,14 @@ These paths are exercised by unit tests in \texttt{tests/test\_fr456.py}.
     \item Text generated by the server (chat replies, refusal reasons) remains in English in this version.
 \end{enumerate}
 
-\begin{figure}[htbp]
+\begin{figure}[!t]
 \centering
 \includegraphics[width=0.58\columnwidth]{figures/v3-uc9-ko.png}
 \caption{Use Case 9: the same peak-rate question in the Korean interface; the language picker is at the top right.}
 \label{fig:uc9}
 \end{figure}
 
-\begin{figure}[htbp]
+\begin{figure}[!t]
 \centering
 \includegraphics[width=0.58\columnwidth]{figures/v3-uc9-region-de.png}
 \caption{Use Case 9: \emph{Settings} with the region set to Germany; the interface follows in German.}
@@ -761,14 +765,14 @@ These paths are exercised by unit tests in \texttt{tests/test\_fr456.py}.
     \item Every figure can be traced to an \texttt{action.executed} row in the timeline below it; declining the question in Use Case~8 removes the wash line and its saving.
 \end{enumerate}
 
-\begin{figure}[htbp]
+\begin{figure}[!t]
 \centering
 \includegraphics[width=0.58\columnwidth]{figures/v3-uc11-savings.png}
-\caption{Use Case 11: the savings estimate on top of the Activity tab, computed only from executed actions.}
+\caption{Use Case 11: the savings estimate on top of the Activity tab, computed only from executed actions (\texttt{/soft/} interface).}
 \label{fig:uc11}
 \end{figure}
 
-\begin{figure}[htbp]
+\begin{figure}[!t]
 \centering
 \includegraphics[width=0.58\columnwidth]{figures/v3-uc11-savings-de.png}
 \caption{Use Case 11 for a household in Germany: euros, the German emission factor, and a note that moving a load earns nothing without a time-of-use rate.}
@@ -779,31 +783,31 @@ These paths are exercised by unit tests in \texttt{tests/test\_fr456.py}.
 \subsection{Use Case 12: A Chore Asked For at the Peak Is Booked for Later}
 \textbf{Satisfies:} FR-8 (DELAY), FR-6.
 \begin{enumerate}
-    \item In the evening peak band (16--22~h in the Korea preset), type or say ``turn on the dryer'' in the \emph{Assistant} tab.
+    \item In the evening peak band (16--22~h in the Korea preset), tap the dryer's power button in \emph{Devices}, or say ``turn on the dryer''.
     \item The gate returns DELAY: the dryer is not running yet and is a movable load. The agent does not start it, creates a one-time job for the start of the off-peak band and replies ``I did not start Balcony Dryer now --- peak band; moved to off-peak at 22:00. Booked for 22:00.''
-    \item The job appears in the \emph{Schedule} tab. At 22:00 the scheduler calls the gate again --- the budget might have been spent in the meantime --- and only then starts the dryer through the Audit Gate; a message in the conversation reports whether it ran.
+    \item The card now reads ``22:00 scheduled'' and the job appears under \emph{Booked} in the \emph{Energy} tab. At 22:00 the scheduler calls the gate again --- the budget might have been spent in the meantime --- and only then starts the dryer through the Audit Gate; a message in the conversation reports whether it ran.
 \end{enumerate}
 
 \subsection{Use Case 13: A Spent Budget Blocks a Start}
 \textbf{Satisfies:} FR-8 (BLOCK, fail closed, provenance), FR-6.
 \begin{enumerate}
-    \item In the \emph{Energy} tab set the monthly budget to 0.05~kWh, or \texttt{POST /api/budget \{"budget\_kwh": 0.05\}}. The bar turns red once the month's use passes it (Fig.~\ref{fig:uc13}).
+    \item In the \emph{Energy} tab set the monthly budget to 0.05~kWh, or \texttt{POST /api/budget \{"budget\_kwh": 0.05\}}. The bar turns red once the month's use passes it (Fig.~\ref{fig:uc13}); the same card shows the live load against the kW limit and the booked starts.
     \item Ask ``turn on the dehumidifier''. The reply is ``I did not start Balcony Dehumidifier: estimated 0.30~kWh exceeds 0.00~kWh remaining this month. Set a higher budget or use the manual override.'' Nothing is sent to the device.
     \item \emph{Recent decisions} lists the verdict, the device, the time, the reason and its source (Fig.~\ref{fig:uc13ledger}); the proactive engine's own attempt to adjust an air conditioner is refused the same way. A model decision would show \texttt{llm} and keep its prompt, input and output.
     \item The raw API obeys the same gate: \texttt{POST /api/control} for the dryer returns \texttt{403} with the same reason, unless the request carries \texttt{"override": true}, which is recorded as a manual override.
 \end{enumerate}
 
-\begin{figure}[htbp]
+\begin{figure}[!t]
 \centering
-\includegraphics[width=0.58\columnwidth]{figures/v4-uc13-budget.png}
+\includegraphics[width=0.58\columnwidth]{figures/v5-uc13-energy.png}
 \caption{Use Case 13: the Energy tab with the month's use above a deliberately tiny budget; the live load and the kW limit are shown next to it, in their own units.}
 \label{fig:uc13}
 \end{figure}
 
-\begin{figure}[htbp]
+\begin{figure}[!t]
 \centering
-\includegraphics[width=0.58\columnwidth]{figures/v4-uc13-ledger.png}
-\caption{Use Case 13: the decision ledger. Each verdict keeps its reason and its source.}
+\includegraphics[width=0.58\columnwidth]{figures/v5-uc13-ledger.png}
+\caption{Use Case 13: the decision ledger at the bottom of the Energy tab. Each verdict (BLOCK, DELAY, ALLOW) keeps its device, time, reason and source.}
 \label{fig:uc13ledger}
 \end{figure}
 
@@ -811,15 +815,15 @@ These paths are exercised by unit tests in \texttt{tests/test\_fr456.py}.
 \textbf{Satisfies:} FR-8 (kW limit, DELAY, due-job re-check).
 \begin{enumerate}
     \item In the \emph{Energy} tab enter 3 in \emph{Max kW limit} and press \emph{Set limit}, or \texttt{POST /api/budget \{"max\_kw": 3.0\}}. The limit is written to \texttt{audit\_log} as a configuration change.
-    \item With the house drawing 1.8~kW, ask ``turn on the dryer''. The dryer's 1.4~kW would take the house to 3.2~kW, so the agent answers ``Not now. The house is drawing 1.8~kW and Balcony Dryer would take it to 3.2~kW, over your 3~kW limit. Booked for 22:00; it will start by itself then if it fits.'' (Fig.~\ref{fig:uc14}). Outside the peak band the booking is the next half hour at least 30 minutes ahead.
+    \item With the house drawing 1.8~kW, tap the dryer's power button (or say ``turn on the dryer''). The dryer's 1.4~kW would take the house to 3.2~kW, so the house answers ``Not now. The house is drawing 1.8~kW and Balcony Dryer would take it to 3.2~kW, over your 3~kW limit. Booked for 00:00; it will start by itself then if it fits.'' and the card shows the booking (Fig.~\ref{fig:uc14}). Outside the peak band, as here, the booking is the next half hour at least 30 minutes ahead; inside it, the start of the off-peak band.
     \item When the job comes due the gate runs again with the load at that moment. If the house is still too busy the job moves another 30 minutes and the user is told (``still does not fit under 3~kW \ldots\ Trying again at 22:30''); after six hours it reports that the dryer did not start. A booking is never permission to exceed the limit later.
     \item A load that cannot wait (e.g.\ the dehumidifier) is refused over the limit with ``switch something off first or raise the limit''; cooling, the refrigerator and air cleaning are never limited.
 \end{enumerate}
 
-\begin{figure}[htbp]
+\begin{figure}[!t]
 \centering
-\includegraphics[width=0.58\columnwidth]{figures/v4-uc14-maxkw.png}
-\caption{Use Case 14: the dryer would push the house over the 3~kW limit, so it is booked instead of started. (Screenshot taken with the server clock in the peak band; the bubble times are the phone's clock.)}
+\includegraphics[width=0.58\columnwidth]{figures/v5-uc14-notnow.png}
+\caption{Use Case 14: the dryer would push the house over the 3~kW limit, so it is booked instead of started.}
 \label{fig:uc14}
 \end{figure}
 
@@ -831,7 +835,7 @@ These paths are exercised by unit tests in \texttt{tests/test\_fr456.py}.
     \item \emph{Result.} Peak shifting alone moves every chore to 22:00 and creates a new peak there --- more minutes over 3~kW than doing nothing (570 vs.\ 490). The limit staggers the chores instead: every minute still over 3~kW (210) is caused by cooking and cooling, which the gate may not move. Peak-band energy falls by 30\% and the time-of-use cost by 8\%, all 19 chores still run, and they wait 142 minutes on average. Total kWh and CO$_2$ do not change: moving a load in time saves money and peak demand, not energy, and the report says so.
 \end{enumerate}
 
-\begin{table}[htbp]
+\begin{table}[!t]
 \caption{Simulated Week (Use Case 15)}
 \label{tab:week}
 \centering
@@ -852,7 +856,7 @@ Average wait (min) & 0 & 104 & 142 \\
 \end{tabular}
 \end{table}
 
-\begin{figure}[htbp]
+\begin{figure}[!t]
 \centering
 \includegraphics[width=\columnwidth]{figures/v4-eval-week.png}
 \caption{Use Case 15: whole-house load on the same day in the three runs. Peak shifting alone (middle) piles the chores up at 22:00; the 3~kW limit (bottom) staggers them. The spike near 19:00 is cooking and cooling, which FSD may not move.}
