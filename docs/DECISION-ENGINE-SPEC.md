@@ -1,7 +1,7 @@
 # Decision Engine — Implementation Specification
 
 **Subsystem owner** Tang Bin (software developer)
-**Part of** Phase 2 specification — *Proactive Senior Care & Comfort Agent: Risk-Graded Autonomous Home Orchestration*
+**Part of** Phase 2 specification — *FSD-Home: Full Self-Driving Home Orchestration for Energy Saving*
 **Scope** Sensor layer, risk layer, policy layer, decision layer, approval layer, timing, HTTP interface, acceptance criteria
 **Status** Implementation contract, derived from running code (`lg-home-agent`, branch `phase2`)
 

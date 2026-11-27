@@ -1,4 +1,4 @@
-# FSD Home: Autonomous Energy Management Agent
+# FSD-Home: Full Self-Driving Home Orchestration for Energy Saving
 
 **An autonomous smart home agent that manages energy consumption, controls devices, and makes decisions based on the user's energy budget.**
 
@@ -12,15 +12,14 @@ explicit, audited manual override on the console — an emergency action, not
 autonomous behaviour. Non-energy risks keep the original two-level approval
 policy.
 
-![tests](https://github.com/tbrobo99/proactive-senior-care-comfort-agent/actions/workflows/tests.yml/badge.svg)
+![tests](https://github.com/tbrobo99/FSD-Home/actions/workflows/tests.yml/badge.svg)
 
 ## Motivation & differentiation
 
-Existing LG and Samsung apps already show energy information and allow schedules.
-The contribution here is not another monitoring dashboard. It is one decision
-layer that spans every control path: the proactive loop, chat commands, the raw
-REST control endpoint and the scheduler all pass through the same
-`budget.can_start()` gate before an action reaches a device.
+This project is not just a monitoring dashboard. Its main contribution is a
+unified decision layer across all device control paths. The proactive loop,
+chat commands, REST control API, and scheduler all use the same
+`budget.can_start()` gate before starting a device or increasing its power load.
 
 | Ordinary energy monitoring | FSD Home agent |
 |---|---|
@@ -35,20 +34,26 @@ have no automation.
 
 ## Live demo
 
-Open the current simulator-based cloud demo: https://fsd-home-demo.duckdns.org/
+Open the simulator-based cloud demo: https://fsd-home-demo.duckdns.org/. It has **two main
+web interfaces over the same backend** — the same risk engine, agent, energy budget and audit
+trail answer both screens.
 
-- `/` (default) opens the **device-card hub** (`app/web/hub/`, Figma page "v4 · Hub Screens
-  (English)"): **Home** with the four risk scores, a room map and favourite devices; **Devices** by
-  room; **Energy** with the monthly budget, the max kW limit, booked starts, weekly savings and the
-  latest gate decisions; **Menu** with chat and demo situations. Power buttons go through the agent,
-  so a start meets the same energy gate as a spoken command and can be booked for later.
-- `/?ui=v6` is the Mission Console live view; its switcher opens `v0`–`v5`, the team dashboard
-  (`7`) and the hub (`8`). `/energy` opens the console's Energy tab.
+- **Device-card Hub (default UI)** — https://fsd-home-demo.duckdns.org/ (also `/hub/`), source
+  `app/web/hub/`, Figma page "v4 · Hub Screens (English)". The daily-use view: **Home** with the
+  four risk scores, a room map and favourite devices; **Devices** by room; **Energy** with the
+  monthly budget, the max kW limit, booked starts, weekly savings and the latest gate decisions;
+  **Menu** with chat and demo situations. Power buttons go through the agent, so a start meets
+  the same energy gate as a spoken command and can be booked for later.
+- **Mission Console v6 (technical view)** — https://fsd-home-demo.duckdns.org/?ui=v6. The agent's
+  working view: live device state, risk events, Level 2 approval cards and the decision log. Its
+  switcher opens `v0`–`v5`, the team dashboard (`7`) and the hub (`8`); `/energy` opens the
+  console's Energy tab.
 - `/soft/` is the earlier Figma interface. It keeps what the hub does not repeat yet: the
   **Activity** tab (savings detail and the audit trail in plain language) and a language (6) and
   region (13) picker.
-- The LLM path is deployed but currently off in the hosted config, so the live demo uses
-  deterministic rules. The local Zhipu / `glm-4-flash` path has been tested directly.
+- The LLM path is deployed and enabled in the hosted config; the deterministic rules and budget
+  gate remain the final authority in every decision. The local Zhipu / `glm-4-flash` path has
+  been tested directly.
 - **Paper:** *Proactive Comfort Agent: Full Self-Driving Home Orchestration for Energy Saving* —
   [`docs/Phase 2 Project_C&D.pdf`](<docs/Phase 2 Project_C&D.pdf>) (IEEE conference
   template, deliverables A–D; LaTeX source alongside).
@@ -65,27 +70,36 @@ Open the current simulator-based cloud demo: https://fsd-home-demo.duckdns.org/
   (household power load at the peak rate). Like MRI and TOI they score 0–100 and act at 50.
 - **Savings report (FR-7):** `GET /api/savings` estimates kWh saved, kWh moved off the peak,
   money and CO₂, only from actions the audit trail records as executed (`app/savings.py`).
-- **Energy budget (FR-8):** `GET/POST /api/budget` and `app/budget.py` integrate measured
-  watts into cumulative kWh, enforce a monthly cap, and expose one `can_start()` gate used
+- **Energy budget (FR-8):** `GET/POST /api/budget` and `app/budget.py` integrate simulated
+  power consumption into cumulative kWh, enforce a monthly cap, and expose one `can_start()` gate used
   by the proactive loop, chat commands, the raw control API and the scheduler. A deferred
   start is queued in SQLite and re-checked when it runs. Decision provenance distinguishes
   a real LLM reply from a rules fallback and a rules override, and stores the actual
   prompt, input and output. All figures are simulator estimates, not meter readings.
-- **Max kW limit (FR-8):** `POST /api/budget {"max_kw": 3.0}` caps the whole-house draw. A washer,
-  dryer or dishwasher that would push the house over it is not started but booked ("Not now … booked
-  for 22:00") and checked again when due; other user-started loads are refused; cooling, the fridge
-  and air cleaning are never limited. See Scenario 4.
+- **Max kW limit (FR-8):** `POST /api/budget {"max_kw": 3.0}` limits household power demand, with
+  exemptions for essential devices and safety-related actions. A washer, dryer or dishwasher that
+  would push the house over it is not started but booked ("Not now … booked for 22:00") and
+  checked again when due; other user-started loads are refused; cooling, the fridge and air
+  cleaning are never limited. See Scenario 4.
 - **Simulated-week evaluation:** `python -m eval.week` replays one household for a week with and
   without the gate (`docs/eval/`). See the Evaluation section.
-- **Device-card hub interface:** the new default screen at `/` (see Live demo).
+- **Multiple web interfaces:** the Device-card Hub (`/` and `/hub/`) is the default daily-use
+  screen; the Mission Console v6 (`/?ui=v6`) is the technical view of the agent's decisions and
+  system status. Both are static front-ends over the same REST API, risk engine and energy
+  budget logic (see Live demo).
 - **Regions and languages:** `GET /api/regions` — Korea, the US average and six states, the UK,
   Germany, France, Spain and Italy, each with its tariff, time-of-use pair and grid emission factor
   and a source (`app/regions.py`); the `/soft/` interface speaks Korean, English, German, French,
   Spanish and Italian.
 
+### Mission Console v6
+
+The Mission Console provides a technical view of the autonomous agent: live device state,
+risk scores, Level 2 approval requests and the system log.
+
 <img src="docs/screenshot-ask-v6.png" width="460" alt="Live v6 dark Mission Console: isometric house with 11 device lights, two independent Level 2 approval cards, and status log">
 
-*The v6 Mission Console (`/?ui=v6`).*
+*Mission Console v6 — agent monitoring and technical demonstration (`/?ui=v6`).*
 
 ---
 
@@ -94,7 +108,7 @@ Open the current simulator-based cloud demo: https://fsd-home-demo.duckdns.org/
 The original Phase 2 risk and approval behaviour is still active for
 **non-energy safety risks**. Energy actions are different: setting the monthly
 budget is the pre-authorisation, and `budget.gate()` returns ALLOW / BLOCK /
-DELAY before execution. Energy actions do not create Tier-2 approval cards.
+DELAY before execution. Pre-authorised energy actions do not create Tier-2 approval cards.
 
 | Control policy | Energy actions | Non-energy safety actions |
 |---|---|---|
@@ -104,7 +118,8 @@ DELAY before execution. Energy actions do not create Tier-2 approval cards.
 | Hard safety rules | Required: cooktop / oven / spent budget are blocked | Required |
 
 The older loop is `sensors at 1 Hz → risk evaluation → safety policy → act or ask`.
-Two deterministic indices, both scored 0–100 and both triggering at 50.0:
+The original Phase 2 specification included two deterministic risk indices, both scored
+0–100 and triggering at 50.0:
 
 - **MRI (Mold Risk Index)** — humidity trapped in a sealed washer drum, scored
   from drum humidity, how long it has been sealed, room temperature and the
@@ -120,7 +135,7 @@ An optional language model may rank Level 1 candidates, but it cannot add an
 action outside the whitelist, approve a Level 2 action, or replace the rules —
 if the model is unavailable or returns unusable output, the rules decide.
 
-### Action whitelist (7 actions)
+### Original Phase 2 action whitelist (7 actions)
 
 | Level | Action | Device |
 |---|---|---|
@@ -188,53 +203,21 @@ time, not from a tick count.
 
 ---
 
-## Architecture
+## System Architecture
 
-![FSD Home three-band architecture: continuous local data input at 1 Hz feeds an energy context; event-triggered decisions go through the Agent core, an optional LLM proposal and a deterministic rule validator with budget.can_start(); execution passes the audit gate, device adapter and dashboard, with updated state read back on the next 1 Hz tick. The LLM proposes; rules and budget decide.](docs/architecture.svg)
+The diagram below shows the main components and their connections. It is the paper's
+Fig. 4: data sources, users, the optional model and the appliances sit outside the system
+boundary; inside are five layers (interface, input, decision, execution, storage), and lettered
+edges A–G carry the data formats printed under the figure (sensor JSON, calendar file, regional
+preset, REST and event messages, model request, adapter action and ThinQ payload, audit row).
+Source: `docs/figures/src/architecture-v4.html`.
 
-```text
-1 · DATA INPUT — CONTINUOUS, LOCAL, NO LLM
+![System Component Architecture](docs/figures/architecture-v4.png)
 
-Home data sources                 Sensor loop · 1 Hz                  Energy context
-simulated device states            reads rooms + appliances            used / remaining kWh
-optional ESP32 sensors            builds one snapshot                 tariff · budget · Strict Mode
-power · temp · humidity           local polling — no model call       app/budget.py + SQLite
-        | readings                        | snapshot
-        +--------------------------------+-------------------------------+
-
-2 · DECISION — EVENT-TRIGGERED
-
-                         only when a command or risk event occurs
-                                         |
-Agent core  -- prompt + context -->  LLM — optional  -- validate -->  Deterministic rule validator
-chat · proactive event          <-- JSON proposal --        checks budget.can_start() · safety · time
-REST /api/control bypasses LLM       event-triggered         FINAL AUTHORITY · safe fallback
-but still passes budget gate         cloud config off
-
-3 · EXECUTION & FEEDBACK — CLOSED LOOP
-
-Deterministic rule validator
-        |
-        v
-Audit execution gate  ->  Device adapter  ->  Dashboard + decision log
-write intent before       mock now           budget · reason · outcome · prompt
-BLOCK stops here          LG ThinQ optional  /energy · append-only history
-        ^                        |
-        +---- state feedback: get_state(); read on next 1 Hz tick ----+
-```
-
-The LLM call is event-triggered, never part of the 1 Hz sensor tick. The hosted
-demo has the LLM path deployed but currently off, so the rules and budget gate
-complete the decision loop. The local Zhipu path has been tested directly.
-
-**Component view.** The paper's architecture figure shows the same system as components: data
-sources, users, the optional model and the appliances sit outside the system boundary; inside are
-five layers (interface, input, decision, execution, storage), and lettered edges A–G carry the data
-formats printed under the diagram (sensor JSON, calendar file, regional preset, REST and event
-messages, model request, adapter action and ThinQ payload, audit row). Source:
-`docs/figures/src/architecture-v4.html`.
-
-![FSD-Home component architecture with system boundary, five layers and data formats](docs/figures/architecture-v4.png)
+**Rules generate candidates; the LLM selects actions; rules and budget validate execution.**
+The model is called only when a decision is needed, not on every sensor tick. It is enabled in the
+hosted config, but the deterministic rules and budget gate make every final decision. The local
+Zhipu path has been tested directly.
 
 **The gate fails closed.** If `budget.gate()` raises — SQLite locked, the energy
 row unreadable, the module itself broken — the exception is not treated as
@@ -373,8 +356,8 @@ To run a local development copy:
 Python 3.10 or later. The core has **no third-party runtime dependencies**.
 
 ```bash
-git clone https://github.com/tbrobo99/proactive-senior-care-comfort-agent.git
-cd proactive-senior-care-comfort-agent
+git clone https://github.com/tbrobo99/FSD-Home.git
+cd FSD-Home
 python run.py
 ```
 
@@ -628,13 +611,13 @@ The course demo boundary is explicit: simulated sensors and appliances, no real
 meter feed, no LG ThinQ connection and no mobile app. These are boundaries of
 the submitted demo, not missing steps in the FSD decision loop.
 
-- **LLM — implemented, currently off on the cloud demo:** copy
+- **LLM — implemented and enabled on the cloud demo:** copy
   `config.example.json` to `config.json` and fill in the `llm` section. The
-  local Zhipu `glm-4-flash` path was tested directly; the hosted demo currently
-  uses the deterministic rules fallback. The `chat` section enables plain-text
-  replies for greetings and small talk; `chat.enabled: false` uses short local
-  wording. The model never owns sensor timing, risk calculation, approval or
-  device safety.
+  local Zhipu `glm-4-flash` path was tested directly; the hosted config has the
+  model enabled, while the rules and budget gate still decide every final action.
+  The `chat` section enables plain-text replies for greetings and small talk;
+  `chat.enabled: false` uses short local wording. The model never owns sensor
+  timing, risk calculation, approval or device safety.
 - **Optional LG ThinQ adapter:** `app/devices/thinq.py`, with `dry_run` enabled
   by default. Real-device control needs the optional `thinqconnect` SDK and
   payload calibration per appliance model.
