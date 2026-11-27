@@ -50,7 +50,7 @@ Open the current simulator-based cloud demo: https://fsd-home-demo.duckdns.org/
 - The LLM path is deployed but currently off in the hosted config, so the live demo uses
   deterministic rules. The local Zhipu / `glm-4-flash` path has been tested directly.
 - **Paper:** *Proactive Comfort Agent: Full Self-Driving Home Orchestration for Energy Saving* —
-  [`docs/project_specifications_final.pdf`](docs/project_specifications_final.pdf) (IEEE conference
+  [`docs/Phase 2 Project_C&D.pdf`](<docs/Phase 2 Project_C&D.pdf>) (IEEE conference
   template, deliverables A–D; LaTeX source alongside).
 
 <p>
@@ -666,7 +666,7 @@ the submitted demo, not missing steps in the FSD decision loop.
 
 ## Project documentation
 
-- `docs/project_specifications_final.pdf` / `.tex` — the paper, *Proactive Comfort Agent: Full
+- `docs/Phase 2 Project_C&D.pdf` (built on Overleaf) and `docs/project_specifications_final.tex` — the paper, *Proactive Comfort Agent: Full
   Self-Driving Home Orchestration for Energy Saving* (IEEE conference template, deliverables A–D:
   requirements, specification, architecture and implementation, use cases); figures in `docs/figures/`
 - `docs/eval/` — simulated-week results (`week.md`, `week.svg`, `week.json`)

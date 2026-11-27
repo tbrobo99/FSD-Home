@@ -550,7 +550,7 @@ Table~\ref{tab:dirs} lists the source tree. The core runtime uses only the Pytho
 \texttt{app/devices/} & \texttt{DeviceAdapter}, \texttt{MockAdapter} (11 appliances), \texttt{ThinQAdapter} (dry run) \\
 \texttt{app/web/hub/} & Default interface: Home, Devices, Energy, Menu \\
 \texttt{app/web/soft/}, \texttt{index.html} & Figma v3 interface (Activity, languages, regions); console \\
-\texttt{tests/} & 435 unit tests (Windows and Linux, Python 3.10--3.13) \\
+\texttt{tests/} & 443 unit tests (Windows and Linux, Python 3.10--3.13) \\
 \texttt{eval/} & Intent-parser regression, latency, simulated week (FR-8) \\
 \texttt{docs/} & This paper, figures, screenshots \\
 \bottomrule
@@ -756,7 +756,7 @@ These paths are exercised by unit tests in \texttt{tests/test\_fr456.py}.
 \begin{enumerate}
     \item Start the system with the model pointed at an unreachable address: \texttt{LLM\_BASE\_URL=http://127.0.0.1:9 python run.py --scenario oven}.
     \item The engine logs \texttt{proactive.decide\_fallback} and the rules choose the Level~1 actions. Questions, revalidation, the interlock and the audit trail behave exactly as above.
-    \item \texttt{python -m unittest discover -s tests} (434 tests) and \texttt{python -m eval.run} verify the same behaviour with no network access; the same suite runs on Windows and Linux with Python 3.10, 3.12 and 3.13 in GitHub Actions.
+    \item \texttt{python -m unittest discover -s tests} (443 tests) and \texttt{python -m eval.run} verify the same behaviour with no network access; the same suite runs on Windows and Linux with Python 3.10, 3.12 and 3.13 in GitHub Actions.
 \end{enumerate}
 
 \subsection{Use Case 11: What the House Saved}
