@@ -368,8 +368,8 @@ The language model is called only when an event needs a choice --- a risk with r
 
 \begin{figure*}[t]
 \centering
-\footnotesize
-\begin{minipage}{0.49\textwidth}
+\scriptsize
+\begin{minipage}[t]{0.485\textwidth}
 \textbf{System prompt} (\texttt{DECIDE\_SYSTEM}, \texttt{app/proactive.py})
 \begin{verbatim}
 You are the decision layer of a proactive smart-home
@@ -400,13 +400,14 @@ answer is to do nothing.
 Risk: Power load 57/100 (2.4 kW, peak rate)
 Drivers: {...}   User home: true
 Budget: 12.400 of 100.0 kWh used, 87.600 kWh left,
-strict=True. Tariff band: peak; instantaneous draw: 2.4 kW
+strict=True.
+Tariff band: peak; instantaneous draw: 2.4 kW
 Candidates:
-- kind=eco_ac tier=1 device=Living Room AC does: ...
+- kind=eco_ac tier=1 device=Living Room AC ...
 - kind=pause_washer tier=2 device=Balcony Washer ...
 \end{verbatim}
 \end{minipage}\hfill
-\begin{minipage}{0.49\textwidth}
+\begin{minipage}[t]{0.485\textwidth}
 \textbf{Energy addendum} (appended when the risk is the power load)
 \begin{verbatim}
 ENERGY BUDGET (when the risk kind is "energy"):
@@ -428,9 +429,10 @@ of a device:
 Never DELAY a device that is already running: a real
 appliance may not support pause and resume. Return the
 same JSON shape, with each chosen entry as an object:
-{"kind": "...", "verdict": "ALLOW|BLOCK|DELAY|OPTIMIZE",
-"reason": "one short clause",
-"scheduled_at": "ISO time if DELAY"}.
+{"kind": "...",
+ "verdict": "ALLOW|BLOCK|DELAY|OPTIMIZE",
+ "reason": "one short clause",
+ "scheduled_at": "ISO time if DELAY"}.
 A BLOCK verdict you return is honoured; it is never
 overridden into a start.
 \end{verbatim}
