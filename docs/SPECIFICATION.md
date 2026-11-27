@@ -1,6 +1,6 @@
 # Phase 2 — Software Specification
 
-**Project** Proactive Senior Care & Comfort Agent: Risk-Graded Autonomous Home Orchestration
+**Project** FSD-Home: Full Self-Driving Home Orchestration for Energy Saving
 **Team** Ha Yun Kim, SooYoung Song, Ruitan Sun, Tang Bin
 **Course** Information Systems — Phase 2 deliverable
 **Status** Team draft / merge skeleton — **not the submission document**
