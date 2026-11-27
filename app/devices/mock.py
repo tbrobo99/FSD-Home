@@ -34,6 +34,7 @@ DEVICES = [
     {"id": "washer", "name": "Balcony Washer", "type": "washer", "room": "Balcony"},
     {"id": "dryer", "name": "Balcony Dryer", "type": "dryer", "room": "Balcony"},
     {"id": "dehumidifier", "name": "Balcony Dehumidifier", "type": "dehumidifier", "room": "Balcony"},
+    {"id": "styler", "name": "Bedroom Styler", "type": "styler", "room": "Bedroom"},
 ]
 
 DEFAULT_STATES = {
@@ -61,6 +62,7 @@ DEFAULT_STATES = {
                "ventilating": False},
     "dryer": {"power": False},
     "dehumidifier": {"power": False, "fan": "auto"},
+    "styler": {"power": False},
 }
 
 

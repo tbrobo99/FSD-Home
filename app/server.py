@@ -395,6 +395,24 @@ class Handler(BaseHTTPRequestHandler):
             engine.reset_scenario(name)
             return self._json({"ok": True, "scenario": name})
 
+        if path == "/api/demo/press":
+            # Demo only: someone presses an appliance's own power button. It
+            # bypasses the agent (that is the point) and touches only the
+            # simulator; the engine notices the start on its next tick and the
+            # load planner reacts if the house is now over the max kW.
+            engine = getattr(self.agent_ref, "proactive", None)
+            adapter = self.agent_ref.adapter
+            if engine is None or getattr(adapter, "backend_name", "") != "mock":
+                return self._json({"error": "only available with the simulator"}, 400)
+            device_id = str(body.get("device_id") or "")
+            dev = adapter.get_device(device_id)
+            if not dev:
+                return self._json({"error": "unknown device"}, 400)
+            acts = [{"action": "power", "value": bool(body.get("on", True))}]
+            res = adapter.apply(device_id, acts)
+            engine.sensors.note_action(device_id, acts)
+            return self._json({"ok": bool(res.get("ok")), "device": dev["name"]})
+
         m = re.fullmatch(r"/api/approvals/([A-Za-z0-9_]+)/(confirm|decline)", path)
         if m:
             # The only door into Tier-2 execution. No approval id, no action —

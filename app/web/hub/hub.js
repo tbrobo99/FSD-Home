@@ -49,6 +49,7 @@ const T = {
     askNo: "No", askYes: "Yes", askNote: (s) => `No answer in ${s}? Nothing changes.`,
     askTitle: "Your home needs an answer", spare: (k) => `${k} kW spare`, over: "over the limit",
     sc: { idle: "Normal", mold: "Wet washer", oven: "Dryer + dinner soon", heatwave: "Hot night", peak: "Peak rate" },
+    byHand: "Started by hand (demo)", press: { dryer: "Someone starts the dryer", styler: "Someone starts the Styler", dehumidifier: "Someone starts the dehumidifier" },
     rooms: { "Living Room": "Living room", Kitchen: "Kitchen", Bedroom: "Bedroom", Balcony: "Balcony" },
     cool: "cool", sent: "Sent", failed: "Could not reach the house",
     q: { stop_dryer: "Stop the dryer now?", preheat_cooktop: "Preheat the cooktop?", pause_washer: "Pause the wash until the peak ends?" },
@@ -82,7 +83,8 @@ const money = (v, s, digits) => {
 };
 const num = (v, d = 1) => Number(v || 0).toLocaleString("en", { maximumFractionDigits: d });
 const ICON = { air_conditioner: "i-ac", air_purifier: "i-purifier", range_hood: "i-hood", oven: "i-oven",
-  cooktop: "i-cooktop", refrigerator: "i-fridge", washer: "i-washer", dryer: "i-dryer", dehumidifier: "i-dehumid" };
+  cooktop: "i-cooktop", refrigerator: "i-fridge", washer: "i-washer", dryer: "i-dryer", dehumidifier: "i-dehumid",
+  styler: "i-sparkle" };
 const ROOMS = ["Living Room", "Kitchen", "Bedroom", "Balcony"];
 const FAV = ["ac_living", "washer", "dryer", "purifier"];
 const nameOf = (d) => d.name;
@@ -261,7 +263,11 @@ function auditItem(r) {
     }
     case "action.failed": return ["bad", "i-x", `${act || "—"} didn't respond`, r.detail || ""];
     case "action.blocked": return ["plain", "i-x", `Didn't go ahead: ${act}`, r.detail || ""];
-    case "energy.decision": return [/BLOCK/.test(r.detail || "") ? "bad" : /DELAY/.test(r.detail || "") ? "warn" : "plain", "i-bolt", "Energy check", r.detail || ""];
+    case "energy.decision": return [/^(BLOCK|STOP)/.test(r.detail || "") ? "bad" : /^(DELAY|ALLOW_OVER)/.test(r.detail || "") ? "warn" : "ok", "i-bolt",
+      { MAKE_ROOM: "Made room under the kW limit", ALLOW_OVER: "Kept the overshoot small", STOP: "Switched off: over the kW limit",
+        STOP_BOOK: "Moved to later: over the kW limit", BLOCK: "Did not start", DELAY: "Booked for later" }[(r.detail || "").split(" ")[0]] || "Energy check",
+      (r.detail || "").replace(/^\S+ \S+?: /, "")];
+    case "device.started_by_hand": return ["plain", "i-power", "Switched on by hand", r.detail || ""];
     case "notification.dryer_restart": return ["plain", "i-check", "Kitchen cooled down", "You can restart the dryer"];
     case "scenario.reset": return ["plain", "i-sparkle", "Demo situation loaded", r.detail || ""];
     default: return ["plain", "i-clock", r.event_type, r.detail || ""];
@@ -293,7 +299,7 @@ function viewActivity() {
   // Routine ALLOW checks are in the Energy tab's ledger; the timeline keeps
   // the energy verdicts that changed something (BLOCK, DELAY).
   const rows = (auditRows || []).filter((r) => r.event_type !== "action.intent")
-    .filter((r) => r.event_type !== "energy.decision" || /^(BLOCK|DELAY)/.test(r.detail || "")).filter((r) =>
+    .filter((r) => r.event_type !== "energy.decision" || /^(BLOCK|DELAY|MAKE_ROOM|ALLOW_OVER|STOP)/.test(r.detail || "")).filter((r) =>
     actFilter === "all" ? true : actFilter === "asked" ? r.event_type.startsWith("approval.") : r.event_type === "action.executed");
   return `${save}
     <section class="card">
@@ -320,7 +326,10 @@ function viewMenu() {
       <a class="menu-row" href="/?ui=v6" style="color:inherit;text-decoration:none"><span>${t("console")}</span>${ico("i-right", "ic sm")}</a>
     </section>
     <section class="card"><div class="sec"><h2>${t("demo")}</h2></div>
-      ${Object.entries(t("sc")).map(([k, v]) => `<button class="menu-row" type="button" data-scenario="${k}"><span>${esc(v)}</span>${ico("i-right", "ic sm")}</button>`).join("")}</section>`;
+      ${Object.entries(t("sc")).map(([k, v]) => `<button class="menu-row" type="button" data-scenario="${k}"><span>${esc(v)}</span>${ico("i-right", "ic sm")}</button>`).join("")}</section>
+    <section class="card"><div class="sec"><h2>${t("byHand")}</h2></div>
+      <span class="tiny faint">As if someone pressed the appliance's own button. With a max kW limit set, the house reacts if this takes it over.</span>
+      ${Object.entries(t("press")).map(([k, v]) => `<button class="menu-row" type="button" data-press="${k}"><span>${esc(v)}</span>${ico("i-right", "ic sm")}</button>`).join("")}</section>`;
 }
 
 /* ---------------- ask sheet (Level 2 approvals) */
@@ -416,6 +425,10 @@ document.addEventListener("click", async (ev) => {
     if (r.message || r.reply || r.error) toast(r.message || r.reply || r.error);
     $("#sheet").dataset.sig = "";
     return refresh();
+  }
+  if (el.dataset.press) {
+    const r = await api("/api/demo/press", { method: "POST", body: JSON.stringify({ device_id: el.dataset.press, on: true }) }).catch(() => ({}));
+    toast(r.error || `${r.device} switched on by hand`); return go("home");
   }
   if (el.dataset.scenario) {
     await api("/api/scenario", { method: "POST", body: JSON.stringify({ name: el.dataset.scenario }) }).catch(() => {});
