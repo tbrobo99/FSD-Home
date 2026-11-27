@@ -1,0 +1,141 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>FSD Home — Autonomous Energy Management</title>
+<link rel="stylesheet" href="/energy/style.css">
+</head>
+<body>
+<div class="app">
+  <header class="topbar">
+    <div class="brand">
+      <div class="mark">FSD</div>
+      <div>
+        <h1>FSD Home</h1>
+        <p>Autonomous Energy Management Agent</p>
+      </div>
+    </div>
+    <div class="top-actions">
+      <span id="clock" class="clock">--:--</span>
+      <a class="ghost-btn" href="/?ui=v6">Mission Console ↗</a>
+    </div>
+  </header>
+
+  <section class="hero">
+    <div class="card budget-card">
+      <div class="card-head">
+        <div>
+          <span class="eyebrow">MONTHLY ENERGY BUDGET</span>
+          <h2 id="period">--</h2>
+        </div>
+        <div class="pill" id="tariff-pill">OFF-PEAK</div>
+      </div>
+
+      <div class="budget-main">
+        <div class="ring-wrap">
+          <svg viewBox="0 0 200 200" class="ring" aria-hidden="true">
+            <circle class="ring-bg" cx="100" cy="100" r="84"></circle>
+            <circle id="ring-fill" class="ring-fill" cx="100" cy="100" r="84"></circle>
+          </svg>
+          <div class="ring-label">
+            <strong id="used">0.0</strong><span class="unit">/ <span id="budget">100</span> kWh</span>
+            <small id="pct">0% used</small>
+          </div>
+        </div>
+
+        <div class="budget-stats">
+          <div class="stat">
+            <span>Remaining budget</span>
+            <strong id="remaining">100.0 <em>kWh</em></strong>
+          </div>
+          <div class="stat">
+            <span>House draw now</span>
+            <strong id="load">0 <em>W</em></strong>
+          </div>
+          <div class="stat">
+            <span>Current price</span>
+            <strong id="price">90 <em>KRW/kWh</em></strong>
+          </div>
+          <div class="stat">
+            <span>Cheap band starts</span>
+            <strong id="offpeak">22:00</strong>
+          </div>
+        </div>
+      </div>
+
+      <div class="switches">
+        <label class="switch-row">
+          <span><b>Strict Mode</b><small>Budget is a hard limit, not a suggestion</small></span>
+          <input type="checkbox" id="strict"><i></i>
+        </label>
+        <label class="switch-row">
+          <span><b>LLM decisions</b><small id="llm-status">Model availability: checking…</small></span>
+          <input type="checkbox" id="llm"><i></i>
+        </label>
+        <div class="budget-edit">
+          <label for="budget-input">Monthly limit (kWh)</label>
+          <div><input id="budget-input" type="number" min="1" max="10000" step="1" value="100"><button id="save-budget">Set</button></div>
+        </div>
+      </div>
+    </div>
+
+    <div class="card flow-card">
+      <div class="card-head"><div><span class="eyebrow">HOW A DECISION IS MADE</span><h2>Decision loop</h2></div></div>
+      <ol class="flow">
+        <li><b>1 · Sense</b><span>Sensors push a full snapshot at <em>1 Hz</em> into the energy ledger. kWh is integrated from instantaneous watts.</span></li>
+        <li><b>2 · Request</b><span>A user command or a fired energy risk becomes one decision request with device, actions and remaining budget.</span></li>
+        <li><b>3 · Decide</b><span>The LLM returns <em>ALLOW / BLOCK / DELAY / OPTIMIZE</em> as structured JSON. It is called on events only — never per tick.</span></li>
+        <li><b>4 · Validate</b><span>Rules override any answer that would exceed the budget, light a hob, break the comfort band or schedule a past delay.</span></li>
+        <li><b>5 · Act</b><span>Audited device execution, or a durable scheduled job. Every decision is written to the log below.</span></li>
+      </ol>
+      <div class="flow-foot">
+        <span>Dashboard polling: <b>2 s</b></span><span>LLM policy: <b>event-driven</b></span>
+      </div>
+    </div>
+  </section>
+
+  <section class="card demo-card">
+    <div class="card-head">
+      <div><span class="eyebrow">PRESENTATION SCENARIOS</span><h2>Run a decision</h2></div>
+      <button class="ghost-btn small" id="reset">Reset budget</button>
+    </div>
+    <div class="scenarios">
+      <button class="scenario" data-demo="delay-washer">
+        <span class="num">01</span><b>Automatic delay</b>
+        <p>User asks to start the washer at peak price. Agent schedules 22:00 without asking.</p>
+        <span class="tag">LLM + Rules → DELAY</span>
+      </button>
+      <button class="scenario" data-demo="optimize-ac">
+        <span class="num">02</span><b>Automatic optimisation</b>
+        <p>User asks for 22 °C cooling. Agent raises the setpoint to 26 °C within the comfort band.</p>
+        <span class="tag">Active control → OPTIMIZE</span>
+      </button>
+      <button class="scenario" data-demo="block-dryer">
+        <span class="num">03</span><b>Strict budget block</b>
+        <p>Only 1 kWh remains. The dryer needs 1.4 kWh, so the agent refuses to start it.</p>
+        <span class="tag">Strict Mode → BLOCK</span>
+      </button>
+    </div>
+    <div id="demo-result" class="demo-result hidden"></div>
+  </section>
+
+  <section class="card log-card">
+    <div class="card-head">
+      <div><span class="eyebrow">AUDITABLE DECISIONS</span><h2>Decision log</h2></div>
+      <button class="ghost-btn small" id="toggle-prompt">Show actual prompt</button>
+    </div>
+    <div class="table-wrap">
+      <table>
+        <thead><tr><th>Time</th><th>Device</th><th>Decision</th><th>Reason</th><th>By</th><th>Requested</th></tr></thead>
+        <tbody id="decision-rows"><tr><td colspan="6" class="empty">No energy decisions yet — run a scenario above.</td></tr></tbody>
+      </table>
+    </div>
+    <pre id="prompt-box" class="prompt-box hidden"></pre>
+  </section>
+
+  <footer>FSD Home · Phase 2 SE project · simulator data, no real appliances connected</footer>
+</div>
+<script src="/energy/app.js"></script>
+</body>
+</html>
