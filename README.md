@@ -35,21 +35,29 @@ have no automation.
 
 ## Live demo
 
-Open the current simulator-based cloud demo: https://fsd-home-demo.duckdns.org/ (opens the device-card hub; the console is at `/?ui=v6`)
+Open the current simulator-based cloud demo: https://fsd-home-demo.duckdns.org/
 
-- `/?ui=v6` (default) is the Mission Console live view; `?ui=v0`–`v5` switch the other overlays.
-- `/hub/` is the device-card interface (v4, Figma page "v4 · Hub Screens (English)"): Home with the
-  four risk scores, a room map and favourite devices; Devices by room; Energy with the budget, the max kW
-  limit and booked starts; Menu with chat and demo situations. Power buttons go through the agent, so a
-  start meets the same energy gate as a spoken command.
-- `/soft/` is the interface built from the Figma design: four risk rings, the ask sheet, the
-  savings card, and a language (6) and region (13) picker.
-- `/energy` is the Energy Dashboard: monthly kWh budget, cumulative use, estimated cost,
-  instantaneous kW and the recent decisions with their source (LLM / rules fallback /
-  rules override). Setting the budget there is the pre-authorisation act.
+- `/` (default) opens the **device-card hub** (`app/web/hub/`, Figma page "v4 · Hub Screens
+  (English)"): **Home** with the four risk scores, a room map and favourite devices; **Devices** by
+  room; **Energy** with the monthly budget, the max kW limit, booked starts, weekly savings and the
+  latest gate decisions; **Menu** with chat and demo situations. Power buttons go through the agent,
+  so a start meets the same energy gate as a spoken command and can be booked for later.
+- `/?ui=v6` is the Mission Console live view; its switcher opens `v0`–`v5`, the team dashboard
+  (`7`) and the hub (`8`). `/energy` opens the console's Energy tab.
+- `/soft/` is the earlier Figma interface. It keeps what the hub does not repeat yet: the
+  **Activity** tab (savings detail and the audit trail in plain language) and a language (6) and
+  region (13) picker.
 - The LLM path is deployed but currently off in the hosted config, so the live demo uses
   deterministic rules. The local Zhipu / `glm-4-flash` path has been tested directly.
-- The Phase 2 specification is in [`docs/project_specifications_final.pdf`](docs/project_specifications_final.pdf).
+- **Paper:** *Proactive Comfort Agent: Full Self-Driving Home Orchestration for Energy Saving* —
+  [`docs/project_specifications_final.pdf`](docs/project_specifications_final.pdf) (IEEE conference
+  template, deliverables A–D; LaTeX source alongside).
+
+<p>
+<img src="docs/figures/v5-uc1-mold.png" width="240" alt="Hub Home: the house is handling a mold risk of 81; purifier and dehumidifier lit on the room map">
+<img src="docs/figures/v5-uc2-ask.png" width="240" alt="Hub approval sheet: the kitchen is getting too hot, with one Yes/No card per Level 2 action and a countdown">
+<img src="docs/figures/v5-uc13-energy.png" width="240" alt="Hub Energy tab: month's kWh against the budget, the 3 kW limit with the live load, and a booked dryer start">
+</p>
 
 ### Added after the Phase 2 specification
 
@@ -63,12 +71,21 @@ Open the current simulator-based cloud demo: https://fsd-home-demo.duckdns.org/ 
   start is queued in SQLite and re-checked when it runs. Decision provenance distinguishes
   a real LLM reply from a rules fallback and a rules override, and stores the actual
   prompt, input and output. All figures are simulator estimates, not meter readings.
+- **Max kW limit (FR-8):** `POST /api/budget {"max_kw": 3.0}` caps the whole-house draw. A washer,
+  dryer or dishwasher that would push the house over it is not started but booked ("Not now … booked
+  for 22:00") and checked again when due; other user-started loads are refused; cooling, the fridge
+  and air cleaning are never limited. See Scenario 4.
+- **Simulated-week evaluation:** `python -m eval.week` replays one household for a week with and
+  without the gate (`docs/eval/`). See the Evaluation section.
+- **Device-card hub interface:** the new default screen at `/` (see Live demo).
 - **Regions and languages:** `GET /api/regions` — Korea, the US average and six states, the UK,
   Germany, France, Spain and Italy, each with its tariff, time-of-use pair and grid emission factor
   and a source (`app/regions.py`); the `/soft/` interface speaks Korean, English, German, French,
   Spanish and Italian.
 
 <img src="docs/screenshot-ask-v6.png" width="460" alt="Live v6 dark Mission Console: isometric house with 11 device lights, two independent Level 2 approval cards, and status log">
+
+*The v6 Mission Console (`/?ui=v6`).*
 
 ---
 
@@ -210,6 +227,15 @@ The LLM call is event-triggered, never part of the 1 Hz sensor tick. The hosted
 demo has the LLM path deployed but currently off, so the rules and budget gate
 complete the decision loop. The local Zhipu path has been tested directly.
 
+**Component view.** The paper's architecture figure shows the same system as components: data
+sources, users, the optional model and the appliances sit outside the system boundary; inside are
+five layers (interface, input, decision, execution, storage), and lettered edges A–G carry the data
+formats printed under the diagram (sensor JSON, calendar file, regional preset, REST and event
+messages, model request, adapter action and ThinQ payload, audit row). Source:
+`docs/figures/src/architecture-v4.html`.
+
+![FSD-Home component architecture with system boundary, five layers and data formats](docs/figures/architecture-v4.png)
+
 **The gate fails closed.** If `budget.gate()` raises — SQLite locked, the energy
 row unreadable, the module itself broken — the exception is not treated as
 "budget is fine". Anything that starts a device or raises a load is refused and
@@ -340,7 +366,7 @@ their own.
 ## Quick start
 
 For the current hosted simulator demo, open
-<https://fsd-home-demo.duckdns.org/?ui=v6>.
+<https://fsd-home-demo.duckdns.org/> (the hub; the console is at `/?ui=v6`).
 
 To run a local development copy:
 
@@ -360,7 +386,7 @@ On Windows, `start.bat` also runs the local development server.
 |---|---|
 | `GET /api/snapshot` | Devices, jobs, tariff band, instantaneous load |
 | `GET /api/budget` | Monthly kWh state, cost estimate and recent decision provenance |
-| `POST /api/budget` | Set the monthly budget — the pre-authorisation act |
+| `POST /api/budget` | Set the monthly budget (`budget_kwh`, the pre-authorisation act) and/or the max kW limit (`max_kw`, `null` = off) |
 | `POST /api/chat` | Typed command / assistant path |
 | `POST /api/control` | Direct device control; still passes `budget.gate()` (hard limit); `override` is the audited exception |
 | `GET /api/proactive`, `GET /api/approvals` | Risk state and remaining non-energy Tier-2 requests |
@@ -572,23 +598,24 @@ python -m eval.week
 ```
 
 `docs/TEST_PLAN.md` records the historical test cases with expected / actual /
-status. The current working tree was run with Python 3.11 on 2026-11-26:
+status. The current `main` was run with Python 3.11 on 2026-11-27:
 
 ```text
-py -3.11 -m unittest discover -s tests
-Ran 419 tests in 99.872s
+python -m unittest discover -s tests
+Ran 443 tests in 54.927s
 OK
 ```
 
 The unit suite covers the risk indices, the action whitelist, per-action
 approvals, pre-execution revalidation, cooktop safeguards, the append-only
-audit trail, the monthly kWh budget, kW/kWh/cost separation, DELAY/BLOCK
+audit trail, the monthly kWh budget, the max kW limit and its due-job re-check
+(`tests/test_max_kw.py`), kW/kWh/cost separation, DELAY/BLOCK
 decisions, scheduler re-checks, the demo password gate, live notifications,
 optional preference learning, and the command / conversation split
 (`tests/test_chat.py` uses a scripted model to check that a chat request carries
 no tools and that no device write or audit action follows a greeting).
 `eval.run` is the
-intent-parser regression suite. `eval.latency`
+intent-parser regression suite; `eval.week` is the simulated-week evaluation. `eval.latency`
 measures the local check and the model-backed decision separately; **without
 an LLM key only the local check half is measured**. GitHub Actions runs the
 unit tests and `eval.run` on Windows and Linux with Python 3.10, 3.12 and 3.13.
@@ -639,7 +666,10 @@ the submitted demo, not missing steps in the FSD decision loop.
 
 ## Project documentation
 
-- `docs/project_specifications_final.tex` — team's Phase 2 specification (IEEE LaTeX, milestone B)
+- `docs/project_specifications_final.pdf` / `.tex` — the paper, *Proactive Comfort Agent: Full
+  Self-Driving Home Orchestration for Energy Saving* (IEEE conference template, deliverables A–D:
+  requirements, specification, architecture and implementation, use cases); figures in `docs/figures/`
+- `docs/eval/` — simulated-week results (`week.md`, `week.svg`, `week.json`)
 - `docs/SPECIFICATION.md`, `docs/DECISION-ENGINE-SPEC.md` — technical specification
 - `docs/tex/part-a.tex`, `docs/tex/part-b.tex` — earlier IEEE LaTeX drafts
 - `docs/DEPLOY.md`, `docs/APP.md` — deployment and phone interface notes
