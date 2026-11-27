@@ -1,6 +1,6 @@
 /* FSD-Home "hub" interface (v4). Layout follows the device-card home of
    current smart-home apps: warm grey canvas, white rounded cards, room chips,
-   round power buttons. Figma: page "v4 · ThinQ-style Screens". */
+   round power buttons. Figma: page "v4 · Hub Screens (English)". */
 :root {
   --bg: #F2F1EE; --card: #FFFFFF; --ink: #1C1C1E; --ink-2: #6E6E73; --ink-3: #A1A1A6;
   --line: #E7E5E1; --chip: #E9E7E3;
@@ -13,7 +13,7 @@
 * { box-sizing: border-box; }
 [hidden] { display: none !important; }
 html, body { margin: 0; background: var(--bg); color: var(--ink);
-  font: 400 15px/1.4 "Noto Sans KR", system-ui, -apple-system, sans-serif;
+  font: 400 15px/1.4 "Inter", system-ui, -apple-system, sans-serif;
   -webkit-font-smoothing: antialiased; }
 button { font: inherit; color: inherit; background: none; border: 0; padding: 0; cursor: pointer; }
 button:focus-visible, input:focus-visible { outline: 3px solid var(--accent); outline-offset: 2px; border-radius: 10px; }

@@ -165,7 +165,7 @@ class Handler(BaseHTTPRequestHandler):
             return self._sse()
         if path in ("/hub", "/hub/", "/hub/index.html"):
             # v4: device-card home, rooms, energy and menu tabs (Figma page
-            # "v4 · ThinQ-style Screens"). Starts go through the command path.
+            # "v4 · Hub Screens (English)"). Starts go through the command path.
             return self._static("hub/index.html")
         if path in ("/soft", "/soft/", "/soft/index.html"):
             # The v3 "soft modern" interface from the Figma design (savings

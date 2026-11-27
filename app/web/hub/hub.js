@@ -1,5 +1,5 @@
 /* FSD-Home "hub" interface (v4) — device-card home, rooms, energy, menu.
-   Figma: page "★ v4 · ThinQ-style Screens". No build step, no framework.
+   Figma: page "★ v4 · Hub Screens (English)". No build step, no framework.
    Every device start goes through the agent's command path, so the energy
    gate (budget, max kW, peak band) answers exactly as it does in chat. */
 "use strict";
@@ -9,8 +9,7 @@ const esc = (s) => String(s == null ? "" : s).replace(/[&<>"']/g,
   (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
 const ico = (id, cls = "ic") => `<svg class="${cls}" aria-hidden="true"><use href="#${id}"/></svg>`;
 
-let lang = "ko";
-try { lang = localStorage.getItem("hub.lang") || "ko"; } catch (_) {}
+const lang = "en";   // the hub interface is English only
 let tab = (location.hash || "#home").slice(1);
 let room = "all";
 let snap = null, pro = null, budget = null, week = null;
@@ -18,33 +17,6 @@ let lastReply = "";
 let serverSkewMs = 0;   // server-local clock minus phone clock (deadlines are server-local)
 
 const T = {
-  ko: {
-    "tab.home": "홈", "tab.devices": "디바이스", "tab.energy": "에너지", "tab.menu": "메뉴",
-    home: "우리집", devices: "디바이스", energy: "에너지", menu: "메뉴",
-    calm: "집이 편안해요", calmSub: "FSD가 1초마다 집을 살피고 있어요",
-    watch: "지켜보는 중이에요", act: "집이 대신 처리하고 있어요",
-    mold: "곰팡이", thermal: "주방 열", heat: "더위", power: "전력",
-    map: "우리집 지도", fav: "자주 쓰는 제품", all: "전체",
-    month: "이번 달 전기", now: "지금", limit: "한도", peak: "피크 요금 시간", offpeak: "경부하 시간",
-    on: "켜짐", off: "꺼짐", offline: "연결 끊김", scheduled: "예약됨",
-    usage: "사용량", cost: "예상 요금", left: "남은 예산", maxkw: "최대 전력 한도",
-    maxkwNote: "세탁기·건조기·식기세척기가 한도를 넘기면 바로 켜지 않고 나중으로 예약해요. 냉방·냉장고·공기청정은 제한하지 않아요.",
-    setLimit: "한도 설정", limitOff: "한도 없음", jobs: "예약된 작업", noJobs: "예약된 작업이 없어요",
-    savings: "이번 주 절약", estimate: "추정치", money: "요금", kwh: "에너지",
-    decisions: "최근 결정", noDecisions: "아직 결정이 없어요",
-    talk: "집에게 말하기", talkPh: "예: 건조기 켜 줘", send: "보내기",
-    language: "언어", demo: "데모 상황", activity: "활동 기록", classic: "다른 화면",
-    askNo: "아니요", askYes: "예", askNote: (s) => `${s} 안에 답이 없으면 아무것도 바꾸지 않아요`,
-    askTitle: "확인이 필요해요", spare: (k) => `${k} kW 여유`, over: "한도 초과",
-    sc: { idle: "평소", mold: "젖은 세탁기", oven: "건조기 + 곧 저녁", heatwave: "더운 밤", peak: "피크 요금" },
-    rooms: { "Living Room": "거실", Kitchen: "주방", Bedroom: "침실", Balcony: "발코니" },
-    names: { ac_living: "거실 에어컨", ac_bedroom: "침실 에어컨", ac_kitchen: "주방 에어컨", purifier: "공기청정기",
-      range_hood: "레인지 후드", oven: "오븐", cooktop: "쿡탑", fridge: "냉장고", washer: "세탁기", dryer: "건조기", dehumidifier: "제습기" },
-    cool: "냉방", sent: "보냈어요", failed: "연결에 실패했어요",
-    q: { stop_dryer: "건조기를 지금 멈출까요?", preheat_cooktop: "쿡탑을 미리 예열할까요?", pause_washer: "피크가 끝날 때까지 세탁을 멈출까요?" },
-    rk: { thermal: "주방이 너무 뜨거워요", mold: "세탁기에 습기가 차 있어요", heat_health: "방이 너무 더워요", energy: "전력을 많이 쓰고 있어요" },
-    tg: { kitchen: (v) => `주방 ${v}°`, dryer: "건조기 작동 중", cook: (m) => `${m}분 뒤 요리`, load: (v) => `${v} kW 사용 중` },
-  },
   en: {
     "tab.home": "Home", "tab.devices": "Devices", "tab.energy": "Energy", "tab.menu": "Menu",
     home: "My Home", devices: "Devices", energy: "Energy", menu: "Menu",
@@ -65,18 +37,18 @@ const T = {
     askTitle: "Your home needs an answer", spare: (k) => `${k} kW spare`, over: "over the limit",
     sc: { idle: "Normal", mold: "Wet washer", oven: "Dryer + dinner soon", heatwave: "Hot night", peak: "Peak rate" },
     rooms: { "Living Room": "Living room", Kitchen: "Kitchen", Bedroom: "Bedroom", Balcony: "Balcony" },
-    names: {}, cool: "cool", sent: "Sent", failed: "Could not reach the house",
+    cool: "cool", sent: "Sent", failed: "Could not reach the house",
     q: { stop_dryer: "Stop the dryer now?", preheat_cooktop: "Preheat the cooktop?", pause_washer: "Pause the wash until the peak ends?" },
     rk: { thermal: "The kitchen is getting too hot", mold: "The washer is trapping moisture", heat_health: "A room is too hot", energy: "The house is drawing a lot of power" },
     tg: { kitchen: (v) => `Kitchen ${v}°`, dryer: "Dryer running", cook: (m) => `Cooking in ${m} min`, load: (v) => `${v} kW now` },
   },
 };
-const t = (k) => (T[lang][k] !== undefined ? T[lang][k] : T.en[k] !== undefined ? T.en[k] : k);
+const t = (k) => (T.en[k] !== undefined ? T.en[k] : k);
 const ICON = { air_conditioner: "i-ac", air_purifier: "i-purifier", range_hood: "i-hood", oven: "i-oven",
   cooktop: "i-cooktop", refrigerator: "i-fridge", washer: "i-washer", dryer: "i-dryer", dehumidifier: "i-dehumid" };
 const ROOMS = ["Living Room", "Kitchen", "Bedroom", "Balcony"];
 const FAV = ["ac_living", "washer", "dryer", "purifier"];
-const nameOf = (d) => (lang === "ko" && T.ko.names[d.id]) || d.name;
+const nameOf = (d) => d.name;
 const roomOf = (r) => t("rooms")[r] || r;
 
 async function api(path, opts = {}) {
@@ -87,25 +59,7 @@ async function api(path, opts = {}) {
   return data;
 }
 
-/* Server replies are English; the common energy answers are shown in Korean. */
-function localize(msg) {
-  if (lang !== "ko" || !msg) return msg;
-  const kn = (n) => { const d = ((snap && snap.devices) || []).find((x) => x.name === n); return d ? nameOf(d) : n; };
-  let m = msg.match(/^Not now\. The house is drawing ([\d.]+) kW and (.+?) would take it to ([\d.]+) kW, over your ([\d.]+) kW limit\. Booked for (\d\d:\d\d)/);
-  if (m) return `지금은 안 돼요. 집이 ${m[1]} kW를 쓰고 있어서 ${kn(m[2])}를 켜면 ${m[3]} kW로 한도 ${m[4]} kW를 넘어요. ${m[5]}에 예약했고, 그때 한도 안이면 저절로 켜져요.`;
-  m = msg.match(/^I did not start (.+?) now — peak band; moved to off-peak at (\d\d:\d\d)/);
-  if (m) return `지금은 피크 요금 시간이라 ${kn(m[1])}를 켜지 않았어요. ${m[2]}에 예약했어요.`;
-  m = msg.match(/^(.+?) is already booked for (\d\d:\d\d)/);
-  if (m) return `${kn(m[1])}는 이미 ${m[2]}에 예약돼 있어요.`;
-  m = msg.match(/^I did not start (.+?): estimated ([\d.]+) kWh exceeds ([\d.]+) kWh remaining/);
-  if (m) return `${kn(m[1])}를 켜지 않았어요. 예상 ${m[2]} kWh가 남은 예산 ${m[3]} kWh보다 많아요.`;
-  m = msg.match(/^I did not start (.+?): starting it would take the house to ([\d.]+) kW, over your ([\d.]+) kW limit/);
-  if (m) return `${kn(m[1])}를 켜지 않았어요. 켜면 ${m[2]} kW로 한도 ${m[3]} kW를 넘어요. 다른 기기를 먼저 꺼 주세요.`;
-  return msg;
-}
-
 function toast(msg, ms = 4200) {
-  msg = localize(msg);
   const el = $("#toast"); el.textContent = msg; el.hidden = false;
   clearTimeout(toast._t); toast._t = setTimeout(() => { el.hidden = true; }, ms);
 }
@@ -185,8 +139,8 @@ function viewDevices() {
 }
 
 function jobWhy(j) {
-  if (j.last_result && j.last_result.startsWith("Waiting")) return lang === "ko" ? "아직 한도를 넘어서 다시 미뤘어요" : j.last_result;
-  if (/deferral|Delayed/.test(j.source_text || "")) return lang === "ko" ? "피크 요금·전력 한도 때문에 미뤘어요" : "Moved by the peak rate or the kW limit";
+  if (j.last_result && j.last_result.startsWith("Waiting")) return "Still over the limit, moved again";
+  if (/deferral|Delayed/.test(j.source_text || "")) return "Moved by the peak rate or the kW limit";
   return j.summary || j.source_text || "";
 }
 
@@ -219,7 +173,7 @@ function viewEnergy() {
     </section>
     <section class="card"><div class="sec"><h2>${t("jobs")}</h2></div>
       <div class="list">${jobs.length ? jobs.map((j) => `<div class="item"><span class="item-ic">${ico("i-clock")}</span>
-        <div><b>${esc((lang === "ko" && T.ko.names[j.device_id]) || j.device_name)} · ${esc(String(j.next_run_at).slice(11, 16))}</b>
+        <div><b>${esc(j.device_name)} · ${esc(String(j.next_run_at).slice(11, 16))}</b>
         <span class="small muted">${esc(jobWhy(j))}</span></div></div>`).join("") : `<span class="empty">${t("noJobs")}</span>`}</div></section>
     <section class="card"><div class="sec"><h2>${t("savings")}</h2><span class="tiny faint">${t("estimate")}</span></div>
       <div class="pills"><div class="pill"><b>${fmtMoney(w.money_saved)}</b><span>${t("money")}</span></div>
@@ -236,7 +190,6 @@ function viewMenu() {
         <button class="btn" type="submit">${t("send")}</button></form>
       ${lastReply ? `<div class="reply">${esc(lastReply)}</div>` : ""}</section>
     <section class="card">
-      <div class="menu-row"><span>${t("language")}</span><span class="seg"><button type="button" data-lang="ko" class="${lang === "ko" ? "on" : ""}">한국어</button><button type="button" data-lang="en" class="${lang === "en" ? "on" : ""}">English</button></span></div>
       <a class="menu-row" href="/soft/" style="color:inherit;text-decoration:none"><span>${t("activity")} · ${t("classic")}</span>${ico("i-right", "ic sm")}</a>
     </section>
     <section class="card"><div class="sec"><h2>${t("demo")}</h2></div>
@@ -313,7 +266,6 @@ document.addEventListener("click", async (ev) => {
   if (el.dataset.tab) return go(el.dataset.tab);
   if (el.dataset.go) return go(el.dataset.go);
   if (el.dataset.room) { room = el.dataset.room; return render(); }
-  if (el.dataset.lang) { lang = el.dataset.lang; try { localStorage.setItem("hub.lang", lang); } catch (_) {} return render(); }
   if (el.dataset.power) {
     // Through the command path, not the raw control API: a start meets the
     // same energy gate as a spoken command and can be booked for later.
@@ -350,7 +302,7 @@ document.addEventListener("submit", async (ev) => {
   const input = $("#talkInput"); const text = input.value.trim(); if (!text) return;
   input.value = ""; input.blur();
   const r = await api("/api/chat", { method: "POST", body: JSON.stringify({ text }) }).catch(() => ({}));
-  lastReply = localize(r.reply || r.error || t("failed")); render(); refresh();
+  lastReply = r.reply || r.error || t("failed"); render(); refresh();
 });
 
 try {
