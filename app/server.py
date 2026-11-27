@@ -155,6 +155,10 @@ class Handler(BaseHTTPRequestHandler):
             return self._static("login.html")
         if not self._authorized(path):
             return self._deny()
+        if path == "/" and not parse_qs(url.query).get("ui"):
+            # The device-card hub is the default screen. The console with the
+            # v0-v7 switcher stays at /?ui=v6 (and /index.html).
+            return self._redirect("/hub/")
         if path in ("/", "/index.html"):
             return self._static("index.html")
         if path in ("/energy", "/energy.html"):
@@ -163,6 +167,10 @@ class Handler(BaseHTTPRequestHandler):
             return self._redirect("/?ui=v6#energy")
         if path == "/api/events":
             return self._sse()
+        if path in ("/hub", "/hub/", "/hub/index.html"):
+            # v4: device-card home, rooms, energy and menu tabs (Figma page
+            # "v4 · Hub Screens (English)"). Starts go through the command path.
+            return self._static("hub/index.html")
         if path in ("/soft", "/soft/", "/soft/index.html"):
             # The v3 "soft modern" interface from the Figma design (savings
             # card, region and language pickers). "/" keeps the v1-v6 switcher.
