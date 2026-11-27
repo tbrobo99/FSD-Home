@@ -7,6 +7,8 @@
 \usepackage{textcomp}
 \usepackage{xcolor}
 \usepackage{booktabs}
+\usepackage{array}
+\newcolumntype{L}[1]{>{\raggedright\arraybackslash}p{#1}}
 \usepackage{hyperref}
 
 \begin{document}
@@ -110,17 +112,18 @@ The system decouples real-time physical risk perception from LLM decision reason
 \begin{table}[htbp]
 \caption{Cost Estimation}
 \begin{center}
-\begin{tabular}{llr}
+\footnotesize
+\begin{tabular}{@{}L{2.25cm}L{3.95cm}r@{}}
 \toprule
 \textbf{Item} & \textbf{Specification} & \textbf{Cost} \\
 \midrule
 Development HW & Existing Ryzen 7 PC & \textwon 0 \\
 Core Software & Python 3.11, SQLite (Open-source) & \textwon 0 \\
-Cloud API / LLM & Zhipu GLM-4-Flash / vLLM API & \textwon 0 (Free version) \\
+Cloud API / LLM & Zhipu GLM-4-Flash / vLLM API (free tier) & \textwon 0 \\
 Development & Local / Edge Simulation & \textwon 0 \\
-Cloud hosting & AWS Lightsail instance, Caddy HTTPS, DuckDNS name & \textcolor{red}{TBD}/month \\
+Cloud hosting & AWS Lightsail instance, Caddy HTTPS, DuckDNS name & \textcolor{red}{TBD}/mo \\
 \midrule
-\textbf{Total Estimated Cost} & & \textbf{\textcolor{red}{TBD}} \\
+\multicolumn{2}{@{}l}{\textbf{Total estimated cost}} & \textbf{\textcolor{red}{TBD}} \\
 \bottomrule
 \end{tabular}
 \end{center}
@@ -130,7 +133,8 @@ Cloud hosting & AWS Lightsail instance, Caddy HTTPS, DuckDNS name & \textcolor{r
 \begin{table}[htbp]
 \caption{Role Assignments}
 \begin{center}
-\begin{tabular}{llp{4.3cm}}
+\footnotesize
+\begin{tabular}{@{}L{1.75cm}L{1.65cm}L{4.3cm}@{}}
 \toprule
 \textbf{Role} & \textbf{Assigned Member} & \textbf{Task Description \& Responsibilities} \\
 \midrule
@@ -150,7 +154,7 @@ Fig.~\ref{fig:arch} illustrates the decoupled FSD-Home pipeline, separating 1~Hz
 
 \begin{figure}[htbp]
 \centering
-\fbox{\parbox{0.94\columnwidth}{\footnotesize\ttfamily
+\fbox{\parbox{0.95\columnwidth}{\scriptsize\ttfamily
 [1 Hz Telemetry Stream: app/sensors.py]\\
 Temp | Humidity | Door | Power (W) | Fridge Duty | user\_home\\
 \hspace*{3em}$\downarrow$ (1.2 ms deterministic check)\\
@@ -181,12 +185,14 @@ The \texttt{SensorSimulator} class in \texttt{app/sensors.py} generates 1~Hz tim
 
 \subsection{FR-2: Predictive Risk \& Energy Modeling}
 The risk assessment module (\texttt{app/risk.py}) computes four indices deterministically within $1.2\text{ ms}$ per tick to protect indoor air quality and prevent wasteful peak-load energy spikes:
-\begin{equation}
-\text{MRI} = \text{clamp}\left[(H - 70.0) \times 3.2 + (S \times 6.0) + \max(0, T - 24.0) \times 1.5\right]
-\end{equation}
-\begin{equation}
-\text{TOI} = \text{clamp}\left[\frac{W}{25.0} + \max(0, T_k - 27.0) \times 6.0 + \max(0, D - 0.6) \times 60.0 + 15\,C\right]
-\end{equation}
+\begin{multline}
+\text{MRI} = \text{clamp}\big[(H - 70.0) \times 3.2 + (S \times 6.0) \\
++ \max(0, T - 24.0) \times 1.5\big]
+\end{multline}
+\begin{multline}
+\text{TOI} = \text{clamp}\Big[\frac{W}{25.0} + \max(0, T_k - 27.0) \times 6.0 \\
++ \max(0, D - 0.6) \times 60.0 + 15\,C\Big]
+\end{multline}
 \begin{itemize}
     \item \textbf{Environmental \& Hygiene Optimization (MRI):} Prevents mold proliferation in sealed appliances early using low-wattage ventilation or dehumidification, avoiding harsh chemical cleaners and energy-heavy hot-water tub-clean cycles \cite{epa2022, who2009}.
     \item \textbf{Thermodynamic \& Energy Load Balancing (TOI):} Tracks concurrent heat wattage ($W$), kitchen temperature ($T_k$), and refrigerator compressor duty cycle ($D > 0.6$, signaling excess thermal strain) alongside scheduled cooking events ($C = 1$ when a cooking session starts within 30 minutes, otherwise $0$) \cite{ashrae2023}.
@@ -369,7 +375,7 @@ The language model is called only when an event needs a choice --- a risk with r
 \begin{figure*}[t]
 \centering
 \scriptsize
-\begin{minipage}[t]{0.485\textwidth}
+\begin{minipage}[b]{0.485\textwidth}
 \textbf{System prompt} (\texttt{DECIDE\_SYSTEM}, \texttt{app/proactive.py})
 \begin{verbatim}
 You are the decision layer of a proactive smart-home
@@ -407,7 +413,7 @@ Candidates:
 - kind=pause_washer tier=2 device=Balcony Washer ...
 \end{verbatim}
 \end{minipage}\hfill
-\begin{minipage}[t]{0.485\textwidth}
+\begin{minipage}[b]{0.485\textwidth}
 \textbf{Energy addendum} (appended when the risk is the power load)
 \begin{verbatim}
 ENERGY BUDGET (when the risk kind is "energy"):
@@ -445,6 +451,7 @@ overridden into a start.
 5. source + prompt/input/output -> energy_decisions
 \end{verbatim}
 \end{minipage}
+\par\vspace{8pt}
 \caption{The prompt as it is sent, the per-call input, and the checks applied to the model's reply. Line breaks are re-wrapped for print; the text is otherwise verbatim.}
 \label{fig:prompt}
 \end{figure*}
@@ -829,16 +836,18 @@ These paths are exercised by unit tests in \texttt{tests/test\_fr456.py}.
 \label{tab:week}
 \centering
 \footnotesize
-\begin{tabular}{p{2.9cm}rrr}
+\begin{tabular}{@{}L{2.55cm}rrr@{}}
 \toprule
- & \textbf{No FSD} & \textbf{Peak shift} & \textbf{+3~kW limit} \\
+ & \textbf{No FSD} & \textbf{Peak shift} & \textbf{+3~kW} \\
 \midrule
 Minutes over 3~kW & 490 & 570 & 210 \\
 \quad of which cooking/cooling alone & 210 & 210 & 210 \\
 kWh in the 16--22~h band & 75.0 & 52.4 & 52.4 \\
 Time-of-use cost (KRW) & 23,916 & 22,068 & 22,068 \\
-Energy (kWh) / CO$_2$ (kg) & 128.2 / 53.5 & 128.2 / 53.5 & 128.2 / 53.5 \\
-Chores done / average wait & 19 / 0 min & 19 / 104 min & 19 / 142 min \\
+Energy (kWh) & 128.2 & 128.2 & 128.2 \\
+CO$_2$ (kg) & 53.5 & 53.5 & 53.5 \\
+Chores done & 19 & 19 & 19 \\
+Average wait (min) & 0 & 104 & 142 \\
 \bottomrule
 \end{tabular}
 \end{table}
