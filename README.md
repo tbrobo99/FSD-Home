@@ -12,7 +12,7 @@ explicit, audited manual override on the console — an emergency action, not
 autonomous behaviour. Non-energy risks keep the original two-level approval
 policy.
 
-![tests](https://github.com/tbrobo99/fsd-home/actions/workflows/tests.yml/badge.svg)
+![tests](https://github.com/tbrobo99/FSD-Home/actions/workflows/tests.yml/badge.svg)
 
 ## Motivation & differentiation
 
@@ -356,8 +356,8 @@ To run a local development copy:
 Python 3.10 or later. The core has **no third-party runtime dependencies**.
 
 ```bash
-git clone https://github.com/tbrobo99/fsd-home.git
-cd fsd-home
+git clone https://github.com/tbrobo99/FSD-Home.git
+cd FSD-Home
 python run.py
 ```
 
