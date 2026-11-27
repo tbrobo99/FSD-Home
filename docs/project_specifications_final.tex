@@ -548,8 +548,8 @@ Table~\ref{tab:dirs} lists the source tree. The core runtime uses only the Pytho
 \texttt{app/agent.py}, \texttt{nlu.py}, \texttt{ko.py}, \texttt{chat.py}, \texttt{tools.py}, \texttt{agent\_loop.py}, \texttt{scheduler.py} & Conversational agent: commands, schedules, conversation \\
 \texttt{app/config.py}, \texttt{build.py} & Defaults, \texttt{config.json}, build stamp \\
 \texttt{app/devices/} & \texttt{DeviceAdapter}, \texttt{MockAdapter} (11 appliances), \texttt{ThinQAdapter} (dry run) \\
-\texttt{app/web/hub/} & Default interface: Home, Devices, Energy, Menu \\
-\texttt{app/web/soft/}, \texttt{index.html} & Figma v3 interface (Activity, languages, regions); console \\
+\texttt{app/web/hub/} & Default interface: Home, Devices, Energy, Activity, Menu \\
+\texttt{app/web/soft/}, \texttt{index.html} & Earlier Figma interface (six languages); console \\
 \texttt{tests/} & 443 unit tests (Windows and Linux, Python 3.10--3.13) \\
 \texttt{eval/} & Intent-parser regression, latency, simulated week (FR-8) \\
 \texttt{docs/} & This paper, figures, screenshots \\
@@ -597,7 +597,7 @@ Every action it runs on its own first passes \texttt{budget.gate()}; a DELAY bec
 
 \subsection{HTTP Server and Web UI (\texttt{app/server.py}, \texttt{app/web/})}
 \textbf{Purpose.} Give the household one accessible screen (FR-4).
-\textbf{Functionality.} \texttt{Handler} serves the static interface and a small REST API: \texttt{GET /api/proactive}, \texttt{/api/approvals}, \texttt{/api/audit}, \texttt{/api/savings}, \texttt{/api/regions}, \texttt{/api/snapshot}; \texttt{POST /api/approvals/<id>/confirm} and \texttt{/decline} (the only route into Level~2 execution), \texttt{/api/control}, \texttt{/api/chat} and \texttt{/api/scenario} for demonstrations; \texttt{GET/POST /api/budget} for the energy budget and kW limit, \texttt{GET /api/events} for live alerts, and \texttt{/login} when a password is set. All interfaces are vanilla HTML, CSS and JavaScript with no build step, each designed first in Figma. The default, served at \texttt{/} (\texttt{app/web/hub/}), follows the device-card layout of current smart-home apps: a warm grey canvas, white rounded cards, room chips and round power buttons. It has four tabs: \emph{Home} (the house status with the four risk scores, a room map whose pins show which appliances are on, favourite devices, and this month's energy against the budget), \emph{Devices} (two-column device cards filtered by room), \emph{Energy} (the month's kWh and cost, the kW limit with the live load, booked starts, the week's savings and the latest gate decisions with their source) and \emph{Menu} (talking to the house and the demonstration situations). A power button sends the same command a user could say, so a start meets the energy gate and may be booked for later. The earlier Figma interface remains at \texttt{/soft/} for the features the new one does not yet repeat: \emph{Activity} (the savings estimate and the audit trail in plain language) and \emph{Settings} (language and region). Level~2 questions open a bottom sheet by themselves: the reason once, then one card per action with its own Yes~/~No and a shared countdown. A language picker on Home (Korean, English, German, French, Spanish, Italian) switches the whole interface, speech recognition and read-aloud; Korean is the default. A \emph{Country / region} setting (Korea; the United States on average or one of six states; the United Kingdom, Germany, France, Spain, Italy) sets the language together with the currency, electricity prices and emission factor of the savings report. Both are native selects, so a phone shows its own large picker. Text and signal colours meet WCAG~2.2 AA contrast ($\geq 4.5{:}1$), controls show a visible keyboard focus, touch targets are 44--56~px, and the status line, banner and notifications are ARIA live regions \cite{wcag2023}.
+\textbf{Functionality.} \texttt{Handler} serves the static interface and a small REST API: \texttt{GET /api/proactive}, \texttt{/api/approvals}, \texttt{/api/audit}, \texttt{/api/savings}, \texttt{/api/regions}, \texttt{/api/snapshot}; \texttt{POST /api/approvals/<id>/confirm} and \texttt{/decline} (the only route into Level~2 execution), \texttt{/api/control}, \texttt{/api/chat} and \texttt{/api/scenario} for demonstrations; \texttt{GET/POST /api/budget} for the energy budget and kW limit, \texttt{GET /api/events} for live alerts, and \texttt{/login} when a password is set. All interfaces are vanilla HTML, CSS and JavaScript with no build step, each designed first in Figma. The default, served at \texttt{/} (\texttt{app/web/hub/}), follows the device-card layout of current smart-home apps: a warm grey canvas, white rounded cards, room chips and round power buttons. It has five tabs: \emph{Home} (the house status with the four risk scores and any quiet period, \emph{Just now} for the actions of the last 15 minutes, a room map whose pins show which appliances are on, favourite devices, and this month's energy against the budget), \emph{Devices} (two-column device cards filtered by room), \emph{Energy} (the month's kWh and cost, the kW limit with the live load, booked starts, the week's savings and the latest gate decisions with their source), \emph{Activity} (the savings estimate and the audit trail in plain language) and \emph{Menu} (talking to the house, country / region, and the demonstration situations). A power button sends the same command a user could say, so a start meets the energy gate and may be booked for later. The earlier Figma interface remains at \texttt{/soft/} for its six interface languages. Level~2 questions open a bottom sheet by themselves: the reason once, then one card per action with its own Yes~/~No and a shared countdown. A language picker on Home (Korean, English, German, French, Spanish, Italian) switches the whole interface, speech recognition and read-aloud; Korean is the default. A \emph{Country / region} setting (Korea; the United States on average or one of six states; the United Kingdom, Germany, France, Spain, Italy) sets the language together with the currency, electricity prices and emission factor of the savings report. Both are native selects, so a phone shows its own large picker. Text and signal colours meet WCAG~2.2 AA contrast ($\geq 4.5{:}1$), controls show a visible keyboard focus, touch targets are 44--56~px, and the status line, banner and notifications are ARIA live regions \cite{wcag2023}.
 
 \subsection{Conversational Agent (\texttt{app/agent.py} and related)}
 \textbf{Purpose.} Keep the Phase~1 voice and text assistant working on the same safety path.
@@ -609,7 +609,7 @@ Every action it runs on its own first passes \texttt{budget.gate()}; a DELAY bec
 
 % ======================================================================
 \section{Use Cases}
-All use cases run on a laptop with \texttt{python run.py}. Screenshots were taken from the running app at phone size with the language model disabled, so every decision shown was made by the rules. Each scenario can be loaded from \emph{Menu} $\rightarrow$ \emph{Demo situations}, or with \texttt{python run.py --scenario <name>}. Use Cases~1--3, 7 and 12--14 are shown in the default interface at \texttt{/}. Use Cases~4, 6, 8, 9 and 11 show the \texttt{/soft/} interface, which keeps the Activity tab, the savings detail and the language and region settings.
+All use cases run on a laptop with \texttt{python run.py}. Screenshots were taken from the running app at phone size with the language model disabled, so every decision shown was made by the rules. Each scenario can be loaded from \emph{Menu} $\rightarrow$ \emph{Demo situations}, or with \texttt{python run.py --scenario <name>}. All screenshots show the default interface at \texttt{/}, in English.
 
 \subsection{Use Case 1: Mold Risk Handled Automatically}
 \textbf{Satisfies:} FR-1, FR-2 (MRI), FR-3 (Level~1), FR-4.
@@ -617,7 +617,7 @@ All use cases run on a laptop with \texttt{python run.py}. Screenshots were take
     \item Choose \emph{Demo situations} $\rightarrow$ \emph{Wet washer}: a wash finished two hours ago with the door shut and nobody at home.
     \item Within one tick MRI reaches about 81 (drum 90\% humid, sealed 2~h).
     \item The house runs the Level~1 actions on its own --- drum ventilation, dehumidifier, air purifier --- and asks nothing.
-    \item Home says ``The house is handling it --- the washer is trapping moisture'', the mold score shows 81 in red, and the room map lights the purifier and the dehumidifier (Fig.~\ref{fig:uc1}). Heat stays at 0 because HSI only counts while someone is at home.
+    \item Home says ``The house is handling it --- the washer is trapping moisture'', the mold score shows 81 in red, \emph{Just now} lists the three actions it took, and the room map lights the purifier and the dehumidifier (Fig.~\ref{fig:uc1}). Heat stays at 0 because HSI only counts while someone is at home.
 \end{enumerate}
 
 \begin{figure}[!t]
@@ -662,14 +662,14 @@ All use cases run on a laptop with \texttt{python run.py}. Screenshots were take
 \textbf{Satisfies:} FR-4, FR-5 (fail-safe default).
 \begin{enumerate}
     \item Load \emph{Dryer + dinner soon} again and press \emph{No} on both cards, or leave them for five minutes.
-    \item Neither the dryer nor the cooktop changes; the Level~1 actions that already ran stay in effect.
-    \item The kitchen ring shows ``Quiet for 30 min'': the house will not ask again about this risk for 30 minutes, and the live score stays visible meanwhile (Fig.~\ref{fig:uc4}). A late answer is treated exactly like no answer.
+    \item Neither the dryer nor the cooktop changes; the Level~1 actions that already ran stay in effect and are listed under \emph{Just now}.
+    \item The kitchen score stays at 100 and reads ``Quiet 30 min'': the house will not ask again about this risk for 30 minutes, and the live score stays visible meanwhile (Fig.~\ref{fig:uc4}). A late answer is treated exactly like no answer.
 \end{enumerate}
 
 \begin{figure}[!t]
 \centering
-\includegraphics[width=0.58\columnwidth]{figures/v3-uc4-quiet.png}
-\caption{Use Case 4: after a decline nothing changes and the quiet period is shown (\texttt{/soft/} interface).}
+\includegraphics[width=0.58\columnwidth]{figures/v5-uc4-quiet.png}
+\caption{Use Case 4: after a decline nothing changes; the kitchen score shows the quiet period.}
 \label{fig:uc4}
 \end{figure}
 
@@ -685,15 +685,15 @@ These paths are exercised by unit tests in \texttt{tests/test\_fr456.py}.
 \subsection{Use Case 6: Tracing a Decision in Activity}
 \textbf{Satisfies:} FR-6.
 \begin{enumerate}
-    \item After Use Case~3, open the \emph{Activity} tab, or call \texttt{GET /api/audit}.
-    \item Each entry shows a plain-language line, who decided (``You said yes'', ``Did it on its own'', ``Safety rule''), the request identifier and the underlying \texttt{event\_type}, so the chain question $\rightarrow$ answer $\rightarrow$ device outcome can be followed for each action (Fig.~\ref{fig:uc6}).
+    \item After Use Case~4, open the \emph{Activity} tab, or call \texttt{GET /api/audit}.
+    \item \emph{What the house did} lists each event as a plain-language line with who decided (``You said yes'', ``You said no'', ``Did it on its own'', ``Safety rule''), the request identifier, the time and the underlying \texttt{event\_type}; \emph{All}, \emph{Asked you} and \emph{Done} filter it. The chain question $\rightarrow$ answer $\rightarrow$ device outcome can be followed for each action (Fig.~\ref{fig:uc6}); energy verdicts that changed something (BLOCK, DELAY) appear here too.
     \item The log cannot be edited: an \texttt{UPDATE} or \texttt{DELETE} on \texttt{audit\_log} is aborted by the database triggers.
 \end{enumerate}
 
 \begin{figure}[!t]
 \centering
-\includegraphics[width=0.58\columnwidth]{figures/v3-uc6-activity.png}
-\caption{Use Case 6: the Activity tab is the append-only audit trail in plain language (\texttt{/soft/} interface).}
+\includegraphics[width=0.58\columnwidth]{figures/v5-uc6-activity.png}
+\caption{Use Case 6: the Activity tab is the append-only audit trail in plain language; here filtered to the questions and the answers.}
 \label{fig:uc6}
 \end{figure}
 
@@ -717,38 +717,30 @@ These paths are exercised by unit tests in \texttt{tests/test\_fr456.py}.
 \begin{enumerate}
     \item Choose \emph{Demo situations} $\rightarrow$ \emph{Peak rate}: evening peak band, two air conditioners set to 22~$^\circ$C and a wash running --- about 2.4~kW against a 2.5~kW peak budget (PLI~57).
     \item PLI exceeds 50. The house raises the coldest AC by 2~$^\circ$C (Level~1); the energy gate allows it (within budget).
-    \item Because the household set a monthly budget, the power-load risk is pre-authorised: the house also pauses the wash \emph{without asking} --- the gate allows it, since pausing starts nothing --- and says so: ``Wash paused --- restart it after the peak'' (Fig.~\ref{fig:uc8}). The load drops to about 1.8~kW and PLI to about 43 (\emph{Watching}). In the Phase~2 specification this step was a question; with the budget turned off (\texttt{energy.preauthorised = false}) it is a question again.
+    \item Because the household set a monthly budget, the power-load risk is pre-authorised: the house also pauses the wash \emph{without asking} --- the gate allows it, since pausing starts nothing --- and Home lists it under \emph{Just now}: ``Wash paused --- restart it after the peak'' and ``AC raised 2$^\circ$ to save power'', both ``Did it on its own'' (Fig.~\ref{fig:uc8}). The load drops to about 1.8~kW and PLI to about 43 (\emph{Watching}). In the Phase~2 specification this step was a question; with the budget turned off (\texttt{energy.preauthorised = false}) it is a question again.
     \item The paused wash does not count as finished, so the mold index does not start. \texttt{GET /api/audit} shows, in order, the \texttt{energy.decision} (ALLOW), \texttt{action.intent} and \texttt{action.executed} rows of each action.
 \end{enumerate}
 
 \begin{figure}[!t]
 \centering
-\includegraphics[width=0.58\columnwidth]{figures/v4-uc8-peak.png}
-\caption{Use Case 8: at the peak rate the house raised the AC setpoint and paused the wash on its own, inside the pre-authorised budget (\texttt{/soft/} interface).}
+\includegraphics[width=0.58\columnwidth]{figures/v5-uc8-peak.png}
+\caption{Use Case 8: at the peak rate the house raised the AC setpoint and paused the wash on its own, inside the pre-authorised budget.}
 \label{fig:uc8}
 \end{figure}
 
-\subsection{Use Case 9: Language and Region}
-\textbf{Satisfies:} FR-4 (inclusive interface).
+\subsection{Use Case 9: Country and Region}
+\textbf{Satisfies:} FR-4, FR-7.
 \begin{enumerate}
-    \item Pick a language at the top right of Home (Korean, English, German, French, Spanish or Italian).
-    \item Every label, the status sentence, risk tags, the ask sheet, device names and states, Activity and Settings switch language; speech recognition and read-aloud follow (Fig.~\ref{fig:uc9}). The choice is remembered on the device.
-    \item Choosing a region in \emph{Settings} (e.g.\ Deutschland, Fig.~\ref{fig:uc9region}) switches to its language and also switches the savings report to its currency, prices and emission factor (Table~\ref{tab:regions}). The same executed actions show the same kWh, but the money and CO$_2$ follow the region: for one test week KRW~651 in Korea, \$0.91 in California, 0.92~\texteuro{} in Germany. Where the region has no common time-of-use plan, the card notes that moving a load saved no money.
-    \item Text generated by the server (chat replies, refusal reasons) remains in English in this version.
+    \item Open \emph{Menu} and choose a \emph{Country / region}: Korea, the United States on average or one of six states, the United Kingdom, Germany, France, Spain or Italy (Fig.~\ref{fig:uc9}). The choice is remembered on the device.
+    \item The savings report switches to that region's currency, price and emission factor (Table~\ref{tab:regions}). The same executed actions keep the same kWh, but the money and CO$_2$ follow the region: for the test week of Use Case~11, \textwon 277 in Korea and 0,41~\texteuro{} in Germany. Where the region has no common time-of-use plan, the card notes that moving a load saved no money (Fig.~\ref{fig:uc11de}).
+    \item The default interface is in English. The earlier interface at \texttt{/soft/} also offers Korean, German, French, Spanish and Italian, with speech recognition and read-aloud in the same language; text generated by the server (chat replies, refusal reasons) is English.
 \end{enumerate}
 
 \begin{figure}[!t]
 \centering
-\includegraphics[width=0.58\columnwidth]{figures/v3-uc9-ko.png}
-\caption{Use Case 9: the same peak-rate question in the Korean interface; the language picker is at the top right.}
+\includegraphics[width=0.58\columnwidth]{figures/v5-uc9-region.png}
+\caption{Use Case 9: the region picker in \emph{Menu}, set to Germany.}
 \label{fig:uc9}
-\end{figure}
-
-\begin{figure}[!t]
-\centering
-\includegraphics[width=0.58\columnwidth]{figures/v3-uc9-region-de.png}
-\caption{Use Case 9: \emph{Settings} with the region set to Germany; the interface follows in German.}
-\label{fig:uc9region}
 \end{figure}
 
 \subsection{Use Case 10: Running Without the Language Model}
@@ -762,22 +754,22 @@ These paths are exercised by unit tests in \texttt{tests/test\_fr456.py}.
 \subsection{Use Case 11: What the House Saved}
 \textbf{Satisfies:} FR-7, FR-6.
 \begin{enumerate}
-    \item Run Use Case~8 and answer \emph{Yes}, then choose \emph{Demo} $\rightarrow$ \emph{Wet washer} (Use Case~1).
-    \item Home shows one line, ``Saved this week: \ldots''; tapping it opens \emph{Activity}.
-    \item The savings card shows energy saved, money saved and CO$_2$ avoided for \emph{Today} or \emph{This week}, a bar per contributing action (green for energy saved, violet for energy moved off the peak), the mold episodes prevented, and the price and emission factor behind the estimate (Fig.~\ref{fig:uc11}). With the region set to Germany the same card is in euros and notes that, without a common time-of-use rate, moving the wash out of the peak saved no money (Fig.~\ref{fig:uc11de}).
-    \item Every figure can be traced to an \texttt{action.executed} row in the timeline below it; declining the question in Use Case~8 removes the wash line and its saving.
+    \item Run Use Case~8, then choose \emph{Demo situations} $\rightarrow$ \emph{Wet washer} (Use Case~1).
+    \item The \emph{Energy} tab shows the week's saving in one card; \emph{Activity} shows the detail.
+    \item \emph{What the house saved} shows kWh saved, money off the bill and CO$_2$ avoided for \emph{Today} or \emph{This week}, a bar per contributing action (green for energy saved, blue for energy moved off the peak), the mold episodes prevented, and the price and emission factor behind the estimate (Fig.~\ref{fig:uc11}). With the region set to Germany the same card is in euros and notes that, without a common time-of-use rate, moving the wash out of the peak saved no money (Fig.~\ref{fig:uc11de}).
+    \item Every figure can be traced to an \texttt{action.executed} row in the timeline below it; an action that was declined or never ran contributes nothing.
 \end{enumerate}
 
 \begin{figure}[!t]
 \centering
-\includegraphics[width=0.58\columnwidth]{figures/v3-uc11-savings.png}
-\caption{Use Case 11: the savings estimate on top of the Activity tab, computed only from executed actions (\texttt{/soft/} interface).}
+\includegraphics[width=0.58\columnwidth]{figures/v5-uc11-savings.png}
+\caption{Use Case 11: the savings estimate on top of the Activity tab, computed only from executed actions.}
 \label{fig:uc11}
 \end{figure}
 
 \begin{figure}[!t]
 \centering
-\includegraphics[width=0.58\columnwidth]{figures/v3-uc11-savings-de.png}
+\includegraphics[width=0.58\columnwidth]{figures/v5-uc11-savings-de.png}
 \caption{Use Case 11 for a household in Germany: euros, the German emission factor, and a note that moving a load earns nothing without a time-of-use rate.}
 \label{fig:uc11de}
 \end{figure}
