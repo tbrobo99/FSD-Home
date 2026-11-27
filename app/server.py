@@ -155,6 +155,10 @@ class Handler(BaseHTTPRequestHandler):
             return self._static("login.html")
         if not self._authorized(path):
             return self._deny()
+        if path == "/" and not parse_qs(url.query).get("ui"):
+            # The device-card hub is the default screen. The console with the
+            # v0-v7 switcher stays at /?ui=v6 (and /index.html).
+            return self._redirect("/hub/")
         if path in ("/", "/index.html"):
             return self._static("index.html")
         if path in ("/energy", "/energy.html"):

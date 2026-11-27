@@ -191,6 +191,7 @@ function viewMenu() {
       ${lastReply ? `<div class="reply">${esc(lastReply)}</div>` : ""}</section>
     <section class="card">
       <a class="menu-row" href="/soft/" style="color:inherit;text-decoration:none"><span>${t("activity")} · ${t("classic")}</span>${ico("i-right", "ic sm")}</a>
+      <a class="menu-row" href="/?ui=v6" style="color:inherit;text-decoration:none"><span>Console (other screen versions)</span>${ico("i-right", "ic sm")}</a>
     </section>
     <section class="card"><div class="sec"><h2>${t("demo")}</h2></div>
       ${Object.entries(t("sc")).map(([k, v]) => `<button class="menu-row" type="button" data-scenario="${k}"><span>${esc(v)}</span>${ico("i-right", "ic sm")}</button>`).join("")}</section>`;

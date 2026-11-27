@@ -35,7 +35,7 @@ have no automation.
 
 ## Live demo
 
-Open the current simulator-based cloud demo: https://fsd-home-demo.duckdns.org/?ui=v6
+Open the current simulator-based cloud demo: https://fsd-home-demo.duckdns.org/ (opens the device-card hub; the console is at `/?ui=v6`)
 
 - `/?ui=v6` (default) is the Mission Console live view; `?ui=v0`–`v5` switch the other overlays.
 - `/hub/` is the device-card interface (v4, Figma page "v4 · Hub Screens (English)"): Home with the
