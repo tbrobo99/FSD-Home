@@ -1,4 +1,13 @@
-# Proactive Senior Care & Comfort Agent
+# FSD Home: Autonomous Energy Management Agent
+
+> **New direction (after the 25 Nov 2026 review).** The project is now focused
+> on energy: the user sets a monthly kWh budget and the Agent controls
+> appliances within it — delaying the washer to the cheap band, optimising the
+> AC setpoint, and blocking requests that would exceed the budget. Strict Mode
+> ships enabled in this demo. Start at `/energy` for the dashboard and see
+> [`docs/FSD-ENERGY.md`](docs/FSD-ENERGY.md) for the decision chain, the actual
+> LLM prompt and the three presentation scenarios. The risk-graded senior-care
+> behaviour below is retained as the underlying safety layer.
 
 **Risk-graded autonomous home orchestration for safer, more comfortable living.**
 
@@ -13,6 +22,7 @@ waits for an explicit answer, with a deadline.
 
 Open the current simulator-based cloud demo: https://fsd-home-demo.duckdns.org/?ui=v6
 
+- `/energy` is the new Energy Dashboard: budget, Strict Mode, decision log and the actual prompt.
 - `/?ui=v6` (default) is the Mission Console live view; `?ui=v0`–`v5` switch the other overlays.
 - `/soft/` is the interface built from the Figma design: four risk rings, the ask sheet, the
   savings card, and a language (6) and region (13) picker.

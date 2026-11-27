@@ -77,6 +77,44 @@ body {
   -webkit-backdrop-filter: blur(14px);
   border-bottom: 1px solid var(--line);
 }
+
+/* Keep notification state available without letting it dominate the header. */
+#view-home .masthead-actions {
+  position: absolute;
+  top: 18px;
+  right: 84px;
+  display: flex;
+  gap: 6px;
+  align-items: center;
+}
+#view-home #notifyToggle {
+  width: 34px;
+  height: 30px;
+  padding: 0;
+  overflow: hidden;
+  border: 1px solid rgba(148, 163, 184, .55);
+  border-radius: 7px;
+  color: #94a3b8;
+  background: rgba(8, 15, 25, .86);
+  cursor: pointer;
+  font-size: 0;
+  line-height: 1;
+  opacity: .82;
+}
+#view-home #notifyToggle::before {
+  content: "\1F514";
+  font-size: 14px;
+}
+#view-home #notifyToggle[aria-pressed="true"] {
+  border-color: rgba(58, 212, 242, .48);
+  color: var(--cyan);
+  background: rgba(58, 212, 242, .09);
+}
+#view-home #notifyToggle:hover,
+#view-home #notifyToggle:focus-visible {
+  opacity: 1;
+  border-color: var(--cyan);
+}
 .eyebrow {
   margin: 0 0 5px;
   color: var(--accent);

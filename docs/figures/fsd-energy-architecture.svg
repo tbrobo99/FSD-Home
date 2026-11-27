@@ -1,0 +1,142 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1240 748" width="1240" height="748" role="img" aria-label="FSD Home autonomous energy decision architecture">
+  <title>FSD Home — Autonomous Energy Decision Architecture</title>
+
+  <defs>
+    <filter id="card" x="-25%" y="-25%" width="150%" height="170%">
+      <feDropShadow dx="0" dy="3" stdDeviation="7" flood-color="#0f172a" flood-opacity="0.055"/>
+    </filter>
+    <marker id="ar" viewBox="0 0 10 10" refX="8.5" refY="5" markerWidth="6" markerHeight="6" orient="auto">
+      <path d="M0 0 L10 5 L0 10 z" fill="#9aa9bd"/>
+    </marker>
+    <marker id="ar-loop" viewBox="0 0 10 10" refX="8.5" refY="5" markerWidth="6" markerHeight="6" orient="auto">
+      <path d="M0 0 L10 5 L0 10 z" fill="#2563eb"/>
+    </marker>
+  </defs>
+
+  <rect width="1240" height="748" fill="#f7f9fc"/>
+
+  <!-- header -->
+  <text x="48" y="54" font-family="Inter, Segoe UI, sans-serif" font-size="25" font-weight="700" fill="#0f172a">FSD Home — Autonomous Energy Decision Architecture</text>
+  <text x="48" y="82" font-family="Inter, Segoe UI, sans-serif" font-size="12.5" fill="#64748b">The user sets a monthly kWh budget; the agent holds the switch. Every model answer is validated by rules before a device moves.</text>
+
+  <!-- ============ stage 1 ============ -->
+  <g font-family="Inter, Segoe UI, sans-serif">
+    <rect x="48" y="118" width="208" height="196" rx="14" fill="#ffffff" stroke="#e4eaf3" filter="url(#card)"/>
+    <circle cx="80" cy="152" r="15" fill="#2563eb" fill-opacity="0.10"/>
+    <text x="80" y="157" font-size="12.5" font-weight="700" fill="#2563eb" text-anchor="middle">1</text>
+    <text x="104" y="156" font-size="10" font-weight="700" letter-spacing="1.3" fill="#2563eb">INPUT</text>
+    <text x="68" y="196" font-size="15.5" font-weight="700" fill="#0f172a">Sensors &amp; intent</text>
+    <text x="68" y="222" font-size="11.5" fill="#475569">1 Hz sensor push</text>
+    <text x="68" y="244" font-size="11.5" fill="#475569">temp, humidity, load, tariff</text>
+    <text x="68" y="266" font-size="11.5" fill="#475569">plus /api/chat commands</text>
+    <text x="68" y="294" font-family="Consolas, Menlo, monospace" font-size="10.5" fill="#2563eb" fill-opacity="0.9">sensors.py · /api/chat</text>
+
+    <rect x="282" y="118" width="208" height="196" rx="14" fill="#ffffff" stroke="#e4eaf3" filter="url(#card)"/>
+    <circle cx="314" cy="152" r="15" fill="#0d9488" fill-opacity="0.10"/>
+    <text x="314" y="157" font-size="12.5" font-weight="700" fill="#0d9488" text-anchor="middle">2</text>
+    <text x="338" y="156" font-size="10" font-weight="700" letter-spacing="1.3" fill="#0d9488">CONTEXT</text>
+    <text x="302" y="196" font-size="15.5" font-weight="700" fill="#0f172a">Energy ledger</text>
+    <text x="302" y="222" font-size="11.5" fill="#475569">used / remaining kWh</text>
+    <text x="302" y="244" font-size="11.5" fill="#475569">budget % and price band</text>
+    <text x="302" y="266" font-size="11.5" fill="#475569">estimate for the action</text>
+    <text x="302" y="294" font-family="Consolas, Menlo, monospace" font-size="10.5" fill="#0d9488" fill-opacity="0.9">app/energy.py</text>
+
+    <rect x="516" y="118" width="208" height="196" rx="14" fill="#ffffff" stroke="#e4eaf3" filter="url(#card)"/>
+    <circle cx="548" cy="152" r="15" fill="#d97706" fill-opacity="0.12"/>
+    <text x="548" y="157" font-size="12.5" font-weight="700" fill="#b45309" text-anchor="middle">3</text>
+    <text x="572" y="156" font-size="10" font-weight="700" letter-spacing="1.3" fill="#b45309">DECIDE</text>
+    <text x="536" y="196" font-size="15.5" font-weight="700" fill="#0f172a">LLM decision</text>
+    <text x="536" y="222" font-size="11.5" fill="#475569">system prompt + context</text>
+    <text x="536" y="244" font-size="11.5" fill="#475569">json_mode, temperature 0</text>
+    <text x="536" y="266" font-size="11.5" fill="#475569">picks one of four actions</text>
+    <text x="536" y="294" font-family="Consolas, Menlo, monospace" font-size="10.5" fill="#b45309" fill-opacity="0.9">ENERGY_DECIDE_SYSTEM</text>
+
+    <rect x="750" y="118" width="208" height="196" rx="14" fill="#ffffff" stroke="#e4eaf3" filter="url(#card)"/>
+    <circle cx="782" cy="152" r="15" fill="#7c3aed" fill-opacity="0.12"/>
+    <text x="782" y="157" font-size="12.5" font-weight="700" fill="#7c3aed" text-anchor="middle">4</text>
+    <text x="806" y="156" font-size="10" font-weight="700" letter-spacing="1.3" fill="#7c3aed">GUARD</text>
+    <text x="770" y="196" font-size="15.5" font-weight="700" fill="#0f172a">Rule validation</text>
+    <text x="770" y="222" font-size="11.5" fill="#475569">budget is a hard limit</text>
+    <text x="770" y="244" font-size="11.5" fill="#475569">no self-started hob or oven</text>
+    <text x="770" y="266" font-size="11.5" fill="#475569">rules may override the model</text>
+    <text x="770" y="294" font-family="Consolas, Menlo, monospace" font-size="10.5" fill="#7c3aed" fill-opacity="0.9">decided_by = "rules"</text>
+
+    <rect x="984" y="118" width="208" height="196" rx="14" fill="#ffffff" stroke="#e4eaf3" filter="url(#card)"/>
+    <circle cx="1016" cy="152" r="15" fill="#475569" fill-opacity="0.12"/>
+    <text x="1016" y="157" font-size="12.5" font-weight="700" fill="#475569" text-anchor="middle">5</text>
+    <text x="1040" y="156" font-size="10" font-weight="700" letter-spacing="1.3" fill="#475569">ACT</text>
+    <text x="1004" y="196" font-size="15.5" font-weight="700" fill="#0f172a">Execute</text>
+    <text x="1004" y="222" font-size="11.5" fill="#475569">audit.execute() → adapter</text>
+    <text x="1004" y="244" font-size="11.5" fill="#475569">DELAY becomes a saved job</text>
+    <text x="1004" y="266" font-size="11.5" fill="#475569">mock home now, ThinQ later</text>
+    <text x="1004" y="294" font-family="Consolas, Menlo, monospace" font-size="10.5" fill="#475569" fill-opacity="0.9">write-before-act</text>
+  </g>
+
+  <!-- flow arrows -->
+  <path d="M254 216 H278" stroke="#9aa9bd" stroke-width="2" marker-end="url(#ar)"/>
+  <path d="M488 216 H512" stroke="#9aa9bd" stroke-width="2" marker-end="url(#ar)"/>
+  <path d="M722 216 H746" stroke="#9aa9bd" stroke-width="2" marker-end="url(#ar)"/>
+  <path d="M956 216 H980" stroke="#9aa9bd" stroke-width="2" marker-end="url(#ar)"/>
+
+  <!-- ============ output vocabulary ============ -->
+  <text x="48" y="368" font-family="Inter, Segoe UI, sans-serif" font-size="10" font-weight="700" letter-spacing="1.5" fill="#94a3b8">OUTPUTS</text>
+
+  <rect x="140" y="340" width="180" height="44" rx="22" fill="#ecfdf5" stroke="#a7f3d0"/>
+  <text x="230" y="368" font-family="Inter, Segoe UI, sans-serif" font-size="13" font-weight="600" fill="#047857" text-anchor="middle">ALLOW — run now</text>
+
+  <rect x="336" y="340" width="180" height="44" rx="22" fill="#fef2f2" stroke="#fecaca"/>
+  <text x="426" y="368" font-family="Inter, Segoe UI, sans-serif" font-size="13" font-weight="600" fill="#b91c1c" text-anchor="middle">BLOCK — refuse</text>
+
+  <rect x="532" y="340" width="180" height="44" rx="22" fill="#fffbeb" stroke="#fde68a"/>
+  <text x="622" y="368" font-family="Inter, Segoe UI, sans-serif" font-size="13" font-weight="600" fill="#b45309" text-anchor="middle">DELAY — reschedule</text>
+
+  <rect x="728" y="340" width="180" height="44" rx="22" fill="#eff6ff" stroke="#bfdbfe"/>
+  <text x="818" y="368" font-family="Inter, Segoe UI, sans-serif" font-size="13" font-weight="600" fill="#1d4ed8" text-anchor="middle">OPTIMIZE — adjust</text>
+
+  <text x="936" y="368" font-family="Inter, Segoe UI, sans-serif" font-size="11" font-style="italic" fill="#94a3b8">the model may return nothing else</text>
+
+  <!-- ============ feedback + persistence ============ -->
+  <g font-family="Inter, Segoe UI, sans-serif">
+    <rect x="48" y="414" width="562" height="176" rx="14" fill="#ffffff" stroke="#e4eaf3" filter="url(#card)"/>
+    <circle cx="80" cy="448" r="15" fill="#0ea5e9" fill-opacity="0.12"/>
+    <text x="80" y="453" font-size="12.5" font-weight="700" fill="#0284c7" text-anchor="middle">6</text>
+    <text x="104" y="452" font-size="10" font-weight="700" letter-spacing="1.3" fill="#0284c7">FEEDBACK</text>
+    <text x="68" y="492" font-size="15.5" font-weight="700" fill="#0f172a">Energy Dashboard — /energy</text>
+    <text x="68" y="518" font-size="11.5" fill="#475569">budget ring · Strict Mode · decision log</text>
+    <text x="68" y="540" font-size="11.5" fill="#475569">and the exact prompt the model was given</text>
+    <text x="68" y="566" font-family="Consolas, Menlo, monospace" font-size="10.5" fill="#0284c7" fill-opacity="0.9">GET /api/energy · poll every 2 s</text>
+
+    <rect x="630" y="414" width="562" height="176" rx="14" fill="#ffffff" stroke="#e4eaf3" filter="url(#card)"/>
+    <circle cx="662" cy="448" r="15" fill="#64748b" fill-opacity="0.12"/>
+    <text x="662" y="453" font-size="12.5" font-weight="700" fill="#475569" text-anchor="middle">7</text>
+    <text x="686" y="452" font-size="10" font-weight="700" letter-spacing="1.3" fill="#475569">PERSISTENCE</text>
+    <text x="650" y="492" font-size="15.5" font-weight="700" fill="#0f172a">SQLite + append-only logs</text>
+    <text x="650" y="518" font-size="11.5" fill="#475569">energy_state · energy_decisions · jobs · audit_log</text>
+    <text x="650" y="540" font-size="11.5" fill="#475569">readings.jsonl keeps the raw 1 Hz trace</text>
+    <text x="650" y="566" font-family="Consolas, Menlo, monospace" font-size="10.5" fill="#475569" fill-opacity="0.9">data/home.db · a delayed job is never lost</text>
+  </g>
+
+  <!-- dashed feedback loop: dashboard -> input -->
+  <path d="M48 500 H22 V210 H44" fill="none" stroke="#2563eb" stroke-width="1.8" stroke-dasharray="6 5" marker-end="url(#ar-loop)" opacity="0.75"/>
+  <text x="48" y="404" font-family="Inter, Segoe UI, sans-serif" font-size="10.5" fill="#2563eb" opacity="0.95">user edits the budget or flips Strict Mode → the very next decision uses it</text>
+
+  <!-- ============ timing ============ -->
+  <rect x="48" y="618" width="1144" height="84" rx="14" fill="#eef2f7"/>
+  <line x1="428" y1="636" x2="428" y2="684" stroke="#dbe3ed"/>
+  <line x1="804" y1="636" x2="804" y2="684" stroke="#dbe3ed"/>
+
+  <circle cx="76" cy="647" r="4.5" fill="#0d9488"/>
+  <text x="94" y="652" font-family="Inter, Segoe UI, sans-serif" font-size="14" font-weight="700" fill="#0f172a">1 Hz</text>
+  <text x="94" y="674" font-family="Inter, Segoe UI, sans-serif" font-size="11.5" fill="#64748b">sensor tick accrues kWh — no model call</text>
+
+  <circle cx="452" cy="647" r="4.5" fill="#d97706"/>
+  <text x="470" y="652" font-family="Inter, Segoe UI, sans-serif" font-size="14" font-weight="700" fill="#0f172a">on event</text>
+  <text x="470" y="674" font-family="Inter, Segoe UI, sans-serif" font-size="11.5" fill="#64748b">one LLM call → one rule check → one action</text>
+
+  <circle cx="828" cy="647" r="4.5" fill="#2563eb"/>
+  <text x="846" y="652" font-family="Inter, Segoe UI, sans-serif" font-size="14" font-weight="700" fill="#0f172a">2 s</text>
+  <text x="846" y="674" font-family="Inter, Segoe UI, sans-serif" font-size="11.5" fill="#64748b">dashboard polls GET /api/energy, read only</text>
+
+  <!-- legend -->
+  <text x="48" y="728" font-family="Inter, Segoe UI, sans-serif" font-size="10.5" fill="#94a3b8">Solid arrows: request path · dashed: the only way the user takes control back · with no API key the rules return the same four answers, and the prompt is still logged.</text>
+</svg>

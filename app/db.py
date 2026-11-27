@@ -77,6 +77,37 @@ BEGIN SELECT RAISE(ABORT, 'audit_log is append-only'); END;
 CREATE TRIGGER IF NOT EXISTS audit_log_no_delete BEFORE DELETE ON audit_log
 BEGIN SELECT RAISE(ABORT, 'audit_log is append-only'); END;
 CREATE INDEX IF NOT EXISTS idx_audit_ts ON audit_log(ts);
+
+-- FSD Home: energy budget state, cumulative usage and every decision the
+-- agent made. Decisions are append-only too: the dashboard shows why an
+-- appliance was delayed or blocked, and the record must outlive the process.
+CREATE TABLE IF NOT EXISTS energy_state (
+    id           INTEGER PRIMARY KEY CHECK (id = 1),
+    period       TEXT NOT NULL,
+    budget_kwh   REAL NOT NULL,
+    used_kwh     REAL NOT NULL DEFAULT 0,
+    strict_mode  INTEGER NOT NULL DEFAULT 0,
+    llm_decide   INTEGER NOT NULL DEFAULT 1,
+    updated_at   TEXT
+);
+CREATE TABLE IF NOT EXISTS energy_decisions (
+    id             INTEGER PRIMARY KEY AUTOINCREMENT,
+    ts             TEXT NOT NULL,
+    device_id      TEXT,
+    device_name    TEXT,
+    requested      TEXT,
+    decision       TEXT,
+    reason         TEXT,
+    scheduled_at   TEXT,
+    estimated_kwh  REAL,
+    remaining_kwh  REAL,
+    tariff         TEXT,
+    decided_by     TEXT,
+    prompt_shown   TEXT,
+    llm_raw        TEXT,
+    executed       INTEGER DEFAULT 0
+);
+CREATE INDEX IF NOT EXISTS idx_energy_decisions_ts ON energy_decisions(ts);
 """
 
 

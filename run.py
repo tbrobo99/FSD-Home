@@ -79,7 +79,9 @@ def main() -> None:
     # Phase 2: the proactive loop. Sensors -> risk -> candidates -> decision ->
     # Tier-1 execute / Tier-2 ask. It rides on the same adapter, so acting on
     # the simulator and acting on real LG devices is the same code path.
-    engine = ProactiveEngine(adapter, cfg)
+    # Share one EnergyManager between chat and the sensor loop: both must
+    # meter the same monthly budget and read the same Strict Mode switch.
+    engine = ProactiveEngine(adapter, cfg, energy_manager=agent.energy)
     agent.proactive = engine  # so /api/approvals can reach it
     if args.scenario:
         engine.sensors.apply_scenario(args.scenario)
@@ -101,7 +103,7 @@ def main() -> None:
     llm_txt = (f"enabled ({cfg['llm']['model']})" if cfg["llm"].get("enabled")
                else "disabled (rule engine only)")
     print("=" * 58)
-    print("  Proactive Senior Care & Comfort Agent")
+    print("  FSD Home: Autonomous Energy Management Agent")
     print(f"  UI        : {local_url}")
     if args.lan:
         ip = lan_ip()
@@ -110,8 +112,11 @@ def main() -> None:
     print(f"  Devices   : {backend}"
           + (" (simulator, no LG account needed)" if backend == "mock" else " (LG ThinQ cloud)"))
     print(f"  LLM       : {llm_txt}")
-    print(f"  Proactive : sensors + MRI/TOI, Tier-1 auto / Tier-2 asks you"
+    print(f"  Proactive : sensors + risk layers, Tier-1 auto / Tier-2 asks you"
           + (f" (scenario: {args.scenario})" if args.scenario else ""))
+    print(f"  Energy    : {agent.energy.budget_kwh:.0f} kWh/month, "
+          f"Strict Mode {'ON' if agent.energy._state.get('strict_mode') else 'OFF'}, "
+          f"{agent.energy.remaining_kwh:.1f} kWh left")
     print("  Ctrl+C to stop")
     print("=" * 58)
 

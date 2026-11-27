@@ -156,6 +156,22 @@ class Handler(BaseHTTPRequestHandler):
             # The v3 "soft modern" interface from the Figma design (savings
             # card, region and language pickers). "/" keeps the v1-v6 switcher.
             return self._static("soft/index.html")
+        if path in ("/energy", "/energy/", "/energy/index.html"):
+            # FSD Home energy dashboard (added after the professor review).
+            return self._static("energy/index.html")
+        if path == "/api/energy":
+            engine = getattr(self.agent_ref, "proactive", None)
+            snap = getattr(engine, "_last_snapshot", None) if engine else None
+            return self._json(self.agent_ref.energy.view(snap))
+        if path == "/api/energy/prompt":
+            from . import energy
+            return self._json({
+                "prompt": energy.ENERGY_DECIDE_SYSTEM,
+                "policy": ("The LLM is called only when an energy event occurs, "
+                           "never once per sensor tick. Rules validate every "
+                           "answer before execution."),
+                "sampling": {"sensor_push_hz": 1.0, "dashboard_poll_seconds": 2.0},
+            })
         if path == "/api/snapshot":
             return self._json(self.agent_ref.snapshot())
         if path == "/api/mode":
@@ -260,6 +276,83 @@ class Handler(BaseHTTPRequestHandler):
             res = audit.execute(self.agent_ref.adapter, device_id, actions)
             db.log("control.manual", f"{device_id} {actions} -> {res.get('ok')}")
             return self._json({**res, "snapshot": self.agent_ref.snapshot()})
+
+        # ------------------------------------------------ FSD energy routes
+
+        if path == "/api/energy/strict":
+            return self._json(self.agent_ref.energy.set_strict(
+                bool(body.get("enabled"))))
+        if path == "/api/energy/budget":
+            return self._json(self.agent_ref.energy.set_budget(body.get("kwh")))
+        if path == "/api/energy/llm":
+            return self._json(self.agent_ref.energy.set_llm(
+                bool(body.get("enabled"))))
+        if path == "/api/energy/reset":
+            return self._json(self.agent_ref.energy.reset())
+
+        energy_engine = getattr(self.agent_ref, "energy", None)
+        if path in ("/api/energy/decide", "/api/energy/demo") and energy_engine is None:
+            return self._json({"error": "energy engine not running"}, 400)
+
+        if path == "/api/energy/decide":
+            device_id = str(body.get("device_id") or "")
+            actions = body.get("actions") or []
+            if not device_id or not actions:
+                return self._json({"error": "device_id and actions are required"}, 400)
+            engine = getattr(self.agent_ref, "proactive", None)
+            snap = getattr(engine, "_last_snapshot", None) or {}
+            decision = energy_engine.decide(
+                device_id, actions, snap,
+                source=str(body.get("source") or "user"),
+                user_text=str(body.get("text") or ""))
+            applied = energy_engine.apply_decision(decision, snap)
+            out = {"ok": True, "decision": decision, "applied": applied}
+            if applied.get("execute"):
+                res = audit.execute(self.agent_ref.adapter, device_id,
+                                    applied.get("actions") or actions,
+                                    context={"channel": "energy",
+                                             "decision_source": decision.get("decided_by"),
+                                             "action_kind": decision["action"]})
+                out["executed"] = res
+            return self._json({**out, "snapshot": self.agent_ref.snapshot()})
+
+        if path == "/api/energy/demo":
+            """One-click versions of the three professor-requested scenarios."""
+            name = str(body.get("name") or "")
+            scenarios = ("delay-washer", "optimize-ac", "block-dryer")
+            if name not in scenarios:
+                return self._json({"error": "unknown demo scenario"}, 400)
+            engine = getattr(self.agent_ref, "proactive", None)
+            if engine is None:
+                return self._json({"error": "proactive engine not running"}, 400)
+            energy_engine.set_strict(True)
+            if name in ("delay-washer", "optimize-ac"):
+                engine.sensors.apply_scenario("peak")
+            else:
+                engine.sensors.apply_scenario("idle")
+                energy_engine.set_budget(round(energy_engine.used_kwh + 1.0, 2))
+            snap = engine.sensors.snapshot()
+            engine._last_snapshot = snap
+            request = {
+                "delay-washer": ("washer", [{"action": "power", "value": True}],
+                                 "turn on the washing machine"),
+                "optimize-ac": ("ac_living",
+                                [{"action": "power", "value": True},
+                                 {"action": "temperature", "value": 22}],
+                                "turn on the living room AC at 22"),
+                "block-dryer": ("dryer", [{"action": "power", "value": True}],
+                                "turn on the dryer"),
+            }[name]
+            decision = energy_engine.decide(
+                request[0], request[1], snap, source="user", user_text=request[2])
+            applied = energy_engine.apply_decision(decision, snap)
+            db.add_message("user", f"Demo: {request[2]}", {"scenario": name})
+            db.add_message("assistant", applied.get("reply") or decision["action"], {
+                "energy_decision": decision["action"], "decided_by": decision.get("decided_by"),
+                "reason": decision.get("reason"), "demo": name})
+            return self._json({"ok": True, "scenario": name, "request": request[2],
+                               "decision": decision, "applied": applied,
+                               "energy": energy_engine.view(snap)})
 
         if path == "/api/jobs/clear":
             n = db.clear_jobs()

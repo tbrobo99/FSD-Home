@@ -36,7 +36,8 @@ import threading
 import time
 from datetime import datetime
 
-from . import approval, audit, db, events, llm, policy, preference, risk, sensors
+from . import (approval, audit, db, energy, events, llm, policy, preference,
+               risk, sensors)
 
 DECIDE_SYSTEM = """You are the decision layer of a proactive smart-home agent for a
 household that includes a senior. Sensors have flagged a risk; rules have
@@ -144,10 +145,13 @@ def _devices(ap) -> str:
 class ProactiveEngine:
     """Watches the simulated house and intervenes under the risk-graded policy."""
 
-    def __init__(self, adapter, cfg: dict) -> None:
+    def __init__(self, adapter, cfg: dict, energy_manager=None) -> None:
         pcfg = cfg.get("proactive", {}) or {}
         self.adapter = adapter
         self.cfg = cfg
+        # Shared with Agent so a chat command and the sensor loop meter the
+        # same budget. A fresh manager is created only when none was injected.
+        self.energy = energy_manager or energy.EnergyManager(cfg, adapter)
         self.tick_seconds = float(pcfg.get("tick_seconds", 1.0))
         self.cooldown_seconds = float(pcfg.get("cooldown_seconds", 180))
         # How long the house stays quiet about a risk the user has already
@@ -232,6 +236,13 @@ class ProactiveEngine:
         snap = self.sensors.snapshot()
         self.sensors.record(snap)
         self._last_snapshot = snap
+        # Smart-meter integration: the sensor stream is pushed into the energy
+        # ledger every tick. No HTTP call and no LLM call happens here.
+        try:
+            if self.energy.enabled:
+                self.energy.accrue(snap, self.tick_seconds)
+        except Exception as exc:
+            db.log("energy.accrue_failed", str(exc), "error")
 
         evaluated = risk.evaluate(snap, self.sensors.history, now)
         self._last_risks = evaluated            # live scores for the dashboard
@@ -265,6 +276,13 @@ class ProactiveEngine:
                 continue
             if r.kind in pending_kinds:
                 continue  # already waiting on the user for this risk
+            # Strict Mode: an energy risk is handled autonomously. The agent
+            # does not ask "shall I?" — the user already authorised it by
+            # setting the budget. Budget / safety validation still runs in
+            # energy.EnergyManager before any device changes.
+            if r.kind == "energy" and self._energy_active():
+                events.append(self._energy_autonomous(r, snap, now))
+                continue
             events.append(self._intervene(r, snap, now))
 
         for ap in self.approvals.expire_due(now):
@@ -279,6 +297,98 @@ class ProactiveEngine:
         # no risk fired. A risk *clearing* is an event, not an absence of one.
         events.extend(self._housekeeping(snap, fired_kinds, now))
         return {"ts": snap["ts"], "risks": [r.kind for r in fired], "events": events}
+
+    # ---------------------------------------------------------------- FSD energy
+
+    def _energy_active(self) -> bool:
+        try:
+            return bool(self.energy.enabled
+                        and self.energy._state.get("strict_mode"))
+        except Exception:
+            return False
+
+    def _energy_autonomous(self, r: risk.Risk, snap: dict, now: datetime) -> dict:
+        """Enforce the energy budget without a permission question.
+
+        This is the FSD behaviour the professor asked for: the user sets the
+        goal (a monthly kWh ceiling and a cheaper time band) and the agent owns
+        the means. It still cannot exceed the budget or switch a heating
+        appliance on by itself — those are hard rules in EnergyManager.
+        """
+        executed: list[dict] = []
+        delayed: list[dict] = []
+        for c in policy.candidates(r, snap):
+            ctx = {"risk_kind": "energy", "action_kind": c.kind,
+                   "tier": policy.tier_of(c.kind),
+                   "decision_source": "llm" if self.energy.llm_decide else "rules",
+                   "channel": "energy"}
+            if c.kind == "pause_washer":
+                # Ask the energy engine "may this wash keep running?" so it
+                # returns DELAY to the cheap band, then pause now and keep the
+                # durable appointment for the restart.
+                decision = self.energy.decide(
+                    c.device_id, [{"action": "power", "value": True}], snap,
+                    source="engine", user_text=r.headline)
+                applied = self.energy.apply_decision(decision, snap)
+                pause = [{"action": "power", "value": False}]
+                res = audit.execute(self.adapter, c.device_id, pause, context=ctx)
+                ok = bool(res.get("ok"))
+                if ok:
+                    self.sensors.note_action(c.device_id, pause)
+                executed.append({"kind": c.kind, "ok": ok,
+                                 "decision": decision["action"],
+                                 "by": decision.get("decided_by")})
+                if applied.get("delayed"):
+                    delayed.append({"device": c.device_name,
+                                    "at": applied.get("scheduled_at"),
+                                    "job": applied.get("job")})
+                continue
+
+            decision = self.energy.decide(
+                c.device_id, c.actions, snap, source="engine", user_text=r.headline)
+            applied = self.energy.apply_decision(decision, snap)
+            if not applied.get("execute"):
+                audit.blocked(decision.get("reason") or "energy block",
+                              context=ctx, device_id=c.device_id)
+                executed.append({"kind": c.kind, "ok": False,
+                                 "decision": decision["action"],
+                                 "error": decision.get("reason")})
+                continue
+            res = audit.execute(self.adapter, c.device_id,
+                                applied.get("actions") or c.actions, context=ctx)
+            ok = bool(res.get("ok"))
+            if ok:
+                self.sensors.note_action(c.device_id,
+                                         applied.get("actions") or c.actions)
+            executed.append({"kind": c.kind, "ok": ok,
+                             "decision": decision["action"],
+                             "by": decision.get("decided_by")})
+
+        self._cooldown[r.kind] = time.monotonic() + self.cooldown_seconds
+        self._active[r.kind] = {
+            "score": r.score, "at": now.isoformat(timespec="seconds"),
+            "executed": [e["kind"] for e in executed if e.get("ok")],
+            "mode": "fsd-autonomous",
+        }
+        lines = ["\U0001f3fd Energy budget in Strict Mode — I acted on it:"]
+        lines += [f"· {e['kind']}: {e['decision']} ({e.get('by') or 'rules'})"
+                  for e in executed]
+        for d in delayed:
+            when = d.get("at") or ""
+            lines.append(f"· {d['device']} will run later at {when[11:16] or when}")
+        body = "\n".join(lines)
+        db.add_message("system", body, {
+            "risk": "energy", "score": round(r.score, 1),
+            "decided_by": "energy", "executed": executed, "delayed": delayed,
+            "remaining_kwh": self.energy.remaining_kwh,
+        })
+        try:
+            events.emit("energy", "Energy decision — acted automatically",
+                        body, decision="autonomous")
+        except Exception:
+            pass
+        return {"type": "energy_autonomous", "risk": "energy",
+                "executed": executed, "delayed": delayed}
 
     # ---------------------------------------------------------------- intervene
 
@@ -835,6 +945,7 @@ class ProactiveEngine:
             "total_load_w": self._last_snapshot.get("total_load_w", 0),
             "tariff": self._last_snapshot.get("tariff", "offpeak"),
             "cooktop_guard": self._cooktop_view(),
+            "energy": self.energy.view(self._last_snapshot, history_limit=8),
         }
 
     def _risk_view(self) -> dict:

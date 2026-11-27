@@ -36,6 +36,15 @@ DEFAULTS: dict = {
         "cooktop_no_cook_timeout": 300,
         "cooktop_max_runtime": 1800,
     },
+    # FSD Home energy layer, added after the 25 Nov project review.
+    # strict_mode is False in the safe default; config.json in this demo ships
+    # with True so the hosted simulator starts in autonomous energy mode.
+    "energy": {
+        "enabled": True,
+        "strict_mode": False,
+        "llm_decide": True,
+        "monthly_budget_kwh": 100.0,
+    },
     # Plain-text conversation for greetings and small talk. This layer never
     # receives tools and never returns an intent: it can only write prose. A
     # shorter timeout than the tool loop keeps "hello" from hanging on a slow

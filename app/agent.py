@@ -24,7 +24,7 @@ from __future__ import annotations
 import re
 from datetime import datetime, timedelta
 
-from . import agent_loop, audit, build, chat, db, food, llm, nlu, scenes
+from . import agent_loop, audit, build, chat, db, energy, events, food, llm, nlu, scenes
 from .devices.base import FAN_LABELS, MODE_LABELS, describe_action
 
 # how long a half-finished request stays open
@@ -71,6 +71,9 @@ class Agent:
     def __init__(self, adapter, cfg: dict) -> None:
         self.adapter = adapter
         self.cfg = cfg
+        # FSD energy layer. Off in Strict Mode only when the config says so;
+        # the original command path is untouched otherwise.
+        self.energy = energy.EnergyManager(cfg, adapter)
         # remembers the last device mentioned, so "set it to 24" works
         self._last_device_id: str | None = None
         # a request waiting for a missing slot
@@ -174,6 +177,17 @@ class Agent:
                     "expires": now + timedelta(seconds=PENDING_TTL),
                 }
 
+        # FSD gate. In Strict Mode an appliance request is an energy decision
+        # *before* it is a device command: the agent may delay, block or
+        # optimise it. With Strict Mode off the original path is unchanged.
+        energy_info = None
+        if intent["intent"] == "control" and self._energy_active():
+            energy_info = self._energy_gate(intent, now)
+            if energy_info and energy_info.get("handled"):
+                return energy_info["result"]
+            if energy_info and energy_info.get("actions") is not None:
+                intent = {**intent, "actions": energy_info["actions"]}
+
         if intent["intent"] == "scene":
             # A routine is a table lookup, not a parse. It answers in the same
             # tier as the rules, but it is a different thing and the benchmark
@@ -184,6 +198,8 @@ class Agent:
         result["intent_name"] = intent["intent"]
         result["tier"] = tier
         result["raw_text"] = text
+        if energy_info:
+            result["energy_decision"] = energy_info.get("decision")
 
         self._loop_ctx = None  # a parsed command ends any open loop thread
 
@@ -626,6 +642,74 @@ class Agent:
         partial["confidence"] = 0.9
         self._pending = None
         return partial
+
+    # ------------------------------------------------ FSD energy gate
+
+    def _energy_active(self) -> bool:
+        """Strict Mode is the opt-in for autonomous energy control.
+
+        Checked live, like agent mode: the dashboard switch takes effect on the
+        next message without a restart.
+        """
+        try:
+            return bool(self.energy.enabled
+                        and self.energy._state.get("strict_mode"))
+        except Exception:
+            return False
+
+    def _energy_gate(self, intent: dict, now: datetime) -> dict | None:
+        """Decide an appliance request against the budget *before* executing it.
+
+        A BLOCK or DELAY is answered here and never reaches the adapter. An
+        ALLOW or OPTIMIZE hands the (possibly modified) action list back to the
+        normal execution path. Every branch is recorded with its decision.
+        """
+        targets = self._targets(intent)
+        if not targets:
+            return None
+        engine = getattr(self, "proactive", None)
+        snap = (getattr(engine, "_last_snapshot", None) or {})
+        if not snap:
+            snap = {"total_load_w": 0, "tariff": "offpeak",
+                    "occupancy": {"user_home": True}}
+        decisions: list[dict] = []
+        actions = list(intent.get("actions") or [])
+        for t in targets:
+            decision = self.energy.decide(
+                t["id"], actions, snap, source="user",
+                user_text=str(intent.get("raw_text") or ""))
+            applied = self.energy.apply_decision(decision, snap)
+            decisions.append(decision)
+            if not applied.get("execute"):
+                reply = applied.get("reply") or "I did not start it."
+                result = {
+                    "reply": reply,
+                    "ok": bool(applied.get("delayed")),
+                    "actions": [],
+                    "intent_name": "energy_gate",
+                    "tier": "energy",
+                    "raw_text": intent.get("raw_text", ""),
+                    "energy_decision": decision,
+                    "energy_applied": applied,
+                }
+                db.add_message("user", result["raw_text"], {"intent": "energy_gate"})
+                db.add_message("assistant", reply, {
+                    "intent": "energy_gate",
+                    "decision": decision["action"],
+                    "decided_by": decision.get("decided_by"),
+                    "reason": decision.get("reason"),
+                    "job": applied.get("job"),
+                })
+                try:
+                    events.emit("energy", "Energy decision", reply,
+                                decision=decision["action"])
+                except Exception:
+                    pass
+                return {"handled": True, "result": result}
+            if applied.get("actions") is not None:
+                actions = applied["actions"]
+        return {"decision": decisions[-1] if decisions else None,
+                "actions": actions}
 
     # ------------------------------------------------ execution
 
