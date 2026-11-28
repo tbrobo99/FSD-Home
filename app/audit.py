@@ -40,6 +40,30 @@ def blocked(reason: str, *, context: dict | None = None, device_id: str = "") ->
         pass
 
 
+# Called with (device_id, actions) after every successful device write, so the
+# simulated house (and its whole-house load) follows every path that can
+# change a device -- chat, app buttons, the scheduler and the engine alike.
+# Bound methods are held weakly, so a discarded engine (e.g. in a test) drops out.
+_listeners: list = []
+
+
+def add_listener(fn) -> None:
+    import weakref
+    ref = weakref.WeakMethod(fn) if hasattr(fn, "__self__") else (lambda f=fn: f)
+    _listeners.append(ref)
+
+
+def _live_listeners() -> list:
+    alive = []
+    for ref in list(_listeners):
+        fn = ref()
+        if fn is None:
+            _listeners.remove(ref)
+        else:
+            alive.append(fn)
+    return alive
+
+
 def execute(adapter, device_id: str, actions: list[dict], *,
             context: dict | None = None) -> dict:
     """Run one device action with intent and outcome on either side of it.
@@ -76,4 +100,10 @@ def execute(adapter, device_id: str, actions: list[dict], *,
                detail=str(res.get("error") or ""))
     except Exception:
         pass
+    if ok:
+        for fn in _live_listeners():
+            try:
+                fn(device_id, actions)
+            except Exception:
+                pass
     return res

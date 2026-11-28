@@ -966,8 +966,8 @@ class Agent:
             return {"reply": f"{device['name']} is offline, so nothing was sent.",
                     "ok": False, "actions": []}
 
-        _, err_reply = self._budget_check(device["id"], it["actions"],
-                                         now or datetime.now(), schedule=True)
+        verdict, err_reply = self._budget_check(device["id"], it["actions"],
+                                                now or datetime.now(), schedule=True)
         if err_reply:
             # A deferral is a successful outcome: the job exists, the user
             # was told why. A BLOCK is not.
@@ -992,6 +992,10 @@ class Agent:
         else:
             reply = f"Done \u2014 {self.phrase(device['name'], it['actions'])}."
 
+        # The load planner made room (or kept the overshoot as small as it
+        # could): say exactly what else changed.
+        if verdict and verdict.get("note"):
+            reply = verdict["note"] + "\n" + reply
         if res.get("dry_run"):
             reply += "\n(dry-run mode: payload logged, not sent)"
         if it.get("clarify"):

@@ -23,6 +23,7 @@ CAPABILITIES: dict[str, list[str]] = {
     "range_hood": ["power", "fan"],
     "oven": ["power", "temperature"],
     "cooktop": ["power"],
+    "styler": ["power"],
 }
 
 # A setpoint is not one range. 22 °C is a comfortable room and a fridge disaster;

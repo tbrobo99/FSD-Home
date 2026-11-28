@@ -30,7 +30,7 @@ DEFAULT_BUDGET_KWH = 100.0
 
 # Loads that can sensibly be moved to another time. A device already running
 # is never assumed to support pause/resume — `can_start` refuses to DELAY it.
-DELAYABLE = frozenset({"washer", "dryer", "dish_washer"})
+DELAYABLE = frozenset({"washer", "dryer", "dish_washer", "styler"})
 
 # Safe tier: these may never be started autonomously, whatever the budget says.
 # This is the hard constraint the pre-authorisation does not remove.
@@ -42,7 +42,7 @@ NOMINAL_HOURS = {
     "washer": 1.0, "dryer": 1.0, "dish_washer": 1.0,
     "air_conditioner": 1.0, "oven": 0.5, "cooktop": 0.5,
     "refrigerator": 1.0, "dehumidifier": 1.0,
-    "air_purifier": 1.0, "range_hood": 0.25,
+    "air_purifier": 1.0, "range_hood": 0.25, "styler": 1.0,
 }
 
 # Max kW cap (instantaneous draw, not kWh). The cap moves chores; it never
@@ -253,6 +253,8 @@ def power_w(device: dict | None, actions: list[dict]) -> float:
         return 150.0
     if dtype == "air_purifier":
         return 40.0
+    if dtype == "styler":
+        return 1000.0   # nominal (see sensors.BASE_LOAD_W)
     return 0.0
 
 
@@ -331,24 +333,20 @@ def can_start(adapter, device_id: str, actions: list[dict], *,
                            f"{s['remaining_kwh']:.2f} kWh remaining this month")}
 
     # Max kW cap: would this start push the whole house over the user's limit?
+    # The load planner (app/loadplan.py) prepares every honest plan -- make
+    # room, delay, refuse, or go over as little as possible -- and the model,
+    # or the fixed rule order without one, picks one.
     cap = max_kw(cfg)
     load = _last_load_w if load_w is None else float(load_w)
     if (s["strict_mode"] and cap and starts and load is not None
-            and not _is_running(dev) and dev.get("type") not in CAP_EXEMPT):
-        after_kw = (load + power_w(dev, actions or [])) / 1000.0
+            and not _is_running(dev)):
+        add = power_w(dev, actions or [])
+        after_kw = (load + add) / 1000.0
         if after_kw > cap:
-            over = {**base, "limit": "max_kw", "max_kw": cap,
-                    "load_kw": round(load / 1000.0, 2), "after_kw": round(after_kw, 2)}
-            why = (f"starting it would take the house to {after_kw:.1f} kW, "
-                   f"over your {cap:g} kW limit")
-            if dev.get("type") in DELAYABLE:
-                when = (_offpeak_time(now, R) if band == "peak"
-                        else _next_slot(now, CAP_RETRY_MINUTES))
-                return {**over, "decision": DELAY, "reason": why,
-                        "scheduled_at": when.isoformat(timespec="minutes")}
-            if channel != "engine":
-                return {**over, "decision": BLOCK,
-                        "reason": why + "; switch something off first or raise the limit"}
+            return _plan_over_cap(adapter, dev, add, load, cap, band, now, R,
+                                  channel, cfg, {**base, "limit": "max_kw", "max_kw": cap,
+                                                 "load_kw": round(load / 1000.0, 2),
+                                                 "after_kw": round(after_kw, 2)})
 
     # DELAY only for a not-yet-running, movable load during the peak band.
     if (band == "peak" and dev.get("type") in DELAYABLE and starts
@@ -359,6 +357,61 @@ def can_start(adapter, device_id: str, actions: list[dict], *,
                 "scheduled_at": when.isoformat(timespec="minutes")}
 
     return {**base, "decision": ALLOW, "reason": "within budget"}
+
+
+# What the engine last saw: risks above threshold and presence. The planner
+# uses it to keep cooling during heat stress and the dehumidifier during mold.
+_house = {"firing": set(), "user_home": None}
+
+
+def adjust_load(delta_w: float) -> None:
+    """Keep the latest load honest between ticks when the planner switches
+    something on or off, so a second start in the same second sees it."""
+    global _last_load_w
+    if _last_load_w is not None:
+        _last_load_w = max(0.0, _last_load_w + float(delta_w))
+
+
+def observe(firing: set[str], user_home: bool | None) -> None:
+    _house["firing"] = set(firing)
+    _house["user_home"] = user_home
+
+
+def _plan_over_cap(adapter, dev, add, load, cap, band, now, region, channel, cfg, over):
+    from . import loadplan
+    try:
+        devices = loadplan.devices_with_state(adapter)
+    except Exception:
+        devices = []
+    plans = loadplan.build_plans(dev=dev, add_w=add, load_w=load, cap_kw=cap,
+                                 devices=devices, firing=_house["firing"],
+                                 user_home=_house["user_home"], band=band, now=now,
+                                 region=region, channel=channel)
+    facts = loadplan.facts_text(dev=dev, add_w=add, load_w=load, cap_kw=cap, band=band,
+                                user_home=_house["user_home"], firing=_house["firing"],
+                                who={"engine": "the house itself", "scheduler": "a booked job",
+                                     "chat": "the household (command)", "tool": "the household (command)",
+                                     "manual": "the household (app control)"}.get(channel, channel))
+    plan, source, trace = loadplan.choose(cfg, plans, facts, band)
+    why = (f"starting it would take the house to {over['after_kw']:.1f} kW, "
+           f"over your {cap:g} kW limit")
+    extra = {"plan": plan["kind"], "plan_text": plan["text"], "source": source, "trace": trace,
+             "plan_after_kw": plan["after_kw"]}
+    k = plan["kind"]
+    if k == loadplan.DELAY:
+        return {**over, **extra, "decision": DELAY, "label": "DELAY", "reason": why,
+                "scheduled_at": plan["book"]}
+    if k == loadplan.STOP:
+        return {**over, **extra, "decision": BLOCK, "label": "BLOCK",
+                "reason": why + "; switch something off first or raise the limit"}
+    note = loadplan.describe(plan, cap)
+    if k == loadplan.MAKE_ROOM:
+        return {**over, **extra, "decision": ALLOW, "label": "MAKE_ROOM",
+                "reason": note, "pre_steps": plan["steps"], "note": note}
+    if k == loadplan.OVER:
+        return {**over, **extra, "decision": ALLOW, "label": "ALLOW_OVER",
+                "reason": note, "pre_steps": plan["steps"], "note": note}
+    return {**over, **extra, "decision": ALLOW, "reason": plan["text"]}
 
 
 def _next_slot(now: datetime, minutes: int) -> datetime:
@@ -401,12 +454,23 @@ def gate(adapter, device_id: str, actions: list[dict], *,
     now = now or datetime.now()
     v = can_start(adapter, device_id, actions, now=now, cfg=cfg, region=region,
                   channel=channel)
+    trace = v.get("trace") or {}
     record_decision(
-        v["decision"], judge, device_id, v["reason"],
+        v.get("label", v["decision"]), v.get("source", judge), device_id, v["reason"],
         estimated_kwh=v.get("estimated_kwh"), remaining_kwh=v.get("remaining_kwh"),
-        channel=channel, prompt=prompt, model_input=model_input,
-        model_output=model_output,
+        channel=channel, prompt=prompt or trace.get("prompt"),
+        model_input=model_input or trace.get("model_input"),
+        model_output=model_output or trace.get("model_output"),
     )
+    # Make room before the caller starts the requested load. Every change goes
+    # through the audit gate; a paused load is booked to finish later.
+    if v["decision"] == ALLOW and v.get("pre_steps"):
+        from . import loadplan
+        v["made_room"] = loadplan.run_steps(adapter, v["pre_steps"],
+                                            source=v.get("source", judge))
+        adjust_load(-sum(s["saves_w"] for s in v["pre_steps"]))
+    if v["decision"] == ALLOW and v.get("limit") == "max_kw":
+        adjust_load(v.get("power_kw", 0.0) * 1000.0)
     return v
 
 

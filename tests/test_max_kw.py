@@ -77,10 +77,12 @@ class MaxKwTest(unittest.TestCase):
         self.assertEqual(v["decision"], budget.BLOCK)
         self.assertIn("switch something off", v["reason"])
 
-    def test_cooling_is_never_limited(self):
+    def test_cooling_is_never_refused(self):
+        # Cooling is never refused or delayed; with nothing to switch off the
+        # planner allows it and reports how far over the house goes.
         v = self.check("ac", 2900, self.offpeak)
-        self.assertNotEqual(v["decision"], budget.BLOCK)
-        self.assertNotEqual(v.get("limit"), "max_kw")
+        self.assertEqual(v["decision"], budget.ALLOW)
+        self.assertEqual(v["plan"], "allow_over")
 
     def test_engine_risk_response_is_not_refused_by_the_cap(self):
         v = self.check("dehumidifier", 2900, self.offpeak, channel="engine")

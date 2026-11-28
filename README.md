@@ -495,6 +495,32 @@ A booked job is checked again when it comes due. If the house is still too
 busy it moves another 30 minutes, up to 6 hours, then reports that it did
 not start. A booking is never a licence to exceed the limit later.
 
+### Scenario 5 — the load planner (LLM-chosen, rule-checked)
+
+With a max kW limit set, **every** start that would take the house over it — a chat or
+voice command, an app power button, a booked job, the house's own action, or someone
+pressing the appliance's own button — goes to the load planner (`app/loadplan.py`).
+The rules prepare every honest plan, with the whole-house load after each one; the
+language model picks one; the code carries it out and the household is told exactly what
+changed:
+
+| Plan | What happens |
+|---|---|
+| make room | raise a running AC 2°, switch off the dehumidifier, or pause a Styler / wash / dryer and finish it later — then start the request |
+| delay | don't start it now; book it (off-peak in the peak band, otherwise ≥ 30 min later) |
+| stop | refuse it — or switch it back off if it was started by hand |
+| stop and book | started by hand: switch it off and book it for later |
+| go over as little as possible | for what cannot wait or be refused (cooling): shed what can be shed, allow it, report the overshoot |
+
+Never changed: cooling during a heat-stress risk, the dehumidifier during a mold risk, the
+fridge, air cleaning, the range hood and anything cooking. Without a model, or after a bad
+answer, a fixed order decides (peak band: delay first; otherwise make room first). Every
+choice is in the decision ledger with its source and the real prompt, input and output.
+
+Demo: set the limit to 3 kW, load **Peak rate**, then **Menu → Started by hand → Someone
+starts the dryer**. The house switches the dryer back off and books it, and the Activity
+tab shows "Moved to later: over the kW limit".
+
 ### Evaluation — one simulated week, before and after
 
 `python -m eval.week` runs the same model household for a week three times,

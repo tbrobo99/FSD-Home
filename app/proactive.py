@@ -36,7 +36,7 @@ import threading
 import time
 from datetime import datetime
 
-from . import approval, audit, budget, db, events, llm, policy, preference, risk, sensors
+from . import approval, audit, budget, db, events, llm, policy, preference, regions, risk, sensors
 
 DECIDE_SYSTEM = """You are the decision layer of a proactive smart-home agent for a
 household that includes a senior. Sensors have flagged a risk; rules have
@@ -207,6 +207,14 @@ class ProactiveEngine:
         self.llm_phrase = bool(pcfg.get("llm_phrase", False)) and llm.available(cfg)
 
         self.sensors = sensors.SensorSimulator(tick_seconds=self.tick_seconds)
+        # Every successful device write -- from any path -- moves the simulated
+        # house, so the whole-house load the planner sees is the real one.
+        audit.add_listener(self.sensors.note_action)
+        # Starts the house did not make -- someone pressed the appliance's own
+        # button -- are noticed by comparing power states between ticks.
+        self._power_seen: dict[str, bool] = {}
+        self._our_writes: dict[str, float] = {}
+        audit.add_listener(self._note_write)
         self.approvals = approval.ApprovalQueue(
             ttl_seconds=policy.APPROVAL_TTL_SECONDS)
 
@@ -273,6 +281,11 @@ class ProactiveEngine:
         fired = [r for r in evaluated if r.score >= r.threshold]
         events: list[dict] = []
         fired_kinds = {r.kind for r in fired}
+        budget.observe(fired_kinds, (snap.get("occupancy") or {}).get("user_home"))
+        try:
+            events.extend(self._watch_manual_starts(snap, now, fired_kinds))
+        except Exception as exc:
+            db.log("planner.manual_failed", f"{type(exc).__name__}: {exc}", "error")
         # `_active` describes what the house is doing about a risk *now*. Once
         # the risk clears it must go, or the status line keeps reporting an
         # overload that ended minutes ago (FR-4 truthful reporting).
@@ -387,8 +400,6 @@ class ProactiveEngine:
 
             res = audit.execute(self.adapter, c.device_id, c.actions, context=ctx)
             ok = bool(res.get("ok"))
-            if ok:
-                self.sensors.note_action(c.device_id, c.actions)
             executed.append({"kind": c.kind, "label": c.label, "ok": ok,
                              "error": res.get("error"),
                              "audit_blocked": bool(res.get("audit_blocked"))})
@@ -720,7 +731,6 @@ class ProactiveEngine:
                     "audit_blocked": bool(res.get("audit_blocked")),
                     "approval": ap.to_dict(), "executed": []}
 
-        self.sensors.note_action(item["device_id"], item["actions"])
         kind = item.get("kind") or ap.action_kind
         if self.learn_enabled:
             try:
@@ -889,8 +899,6 @@ class ProactiveEngine:
                                      "action_kind": "cooktop_auto_off",
                                      "tier": "safety", "channel": "safety-interlock",
                                      "decision_source": "rules"})
-        if res.get("ok"):
-            self.sensors.note_action("cooktop", [{"action": "power", "value": False}])
         self._cooktop_on_since = None
         self._cooktop_last_cooking = None
         db.log("proactive.cooktop_auto_off", f"{reason}: ok={res.get('ok')}")
@@ -1030,13 +1038,98 @@ class ProactiveEngine:
             elif did in appliances and "power" in appliances[did]:
                 acts = [{"action": "power", "value": bool(appliances[did]["power"])}]
             elif did.startswith("ac_"):
-                acts = [{"action": "power", "value": False}]
+                # Follow the scenario's air conditioners (the peak scenario
+                # runs two of them cold), so the device list and the load
+                # planner see the same house the simulator draws power for.
+                room = {"ac_living": "Living Room", "ac_bedroom": "Bedroom",
+                        "ac_kitchen": "Kitchen"}.get(did)
+                ac = (snap.get("ac_targets") or {}).get(room) or {}
+                acts = [{"action": "power", "value": bool(ac.get("power"))}]
+                if ac.get("power") and ac.get("target_temp") is not None:
+                    acts.append({"action": "temperature", "value": ac["target_temp"]})
             else:
                 continue
             try:
                 self.adapter.apply(did, acts)
             except Exception as exc:
                 db.log("scenario.sync_failed", f"{did}: {exc}", "error")
+
+    # ---------------------------------------------------------------- by-hand starts
+
+    def _note_write(self, device_id: str, actions: list[dict]) -> None:
+        self._our_writes[device_id] = time.monotonic()
+
+    def _watch_manual_starts(self, snap: dict, now: datetime, firing: set[str]) -> list[dict]:
+        """Someone switched an appliance on by hand and the house is now over
+        the max kW: let the load planner make room, stop it and book it, or
+        keep the overshoot as small as it can -- and say what it did."""
+        from . import loadplan
+        try:
+            devices = loadplan.devices_with_state(self.adapter)
+        except Exception:
+            return []
+        started = []
+        for d in devices:
+            on = loadplan._running(d)
+            prev = self._power_seen.get(d["id"])
+            self._power_seen[d["id"]] = on
+            ours = time.monotonic() - self._our_writes.get(d["id"], -1e9) < 5
+            if prev is False and on and not ours:
+                started.append(d)
+                try:
+                    audit.record("device.started_by_hand", device_id=d["id"], channel="by-hand",
+                                 decision_source="user", detail=f"{d['name']} switched on at the appliance")
+                except Exception:
+                    pass
+        if not started:
+            return []
+        cap = budget.max_kw(self.cfg)
+        st = budget.state(now, self.cfg)
+        load = float(snap.get("total_load_w") or 0.0)
+        if not cap or not st.get("strict_mode") or load <= cap * 1000.0:
+            return []
+        out = []
+        region = regions.get(None)
+        band = "peak" if budget._in_peak(now, region) else "offpeak"
+        user_home = (snap.get("occupancy") or {}).get("user_home")
+        for d in started:
+            add = loadplan._draw(d)
+            plans = loadplan.build_plans(dev=d, add_w=add, load_w=load, cap_kw=cap, devices=devices,
+                                         firing=firing, user_home=user_home, band=band, now=now,
+                                         region=region, channel="by-hand", started_by_hand=True)
+            facts = loadplan.facts_text(dev=d, add_w=add, load_w=load, cap_kw=cap, band=band,
+                                        user_home=user_home, firing=firing,
+                                        who="someone at the appliance (by hand)")
+            plan, source, trace = loadplan.choose(self.cfg, plans, facts, band)
+            ctx = {"channel": "planner", "decision_source": source, "tier": "energy"}
+            k = plan["kind"]
+            if k in (loadplan.MAKE_ROOM, loadplan.OVER):
+                loadplan.run_steps(self.adapter, plan["steps"], source=source)
+                budget.adjust_load(-sum(s["saves_w"] for s in plan["steps"]))
+            elif k in (loadplan.STOP, loadplan.STOP_BOOK):
+                audit.execute(self.adapter, d["id"], [{"action": "power", "value": False}],
+                              context={**ctx, "action_kind": "stop_by_hand_start"})
+                budget.adjust_load(-add)
+                if k == loadplan.STOP_BOOK:
+                    db.add_job(device_id=d["id"], device_name=d["name"],
+                               actions=[{"action": "power", "value": True}],
+                               rule={"type": "once", "reason": "energy budget DELAY",
+                                     "decision_source": source},
+                               next_run_at=plan["book"],
+                               source_text="started by hand over the kW limit")
+            note = loadplan.describe(plan, cap)
+            budget.record_decision({loadplan.MAKE_ROOM: "MAKE_ROOM", loadplan.OVER: "ALLOW_OVER",
+                                    loadplan.STOP: "STOP", loadplan.STOP_BOOK: "STOP_BOOK"}.get(k, "ALLOW"),
+                                   source, d["id"], f"{d['name']} started by hand: {note}",
+                                   channel="by-hand", prompt=trace.get("prompt"),
+                                   model_input=trace.get("model_input"),
+                                   model_output=trace.get("model_output"), now=now)
+            db.add_message("system", f"\u26a1 {d['name']} was switched on by hand. {note}",
+                           {"energy_plan": k, "device_id": d["id"], "decision_source": source})
+            events.emit("energy", "Over your kW limit", f"{d['name']}: {note}", device_id=d["id"])
+            db.log("planner.by_hand", f"{d['id']} -> {k} ({source})")
+            out.append({"type": "by_hand", "device": d["id"], "plan": k, "source": source})
+        return out
 
     def reset_scenario(self, name: str) -> None:
         """Demo control: load a scenario and start the engine's memory fresh.
@@ -1048,6 +1141,7 @@ class ProactiveEngine:
         self.approvals.close_all("scenario reset")
         self.sensors.apply_scenario(name)
         self._sync_simulated_devices()
+        self._power_seen = {}       # a scenario load is not someone pressing buttons
         self._cooldown.clear()
         self._active.clear()
         self._logged_risks.clear()

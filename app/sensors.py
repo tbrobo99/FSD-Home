@@ -73,7 +73,10 @@ HEAT_LOAD_W = {"oven": 2200, "dryer": 1400, "dish_washer": 1600, "washer": 500,
 # Agency measured 4.7 % less power per degree raised (22-26 °C), i.e. about
 # 40 W per degree. That is what makes "raise the setpoint" an energy action
 # and not only a comfort one.
-BASE_LOAD_W = {"dehumidifier": 300, "purifier": 40, "range_hood": 150}
+# Styler: a nominal running figure for a clothing-care cabinet (heat-pump
+# drying with steam), used for the load demonstration -- an estimate, not an
+# LG specification.
+BASE_LOAD_W = {"dehumidifier": 300, "purifier": 40, "range_hood": 150, "styler": 1000}
 FRIDGE_W = (60, 150)          # idle draw + extra at 100 % compressor duty
 AC_W_AT_22 = 845
 AC_W_PER_DEGREE = 40
@@ -116,6 +119,7 @@ class SensorSimulator:
             "dryer": {"power": False},
             "oven": {"power": False, "target_temp": 180},
             "dehumidifier": {"power": False},
+                "styler": {"power": False},
             "range_hood": {"power": False, "fan": "auto"},
             # The purifier draws nothing worth counting as heat, but its state
             # is a sensor fact like any other: the mold branch proposes it when
@@ -362,6 +366,7 @@ class SensorSimulator:
                 "dryer": {"power": False},
                 "oven": {"power": False, "target_temp": 180},
                 "dehumidifier": {"power": False},
+                "styler": {"power": False},
                 "range_hood": {"power": False, "fan": "auto"},
                 "purifier": {"power": False, "fan": "auto"},
                 "cooktop": {"power": False},
